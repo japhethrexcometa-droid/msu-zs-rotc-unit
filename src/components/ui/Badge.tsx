@@ -12,6 +12,10 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
   pending:  { bg: 'bg-amber-900/40',  text: 'text-rotc-warning', dot: 'bg-rotc-warning' },
   approved: { bg: 'bg-green-900/40',  text: 'text-rotc-success', dot: 'bg-rotc-success' },
   rejected: { bg: 'bg-red-900/40',    text: 'text-rotc-danger',  dot: 'bg-rotc-danger' },
+  success:  { bg: 'bg-green-900/40',  text: 'text-rotc-success', dot: 'bg-rotc-success' },
+  danger:   { bg: 'bg-red-900/40',    text: 'text-rotc-danger',  dot: 'bg-rotc-danger' },
+  warning:  { bg: 'bg-amber-900/40',  text: 'text-rotc-warning', dot: 'bg-rotc-warning' },
+  info:     { bg: 'bg-blue-900/40',   text: 'text-rotc-info',    dot: 'bg-rotc-info' },
   default:  { bg: 'bg-rotc-card',     text: 'text-rotc-textMuted', dot: 'bg-rotc-textMuted' },
 }
 

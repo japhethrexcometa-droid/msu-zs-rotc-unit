@@ -2,9 +2,10 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
+  isLoading?: boolean
   icon?: ReactNode
   iconPosition?: 'left' | 'right'
 }
@@ -12,6 +13,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variants = {
   primary:   'bg-rotc-accent hover:bg-rotc-accentHover text-white shadow-lg shadow-rotc-accent/20',
   secondary: 'bg-rotc-card hover:bg-rotc-cardHover text-rotc-text border border-rotc-border',
+  outline:   'bg-transparent hover:bg-rotc-card text-rotc-text border border-rotc-border',
   danger:    'bg-rotc-danger hover:bg-red-600 text-white shadow-lg shadow-rotc-danger/20',
   ghost:     'bg-transparent hover:bg-rotc-card text-rotc-textMuted hover:text-rotc-text',
 }
@@ -26,6 +28,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   variant = 'primary',
   size = 'md',
   loading = false,
+  isLoading,
   icon,
   iconPosition = 'left',
   children,
@@ -33,7 +36,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   disabled,
   ...props
 }, ref) => {
-  const isDisabled = disabled || loading
+  const isActuallyLoading = isLoading ?? loading
+  const isDisabled = disabled || isActuallyLoading
 
   return (
     <button
@@ -50,11 +54,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       ].join(' ')}
       {...props}
     >
-      {loading
+      {isActuallyLoading
         ? <Loader2 className="h-4 w-4 animate-spin" />
         : iconPosition === 'left' && icon}
       {children && <span>{children}</span>}
-      {!loading && iconPosition === 'right' && icon}
+      {!isActuallyLoading && iconPosition === 'right' && icon}
     </button>
   )
 })

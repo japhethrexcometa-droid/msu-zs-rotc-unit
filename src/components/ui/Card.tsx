@@ -33,7 +33,8 @@ interface CardHeaderProps {
 }
 
 export function CardHeader({ title, description, action, className = '', children }: CardHeaderProps) {
-  if (children) {
+  // If no title/description, just render children as-is
+  if (!title && !description) {
     return <div className={`px-5 pt-5 pb-2 ${className}`}>{children}</div>
   }
 
@@ -43,7 +44,7 @@ export function CardHeader({ title, description, action, className = '', childre
         {title && <h3 className="text-base font-semibold text-rotc-text truncate">{title}</h3>}
         {description && <p className="text-sm text-rotc-textMuted mt-0.5">{description}</p>}
       </div>
-      {action && <div className="ml-3 flex-shrink-0">{action}</div>}
+      {(action || children) && <div className="ml-3 flex-shrink-0">{action || children}</div>}
     </div>
   )
 }
