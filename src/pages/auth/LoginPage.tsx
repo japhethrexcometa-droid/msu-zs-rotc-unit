@@ -90,11 +90,9 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-rotc-text tracking-tight">
-              MSU-ZS ROTC
+              MSU-ZS ROTC UNIT
             </h1>
-            <p className="text-sm text-rotc-textMuted mt-1">
-              System
-            </p>
+            <p className="text-sm text-rotc-textMuted mt-1"></p>
           </div>
         </div>
 
@@ -123,7 +121,7 @@ export default function LoginPage() {
                 htmlFor="idNumber"
                 className="text-sm font-medium text-rotc-textMuted"
               >
-                StudentID Number
+                Username
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-rotc-textMuted pointer-events-none">
@@ -133,7 +131,7 @@ export default function LoginPage() {
                   {...register("idNumber")}
                   id="idNumber"
                   type="text"
-                  placeholder="Enter your StudentID number"
+                  placeholder="Enter your Username"
                   autoComplete="username"
                   autoCapitalize="characters"
                   className={[
