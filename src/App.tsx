@@ -35,10 +35,10 @@ const OfficerProfile = lazy(() => import('@/pages/officer/ProfilePage'))
 
 // Cadet pages
 const CadetDashboard = lazy(() => import('@/pages/cadet/DashboardPage'))
-const CadetAttendance = lazy(() => import('@/pages/cadet/CadetAttendance'))
-const CadetCalendar = lazy(() => import('@/pages/cadet/CadetCalendar'))
-const CadetDigitalID = lazy(() => import('@/pages/cadet/CadetDigitalID'))
-const CadetProfile = lazy(() => import('@/pages/cadet/CadetProfile'))
+const CadetAttendance = lazy(() => import('@/pages/cadet/AttendancePage'))
+const CadetCalendar = lazy(() => import('@/pages/cadet/CalendarPage'))
+const CadetDigitalID = lazy(() => import('@/pages/cadet/DigitalIDPage'))
+const CadetProfile = lazy(() => import('@/pages/cadet/ProfilePage'))
 
 export default function App() {
   return (
