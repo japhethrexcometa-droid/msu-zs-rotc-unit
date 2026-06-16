@@ -25,13 +25,13 @@ const AdminArchives = lazy(() => import('@/pages/admin/ArchivesPage'))
 
 // Officer pages
 const OfficerDashboard = lazy(() => import('@/pages/officer/DashboardPage'))
-const OfficerScanner = lazy(() => import('@/pages/officer/OfficerScanner'))
-const OfficerPlatoon = lazy(() => import('@/pages/officer/OfficerPlatoon'))
-const OfficerAttendance = lazy(() => import('@/pages/officer/OfficerAttendance'))
-const OfficerCalendar = lazy(() => import('@/pages/officer/OfficerCalendar'))
-const OfficerPullout = lazy(() => import('@/pages/officer/OfficerPullout'))
-const OfficerDigitalID = lazy(() => import('@/pages/officer/OfficerDigitalID'))
-const OfficerProfile = lazy(() => import('@/pages/officer/OfficerProfile'))
+const OfficerScanner = lazy(() => import('@/pages/officer/ScannerPage'))
+const OfficerPlatoon = lazy(() => import('@/pages/officer/PlatoonPage'))
+const OfficerAttendance = lazy(() => import('@/pages/officer/AttendancePage'))
+const OfficerCalendar = lazy(() => import('@/pages/officer/CalendarPage'))
+const OfficerPullout = lazy(() => import('@/pages/officer/PulloutPage'))
+const OfficerDigitalID = lazy(() => import('@/pages/officer/DigitalIDPage'))
+const OfficerProfile = lazy(() => import('@/pages/officer/ProfilePage'))
 
 // Cadet pages
 const CadetDashboard = lazy(() => import('@/pages/cadet/DashboardPage'))
