@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { -webkit-tap-highlight-color: transparent; }
+  
+  html {
+    background-color: #1a3a2a;
+    color: #e8f5e9;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100dvh;
+    background-color: #1a3a2a;
+    overscroll-behavior: none;
+  }
+
+  /* Custom scrollbar — dark green */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1a3a2a; }
+  ::-webkit-scrollbar-thumb { 
+    background: #3d6b4a; 
+    border-radius: 3px; 
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #4caf50; }
+  
+  /* Safe area for PWA standalone mode */
+  .safe-top    { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .bg-rotc-gradient {
+    background: linear-gradient(135deg, #1a3a2a 0%, #2d5a3d 100%);
+  }
+}
