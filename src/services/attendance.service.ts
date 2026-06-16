@@ -1,9 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
-type Session = Database['public']['Tables']['attendance_sessions']['Row']
-type SessionInsert = Database['public']['Tables']['attendance_sessions']['Insert']
-type Record_ = Database['public']['Tables']['attendance_records']['Row']
+type Session = Database['public']['Tables']['sessions']['Row']
+type SessionInsert = Database['public']['Tables']['sessions']['Insert']
+type Record_ = Database['public']['Tables']['attendance']['Row']
 
 export interface SessionWithStats extends Session {
   total_present: number
@@ -14,7 +14,7 @@ export interface SessionWithStats extends Session {
 
 export async function getActiveSessions(): Promise<Session[]> {
   const { data, error } = await supabase
-    .from('attendance_sessions')
+    .from('sessions')
     .select('*')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
@@ -25,7 +25,7 @@ export async function getActiveSessions(): Promise<Session[]> {
 
 export async function getAllSessions(limit = 50): Promise<Session[]> {
   const { data, error } = await supabase
-    .from('attendance_sessions')
+    .from('sessions')
     .select('*')
     .order('session_date', { ascending: false })
     .limit(limit)
@@ -36,7 +36,7 @@ export async function getAllSessions(limit = 50): Promise<Session[]> {
 
 export async function getSessionById(id: string): Promise<Session | null> {
   const { data, error } = await supabase
-    .from('attendance_sessions')
+    .from('sessions')
     .select('*')
     .eq('id', id)
     .single()
@@ -48,7 +48,7 @@ export async function getSessionById(id: string): Promise<Session | null> {
 export async function createSession(payload: Omit<SessionInsert, 'qr_code'>): Promise<Session> {
   const qrCode = `ROTC-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
   const { data, error } = await supabase
-    .from('attendance_sessions')
+    .from('sessions')
     .insert({ ...payload, qr_code: qrCode })
     .select()
     .single()
@@ -59,7 +59,7 @@ export async function createSession(payload: Omit<SessionInsert, 'qr_code'>): Pr
 
 export async function endSession(id: string): Promise<void> {
   const { error } = await supabase
-    .from('attendance_sessions')
+    .from('sessions')
     .update({ is_active: false, ended_at: new Date().toISOString() })
     .eq('id', id)
 
@@ -68,7 +68,7 @@ export async function endSession(id: string): Promise<void> {
 
 export async function deleteSession(id: string): Promise<void> {
   const { error } = await supabase
-    .from('attendance_sessions')
+    .from('sessions')
     .delete()
     .eq('id', id)
 
@@ -78,7 +78,7 @@ export async function deleteSession(id: string): Promise<void> {
 export async function scanQrCode(qrCode: string, userId: string): Promise<{ success: boolean; status: string; message: string }> {
   // 1. Find active session matching this QR
   const { data: session, error: sessionErr } = await supabase
-    .from('attendance_sessions')
+    .from('sessions')
     .select('id, session_date')
     .eq('qr_code', qrCode)
     .eq('is_active', true)
@@ -90,7 +90,7 @@ export async function scanQrCode(qrCode: string, userId: string): Promise<{ succ
 
   // 2. Check if already recorded
   const { data: existing } = await supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('id, status')
     .eq('session_id', session.id)
     .eq('user_id', userId)
@@ -108,7 +108,7 @@ export async function scanQrCode(qrCode: string, userId: string): Promise<{ succ
 
   // 4. Insert record
   const { error: insertErr } = await supabase
-    .from('attendance_records')
+    .from('attendance')
     .insert({
       session_id: session.id,
       user_id: userId,
@@ -127,7 +127,7 @@ export async function scanQrCode(qrCode: string, userId: string): Promise<{ succ
 
 export async function getAttendanceBySession(sessionId: string): Promise<Record_[]> {
   const { data, error } = await supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('*, users:user_id(id_number, full_name, platoon, photo_url)')
     .eq('session_id', sessionId)
     .order('scanned_at', { ascending: true })
@@ -138,7 +138,7 @@ export async function getAttendanceBySession(sessionId: string): Promise<Record_
 
 export async function getAttendanceByUser(userId: string, startDate?: string, endDate?: string): Promise<Record_[]> {
   let query = supabase
-    .from('attendance_records')
+    .from('attendance')
     .select('*, session:session_id(session_date, title, location)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
@@ -157,7 +157,7 @@ export async function updateAttendanceStatus(
   notes?: string
 ): Promise<void> {
   const { error } = await supabase
-    .from('attendance_records')
+    .from('attendance')
     .update({ status, notes: notes ?? null })
     .eq('id', recordId)
 
@@ -165,7 +165,7 @@ export async function updateAttendanceStatus(
 }
 
 export async function markAbsentForSession(sessionId: string): Promise<void> {
-  // Call RPC that marks all enrolled cadets not yet in attendance_records as absent
+  // Call RPC that marks all enrolled cadets not yet in attendance as absent
   const { error } = await supabase.rpc('mark_absent_for_session' as any, {
     p_session_id: sessionId
   })

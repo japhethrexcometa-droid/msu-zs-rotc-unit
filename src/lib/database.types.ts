@@ -17,7 +17,7 @@ export type Database = {
         Insert: Omit<Row, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Insert>
       }
-      attendance_sessions: {
+      sessions: {
         Row: {
           id: string
           session_date: string
@@ -32,7 +32,7 @@ export type Database = {
         Insert: Omit<Row, 'id' | 'created_at'>
         Update: Partial<Insert>
       }
-      attendance_records: {
+      attendance: {
         Row: {
           id: string
           session_id: string
@@ -76,7 +76,7 @@ export type Database = {
         Insert: Omit<Row, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Insert>
       }
-      pullout_requests: {
+      pull_out_requests: {
         Row: {
           id: string
           officer_id: string

@@ -25,25 +25,30 @@ export async function loginUser(idNumber: string, password: string): Promise<Use
       throw new AuthError('Login failed. Please try again.', 'SERVER_ERROR')
     }
 
-    if (!data || data.length === 0) {
+    // Verify_login returns a JSON object: { success: boolean, error?: string, user?: {...} }
+    const res = data as any
+
+    if (!res || !res.success) {
+      if (res?.error?.includes('deactivated')) {
+        throw new AuthError(res.error, 'ACCOUNT_INACTIVE')
+      }
+      if (res?.error?.includes('Too many failed')) {
+        throw new AuthError(res.error, 'INVALID_CREDENTIALS')
+      }
       throw new AuthError('Invalid ID number or password.', 'INVALID_CREDENTIALS')
     }
 
-    const user = data[0]
-
-    if (!user.is_active) {
-      throw new AuthError('Your account has been deactivated. Contact your administrator.', 'ACCOUNT_INACTIVE')
-    }
+    const user = res.user
 
     const session: UserSession = {
-      id: user.user_id,
+      id: user.id,
       id_number: user.id_number,
       full_name: user.full_name,
       role: user.role as UserRole,
       platoon: user.platoon,
       designation: user.designation,
       photo_url: user.photo_url,
-      is_active: user.is_active,
+      is_active: true, // we know it's active if verify_login returned success
       expires_at: 0,      // set by store
       created_at: 0,      // set by store
       last_activity: 0    // set by store

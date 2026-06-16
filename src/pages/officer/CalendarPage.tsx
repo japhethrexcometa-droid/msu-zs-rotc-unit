@@ -8,7 +8,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSam
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
 
-type Session = Database['public']['Tables']['attendance_sessions']['Row']
+type Session = Database['public']['Tables']['sessions']['Row']
 
 export default function CalendarPage() {
   const session = useSession()

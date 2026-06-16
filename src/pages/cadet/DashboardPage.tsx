@@ -140,8 +140,8 @@ export default function DashboardPage() {
                 ) : (
                   records.slice(0, 5).map((r: any) => (
                     <tr key={r.id} className="hover:bg-rotc-cardHover transition-colors">
-                      <td className="px-5 py-3 text-rotc-text">{format(new Date(r.attendance_sessions.session_date), 'MMM d, yyyy')}</td>
-                      <td className="px-5 py-3 text-rotc-text font-medium">{r.attendance_sessions.title}</td>
+                      <td className="px-5 py-3 text-rotc-text">{format(new Date(r.sessions.session_date), 'MMM d, yyyy')}</td>
+                      <td className="px-5 py-3 text-rotc-text font-medium">{r.sessions.title}</td>
                       <td className="px-5 py-3">
                         <Badge 
                           status={r.status === 'present' ? 'success' : r.status === 'late' ? 'warning' : r.status === 'absent' ? 'danger' : 'info'} 

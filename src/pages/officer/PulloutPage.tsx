@@ -30,7 +30,7 @@ export default function PulloutPage() {
   const fetchRequests = async () => {
     setLoading(true)
     const { data, error } = await supabase
-      .from('pullout_requests')
+      .from('pull_out_requests')
       .select('*')
       .eq('user_id', session!.id)
       .order('created_at', { ascending: false })
@@ -38,7 +38,7 @@ export default function PulloutPage() {
 
     // Mock if table doesn't exist yet
     if (error || !data) {
-      console.warn('pullout_requests table might be missing')
+      console.warn('pull_out_requests table might be missing')
       setRequests([])
     } else {
       setRequests(data as any)
@@ -68,7 +68,7 @@ export default function PulloutPage() {
     setSubmitting(true)
     try {
       const { error } = await supabase
-        .from('pullout_requests')
+        .from('pull_out_requests')
         .insert({
           user_id: session.id,
           reason,
