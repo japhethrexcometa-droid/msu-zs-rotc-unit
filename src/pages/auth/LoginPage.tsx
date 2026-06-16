@@ -1,40 +1,48 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Shield, User, Lock, Eye, EyeOff, AlertCircle, ChevronRight } from 'lucide-react'
-import { useAuthStore } from '@/stores/auth.store'
-import { loginUser, AuthError } from '@/lib/auth'
-import Button from '@/components/ui/Button'
+import Button from "@/components/ui/Button";
+import { AuthError, loginUser } from "@/lib/auth";
+import { useAuthStore } from "@/stores/auth.store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  AlertCircle,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Lock,
+  Shield,
+  User,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { z } from "zod";
 
 const loginSchema = z.object({
-  idNumber: z.string()
-    .min(3, 'ID number must be at least 3 characters')
+  idNumber: z
+    .string()
+    .min(7, "ID number must be at least 7 characters")
     .transform((v) => v.toUpperCase().trim()),
-  password: z.string()
-    .min(4, 'Password must be at least 4 characters'),
-})
+  password: z.string().min(7, "Password must be at least 7 characters"),
+});
 
-type LoginForm = z.infer<typeof loginSchema>
+type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const { session, isExpired, getRouteForRole } = useAuthStore()
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { session, isExpired, getRouteForRole } = useAuthStore();
 
-  const [showPassword, setShowPassword] = useState(false)
-  const [loginError, setLoginError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const expired = searchParams.get('expired') === '1'
+  const expired = searchParams.get("expired") === "1";
 
   // Auto-redirect if already logged in
   useEffect(() => {
     if (session && !isExpired()) {
-      navigate(getRouteForRole(), { replace: true })
+      navigate(getRouteForRole(), { replace: true });
     }
-  }, [session])
+  }, [session]);
 
   const {
     register,
@@ -42,27 +50,27 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { idNumber: '', password: '' }
-  })
+    defaultValues: { idNumber: "", password: "" },
+  });
 
   const onSubmit = async (data: LoginForm) => {
-    setLoginError(null)
-    setIsSubmitting(true)
+    setLoginError(null);
+    setIsSubmitting(true);
 
     try {
-      await loginUser(data.idNumber, data.password)
-      const route = useAuthStore.getState().getRouteForRole()
-      navigate(route, { replace: true })
+      await loginUser(data.idNumber, data.password);
+      const route = useAuthStore.getState().getRouteForRole();
+      navigate(route, { replace: true });
     } catch (err) {
       if (err instanceof AuthError) {
-        setLoginError(err.message)
+        setLoginError(err.message);
       } else {
-        setLoginError('An unexpected error occurred. Please try again.')
+        setLoginError("An unexpected error occurred. Please try again.");
       }
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-rotc-bg relative overflow-hidden">
@@ -81,8 +89,12 @@ export default function LoginPage() {
             <Shield className="h-10 w-10 text-rotc-accent" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-rotc-text tracking-tight">MSU-ZS ROTC</h1>
-            <p className="text-sm text-rotc-textMuted mt-1">Attendance System</p>
+            <h1 className="text-2xl font-bold text-rotc-text tracking-tight">
+              MSU-ZS ROTC
+            </h1>
+            <p className="text-sm text-rotc-textMuted mt-1">
+              System
+            </p>
           </div>
         </div>
 
@@ -107,36 +119,46 @@ export default function LoginPage() {
 
             {/* ID Number */}
             <div className="space-y-1.5">
-              <label htmlFor="idNumber" className="text-sm font-medium text-rotc-textMuted">
-                ID Number
+              <label
+                htmlFor="idNumber"
+                className="text-sm font-medium text-rotc-textMuted"
+              >
+                StudentID Number
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-rotc-textMuted pointer-events-none">
                   <User className="h-4 w-4" />
                 </div>
                 <input
-                  {...register('idNumber')}
+                  {...register("idNumber")}
                   id="idNumber"
                   type="text"
-                  placeholder="Enter your ID number"
+                  placeholder="Enter your StudentID number"
                   autoComplete="username"
                   autoCapitalize="characters"
                   className={[
-                    'w-full pl-10 pr-4 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm',
-                    'placeholder-rotc-textMuted/50 transition-all duration-150',
-                    'focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent',
-                    errors.idNumber ? 'border-rotc-danger' : 'border-rotc-border',
-                  ].join(' ')}
+                    "w-full pl-10 pr-4 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
+                    "placeholder-rotc-textMuted/50 transition-all duration-150",
+                    "focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent",
+                    errors.idNumber
+                      ? "border-rotc-danger"
+                      : "border-rotc-border",
+                  ].join(" ")}
                 />
               </div>
               {errors.idNumber && (
-                <p className="text-xs text-rotc-danger">{errors.idNumber.message}</p>
+                <p className="text-xs text-rotc-danger">
+                  {errors.idNumber.message}
+                </p>
               )}
             </div>
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-sm font-medium text-rotc-textMuted">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-rotc-textMuted"
+              >
                 Password
               </label>
               <div className="relative">
@@ -144,17 +166,19 @@ export default function LoginPage() {
                   <Lock className="h-4 w-4" />
                 </div>
                 <input
-                  {...register('password')}
+                  {...register("password")}
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   className={[
-                    'w-full pl-10 pr-12 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm',
-                    'placeholder-rotc-textMuted/50 transition-all duration-150',
-                    'focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent',
-                    errors.password ? 'border-rotc-danger' : 'border-rotc-border',
-                  ].join(' ')}
+                    "w-full pl-10 pr-12 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
+                    "placeholder-rotc-textMuted/50 transition-all duration-150",
+                    "focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent",
+                    errors.password
+                      ? "border-rotc-danger"
+                      : "border-rotc-border",
+                  ].join(" ")}
                 />
                 <button
                   type="button"
@@ -162,11 +186,17 @@ export default function LoginPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-rotc-textMuted hover:text-rotc-text transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-xs text-rotc-danger">{errors.password.message}</p>
+                <p className="text-xs text-rotc-danger">
+                  {errors.password.message}
+                </p>
               )}
             </div>
 
@@ -185,7 +215,7 @@ export default function LoginPage() {
         {/* Enroll link */}
         <div className="text-center space-y-3">
           <p className="text-sm text-rotc-textMuted">
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link
               to="/enroll/cadet"
               className="text-rotc-accent hover:text-rotc-accentHover font-medium inline-flex items-center gap-0.5 transition-colors"
@@ -201,5 +231,5 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
-  )
+  );
 }

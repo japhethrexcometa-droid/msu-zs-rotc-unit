@@ -1,32 +1,39 @@
-import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Shield, ArrowLeft, AlertCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { supabase } from "@/lib/supabase";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, ArrowLeft, Shield } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { z } from "zod";
 
 const enrollSchema = z.object({
-  full_name: z.string().min(2, 'Full name is required'),
-  id_number: z.string().min(3, 'ID number is required (e.g. 2024-ROTC-001)'),
+  full_name: z.string().min(2, "Full name is required"),
+  id_number: z.string().min(3, 'StudentID number is required (e.g. 1008353)'),
   platoon: z.string().optional(),
   contact_number: z.string().optional(),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-})
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+});
 
-type EnrollForm = z.infer<typeof enrollSchema>
+type EnrollForm = z.infer<typeof enrollSchema>;
 
-const platoons = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'To be assigned']
+const platoons = [
+  "Alpha",
+  "Bravo",
+  "Charlie",
+  "Delta",
+  "Echo",
+  "To be assigned",
+];
 
 export default function EnrollPage() {
-  const { role } = useParams<{ role: string }>()
-  const navigate = useNavigate()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const { role } = useParams<{ role: string }>();
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const validRole = role === 'officer' || role === 'cadet' ? role : 'cadet'
+  const validRole = role === "officer" || role === "cadet" ? role : "cadet";
 
   const {
     register,
@@ -35,43 +42,47 @@ export default function EnrollPage() {
   } = useForm<EnrollForm>({
     resolver: zodResolver(enrollSchema),
     defaultValues: {
-      full_name: '',
-      id_number: '',
-      platoon: 'To be assigned',
-      contact_number: '',
-      email: '',
-    }
-  })
+      full_name: "",
+      id_number: "",
+      platoon: "To be assigned",
+      contact_number: "",
+      email: "",
+    },
+  });
 
   const onSubmit = async (data: EnrollForm) => {
-    setSubmitError(null)
-    setIsSubmitting(true)
+    setSubmitError(null);
+    setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from('enrollment_requests').insert({
+      const { error } = await supabase.from("enrollment_requests").insert({
         full_name: data.full_name.trim(),
         id_number: data.id_number.trim().toUpperCase(),
         role: validRole,
-        platoon: data.platoon === 'To be assigned' ? null : data.platoon,
+        platoon: data.platoon === "To be assigned" ? null : data.platoon,
         contact_number: data.contact_number?.trim() || null,
         email: data.email?.trim() || null,
-        status: 'pending',
-      })
+        status: "pending",
+      });
 
       if (error) {
-        if (error.code === '23505') {
-          throw new Error('An enrollment request with this ID number already exists.')
+        if (error.code === "23505") {
+          throw new Error(
+            "An enrollment request with this ID number already exists.",
+          );
         }
-        throw new Error('Failed to submit enrollment. Please try again.')
+        throw new Error("Failed to submit enrollment. Please try again.");
       }
 
-      navigate('/enroll/success', { replace: true })
+      navigate("/enroll/success", { replace: true });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'An unexpected error occurred.')
+      setSubmitError(
+        err instanceof Error ? err.message : "An unexpected error occurred.",
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-rotc-bg relative overflow-hidden">
@@ -98,7 +109,7 @@ export default function EnrollPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-rotc-text">
-              {validRole === 'officer' ? 'Officer' : 'Cadet'} Enrollment
+              {validRole === "officer" ? "Officer" : "Cadet"} Enrollment
             </h1>
             <p className="text-sm text-rotc-textMuted mt-1">
               Submit your enrollment request for review
@@ -129,28 +140,33 @@ export default function EnrollPage() {
               label="Full Name"
               placeholder="Juan Dela Cruz"
               error={errors.full_name?.message}
-              {...register('full_name')}
+              {...register("full_name")}
             />
 
             <Input
-              label="ID Number"
-              placeholder="2024-ROTC-001"
+              label="Student ID Number"
+              placeholder="1008353"
               error={errors.id_number?.message}
-              {...register('id_number')}
+              {...register("id_number")}
             />
 
             {/* Platoon select */}
             <div className="space-y-1.5">
-              <label htmlFor="platoon" className="text-sm font-medium text-rotc-textMuted">
+              <label
+                htmlFor="platoon"
+                className="text-sm font-medium text-rotc-textMuted"
+              >
                 Platoon
               </label>
               <select
-                {...register('platoon')}
+                {...register("platoon")}
                 id="platoon"
                 className="w-full rounded-lg bg-rotc-bg/60 border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent transition-all"
               >
                 {platoons.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
                 ))}
               </select>
             </div>
@@ -159,7 +175,7 @@ export default function EnrollPage() {
               label="Contact Number"
               placeholder="+63 912 345 6789"
               error={errors.contact_number?.message}
-              {...register('contact_number')}
+              {...register("contact_number")}
             />
 
             <Input
@@ -167,7 +183,7 @@ export default function EnrollPage() {
               type="email"
               placeholder="you@example.com"
               error={errors.email?.message}
-              {...register('email')}
+              {...register("email")}
             />
 
             <Button
@@ -187,5 +203,5 @@ export default function EnrollPage() {
         </p>
       </div>
     </div>
-  )
+  );
 }
