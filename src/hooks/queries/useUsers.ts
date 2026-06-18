@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getAllCadets, getAllOfficers, getUserById,
   getCadetsByPlatoon, updateUser, deactivateUser,
-  reactivateUser, getArchivedUsers, getUserCountByRole
+  reactivateUser, getArchivedUsers, getUserCountByRole,
+  resetUserPassword
 } from '@/services/users.service'
 
 export const USER_KEYS = {
@@ -72,5 +73,12 @@ export function useReactivateUser() {
   return useMutation({
     mutationFn: reactivateUser,
     onSuccess: () => qc.invalidateQueries({ queryKey: USER_KEYS.all })
+  })
+}
+
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: ({ id, newPassword }: { id: string; newPassword: string }) =>
+      resetUserPassword(id, newPassword)
   })
 }

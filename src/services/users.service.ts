@@ -107,3 +107,15 @@ export async function getUserCountByRole(): Promise<Record<string, number>> {
     return acc
   }, {} as Record<string, number>)
 }
+
+export async function resetUserPassword(targetUserId: string, newPassword: string): Promise<void> {
+  const { data, error } = await supabase.rpc('admin_reset_user_password', {
+    p_target_id: targetUserId,
+    p_new_password: newPassword
+  })
+  
+  if (error) throw error
+  if (data && typeof data === 'object' && !data.success) {
+    throw new Error(data.error || 'Failed to reset password')
+  }
+}

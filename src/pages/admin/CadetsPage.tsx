@@ -6,9 +6,9 @@ import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
-import { useAllCadets, useUpdateUser, useDeactivateUser } from '@/hooks/queries/useUsers'
+import { useAllCadets, useUpdateUser, useDeactivateUser, useResetUserPassword } from '@/hooks/queries/useUsers'
 import { useState } from 'react'
-import { Search, Edit, UserX } from 'lucide-react'
+import { Search, Edit, UserX, Key } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
 
@@ -24,6 +24,10 @@ export default function CadetsPage() {
   const [platoonFilter, setPlatoonFilter] = useState('All')
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deactivateId, setDeactivateId] = useState<string | null>(null)
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+
+  const resetMutation = useResetUserPassword()
 
   if (!session) return null
 
@@ -63,6 +67,19 @@ export default function CadetsPage() {
       await deactivateMutation.mutateAsync(deactivateId)
       toast.success('Cadet deactivated')
       setDeactivateId(null)
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!resetPasswordUser || !newPassword) return
+    try {
+      await resetMutation.mutateAsync({ id: resetPasswordUser.id, newPassword })
+      toast.success('Password reset successfully')
+      setResetPasswordUser(null)
+      setNewPassword('')
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -112,10 +129,13 @@ export default function CadetsPage() {
                   <Badge status={c.is_active ? 'success' : 'danger'} label={c.is_active ? 'Active' : 'Inactive'} />
                 </td>
                 <td className="p-4 flex items-center gap-2">
-                  <button onClick={() => setEditUser(c)} className="p-1.5 text-rotc-textMuted hover:text-rotc-accent rounded-md hover:bg-rotc-cardHover transition-colors">
+                  <button onClick={() => setEditUser(c)} className="p-1.5 text-rotc-textMuted hover:text-rotc-accent rounded-md hover:bg-rotc-cardHover transition-colors" title="Edit">
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setDeactivateId(c.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-danger rounded-md hover:bg-rotc-cardHover transition-colors">
+                  <button onClick={() => { setResetPasswordUser(c); setNewPassword(''); }} className="p-1.5 text-rotc-textMuted hover:text-rotc-accent rounded-md hover:bg-rotc-cardHover transition-colors" title="Reset Password">
+                    <Key className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setDeactivateId(c.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-danger rounded-md hover:bg-rotc-cardHover transition-colors" title="Deactivate">
                     <UserX className="h-4 w-4" />
                   </button>
                 </td>
@@ -155,6 +175,30 @@ export default function CadetsPage() {
           <Button variant="outline" onClick={() => setDeactivateId(null)}>Cancel</Button>
           <Button variant="danger" onClick={handleDeactivate} isLoading={deactivateMutation.isPending}>Deactivate</Button>
         </div>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal isOpen={!!resetPasswordUser} onClose={() => setResetPasswordUser(null)} title="Reset Password">
+        {resetPasswordUser && (
+          <form onSubmit={handleResetPassword} className="space-y-4 mt-4">
+            <p className="text-sm text-rotc-textMuted mb-2">
+              Set a new password for <strong className="text-rotc-text">{resetPasswordUser.full_name}</strong>.
+            </p>
+            <Input 
+              label="New Password" 
+              name="newPassword" 
+              type="text" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="e.g. rotc123"
+              required 
+            />
+            <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">
+              <Button type="button" variant="outline" onClick={() => setResetPasswordUser(null)}>Cancel</Button>
+              <Button type="submit" isLoading={resetMutation.isPending}>Reset Password</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </AppLayout>
   )
