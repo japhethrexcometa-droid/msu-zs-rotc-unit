@@ -22,8 +22,8 @@ export default function SuccessPage() {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-rotc-text">Enrollment Submitted!</h1>
             <p className="text-sm text-rotc-textMuted leading-relaxed">
-              Your request has been submitted successfully. The admin will review and approve your account.
-              You will be notified once your enrollment is processed.
+              Your request has been submitted successfully. The admin will review and process your enrollment.
+              You will receive an <strong>email notification</strong> once it is approved or rejected.
             </p>
           </div>
 

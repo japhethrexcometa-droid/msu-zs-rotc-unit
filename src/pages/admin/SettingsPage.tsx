@@ -20,6 +20,31 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
 
+  const [enrollmentOpen, setEnrollmentOpen] = useState(true)
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single()
+      if (data) setEnrollmentOpen(data.value === true)
+    }
+    fetchSettings()
+  }, [])
+
+  const handleToggleEnrollment = async () => {
+    setSavingSettings(true)
+    try {
+      const { error } = await supabase.from('system_settings').update({ value: !enrollmentOpen }).eq('id', 'enrollment_open')
+      if (error) throw error
+      setEnrollmentOpen(!enrollmentOpen)
+      toast.success(`Enrollment is now ${!enrollmentOpen ? 'OPEN' : 'CLOSED'}`)
+    } catch (err: any) {
+      toast.error('Failed to update settings')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   if (!session) return null
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -63,6 +88,31 @@ export default function SettingsPage() {
   return (
     <AppLayout title="Settings">
       <div className="space-y-6 max-w-2xl">
+        {/* System Settings */}
+        {session.role === 'admin' && (
+          <Card>
+            <CardHeader title="System Settings">
+              <Settings className="h-5 w-5 text-rotc-textMuted" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 bg-rotc-bg rounded-xl border border-rotc-border">
+                <div>
+                  <p className="font-medium text-rotc-text">Public Enrollment</p>
+                  <p className="text-sm text-rotc-textMuted mt-1">Allow cadets to submit enrollment requests via the public QR code link.</p>
+                </div>
+                <Button 
+                  onClick={handleToggleEnrollment} 
+                  isLoading={savingSettings}
+                  variant={enrollmentOpen ? 'default' : 'outline'}
+                  className={enrollmentOpen ? 'bg-rotc-success hover:bg-rotc-success/90' : 'text-rotc-danger border-rotc-danger'}
+                >
+                  {enrollmentOpen ? 'OPEN' : 'CLOSED'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Change Password */}
         <Card>
           <CardHeader title="Change Password">
