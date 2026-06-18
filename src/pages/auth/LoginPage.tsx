@@ -34,6 +34,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForgotAlert, setShowForgotAlert] = useState(false);
 
   const expired = searchParams.get("expired") === "1";
 
@@ -115,13 +116,21 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Forgot Password message */}
+            {showForgotAlert && (
+              <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-rotc-accent/10 border border-rotc-accent/20 text-sm text-rotc-text animate-fade-in">
+                <Shield className="h-4 w-4 flex-shrink-0 mt-0.5 text-rotc-accent" />
+                <span>To reset your password, please contact your Platoon Leader or the S1 Admin office. They can verify your identity and issue a new password.</span>
+              </div>
+            )}
+
             {/* ID Number */}
             <div className="space-y-1.5">
               <label
                 htmlFor="idNumber"
                 className="text-sm font-medium text-rotc-textMuted"
               >
-                Username
+                ID Number
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-rotc-textMuted pointer-events-none">
@@ -131,8 +140,8 @@ export default function LoginPage() {
                   {...register("idNumber")}
                   id="idNumber"
                   type="text"
-                  placeholder="Enter your Username"
-                  autoComplete="username"
+                  placeholder="Enter your ID Number"
+                  autoComplete="id-number"
                   autoCapitalize="characters"
                   className={[
                     "w-full pl-10 pr-4 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
@@ -210,16 +219,16 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Enroll link */}
+        {/* Forgot password link */}
         <div className="text-center space-y-3">
           <p className="text-sm text-rotc-textMuted">
-            Don't have an account?{" "}
-            <Link
-              to="/enroll/cadet"
+            <button
+              type="button"
+              onClick={() => setShowForgotAlert(true)}
               className="text-rotc-accent hover:text-rotc-accentHover font-medium inline-flex items-center gap-0.5 transition-colors"
             >
-              Enroll here <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
+              Forgot Password?
+            </button>
           </p>
         </div>
 
