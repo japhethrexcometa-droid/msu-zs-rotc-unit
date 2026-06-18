@@ -22,7 +22,7 @@ BEGIN
 
   -- If user doesn't exist
   IF NOT FOUND THEN
-    RETURN json_build_object('success', false, 'error', 'Invalid ID number or password.');
+    RETURN json_build_object('success', false, 'error', 'Wrong ID number.');
   END IF;
 
   -- If user is inactive
@@ -50,7 +50,7 @@ BEGIN
     );
   ELSE
     -- Wrong password
-    RETURN json_build_object('success', false, 'error', 'Invalid ID number or password.');
+    RETURN json_build_object('success', false, 'error', 'Wrong password.');
   END IF;
 END;
 $$;

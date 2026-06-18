@@ -21,7 +21,7 @@ const loginSchema = z.object({
     .string()
     .min(1, "ID number is required")
     .transform((v) => v.toUpperCase().trim()),
-  password: z.string().min(7, "Password must be at least 7 characters"),
+  password: z.string().min(1, "Password is required"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;

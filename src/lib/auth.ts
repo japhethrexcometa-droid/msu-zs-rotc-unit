@@ -35,7 +35,9 @@ export async function loginUser(idNumber: string, password: string): Promise<Use
       if (res?.error?.includes('Too many failed')) {
         throw new AuthError(res.error, 'INVALID_CREDENTIALS')
       }
-      throw new AuthError('Invalid ID number or password.', 'INVALID_CREDENTIALS')
+      // Pass through specific error messages from the RPC
+      // e.g. "Wrong ID number." or "Wrong password."
+      throw new AuthError(res?.error || 'Invalid ID number or password.', 'INVALID_CREDENTIALS')
     }
 
     const user = res.user
