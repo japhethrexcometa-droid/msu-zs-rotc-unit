@@ -8,11 +8,11 @@ CREATE OR REPLACE FUNCTION public.verify_login(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   target_user public.users%ROWTYPE;
-  response JSON;
+  password_sha256 TEXT;
 BEGIN
   -- Look up the user (case-insensitive on id_number)
   SELECT * INTO target_user 
@@ -30,8 +30,12 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Account is deactivated.');
   END IF;
 
-  -- Verify password hash using SHA-256
-  IF lower(target_user.password_hash) = lower(encode(digest(p_password, 'sha256'), 'hex')) THEN
+  -- Compute SHA-256 hash of the provided password
+  -- pgcrypto lives in the extensions schema, so we set search_path above
+  password_sha256 := encode(extensions.digest(p_password::bytea, 'sha256'), 'hex');
+
+  -- Verify password hash
+  IF lower(target_user.password_hash) = lower(password_sha256) THEN
     -- Success! Return user data
     RETURN json_build_object(
       'success', true,

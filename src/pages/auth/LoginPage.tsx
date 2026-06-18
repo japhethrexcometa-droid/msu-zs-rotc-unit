@@ -19,7 +19,7 @@ import { z } from "zod";
 const loginSchema = z.object({
   idNumber: z
     .string()
-    .min(7, "ID number must be at least 7 characters")
+    .min(1, "ID number is required")
     .transform((v) => v.toUpperCase().trim()),
   password: z.string().min(7, "Password must be at least 7 characters"),
 });
