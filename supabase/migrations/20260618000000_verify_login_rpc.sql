@@ -22,7 +22,7 @@ BEGIN
 
   -- If user doesn't exist
   IF NOT FOUND THEN
-    RETURN json_build_object('success', false, 'error', 'Wrong ID number.');
+    RETURN json_build_object('success', false, 'error', 'Wrong ID number & password.');
   END IF;
 
   -- If user is inactive
