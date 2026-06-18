@@ -20,7 +20,7 @@ SELECT id, qr_token FROM public.users WHERE role IN ('cadet','officer');
 
 -- Generate new secure tokens (hex-encoded 16 bytes) and write to users table
 UPDATE public.users
-SET qr_token = encode(gen_random_bytes(16), 'hex')
+SET qr_token = encode(extensions.gen_random_bytes(16), 'hex')
 WHERE role IN ('cadet','officer');
 
 -- Populate the log with the new token values

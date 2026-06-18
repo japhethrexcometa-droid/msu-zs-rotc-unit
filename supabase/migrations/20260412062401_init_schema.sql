@@ -49,7 +49,6 @@ CREATE POLICY "Sessions are readable by everyone" ON public.sessions FOR SELECT 
 CREATE POLICY "Admins and officers can insert attendance" ON public.attendance FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow reading attendance" ON public.attendance FOR SELECT USING (true);
 CREATE POLICY "Users are readable by everyone" ON public.users FOR SELECT USING (true);
-CREATE POLICY "Users can upload their own photo" ON storage.objects FOR INSERT 
 CREATE POLICY "Users can update their own photo" ON public.users FOR UPDATE 
     USING (auth.uid() = id) 
     WITH CHECK (auth.uid() = id);
