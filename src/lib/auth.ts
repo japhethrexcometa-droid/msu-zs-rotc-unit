@@ -13,44 +13,53 @@ export class AuthError extends Error {
 
 export async function loginUser(idNumber: string, password: string): Promise<UserSession> {
   try {
-    const { data, error } = await supabase.rpc('verify_login', {
-      p_id_number: idNumber.trim().toUpperCase(),
-      p_password: password
+    const dummyEmail = `${idNumber.trim().toUpperCase()}@rotc.msubuug.edu.ph`
+    
+    // 1. Authenticate with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: dummyEmail,
+      password: password
     })
 
-    if (error) {
-      if (error.message?.includes('network') || error.code === 'PGRST') {
+    if (authError) {
+      if (authError.message?.includes('network')) {
         throw new AuthError('Network error. Check your connection.', 'NETWORK_ERROR')
       }
+      throw new AuthError('Invalid ID number or password.', 'INVALID_CREDENTIALS')
+    }
+
+    if (!authData.user) {
       throw new AuthError('Login failed. Please try again.', 'SERVER_ERROR')
     }
 
-    // Verify_login returns a JSON object: { success: boolean, error?: string, user?: {...} }
-    const res = data as any
+    // 2. Fetch User Profile from public.users
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single()
 
-    if (!res || !res.success) {
-      if (res?.error?.includes('deactivated')) {
-        throw new AuthError(res.error, 'ACCOUNT_INACTIVE')
-      }
-      if (res?.error?.includes('Too many failed')) {
-        throw new AuthError(res.error, 'INVALID_CREDENTIALS')
-      }
-      // Pass through specific error messages from the RPC
-      // e.g. "Wrong ID number." or "Wrong password."
-      throw new AuthError(res?.error || 'Invalid ID number or password.', 'INVALID_CREDENTIALS')
+    if (profileError || !userProfile) {
+      // If profile doesn't exist but auth succeeded, something is broken. 
+      // Force signout to prevent orphan sessions.
+      await supabase.auth.signOut()
+      throw new AuthError('User profile not found. Please contact an admin.', 'SERVER_ERROR')
     }
 
-    const user = res.user
+    if (!userProfile.is_active) {
+      await supabase.auth.signOut()
+      throw new AuthError('Account is deactivated. Please contact an admin.', 'ACCOUNT_INACTIVE')
+    }
 
     const session: UserSession = {
-      id: user.id,
-      id_number: user.id_number,
-      full_name: user.full_name,
-      role: user.role as UserRole,
-      platoon: user.platoon,
-      designation: user.designation,
-      photo_url: user.photo_url,
-      is_active: true, // we know it's active if verify_login returned success
+      id: userProfile.id,
+      id_number: userProfile.id_number,
+      full_name: userProfile.full_name,
+      role: userProfile.role as UserRole,
+      platoon: userProfile.platoon,
+      designation: userProfile.designation,
+      photo_url: userProfile.photo_url,
+      is_active: true,
       expires_at: 0,      // set by store
       created_at: 0,      // set by store
       last_activity: 0    // set by store
@@ -65,6 +74,7 @@ export async function loginUser(idNumber: string, password: string): Promise<Use
   }
 }
 
-export function logoutUser(): void {
+export async function logoutUser(): Promise<void> {
+  await supabase.auth.signOut()
   useAuthStore.getState().logout()
 }

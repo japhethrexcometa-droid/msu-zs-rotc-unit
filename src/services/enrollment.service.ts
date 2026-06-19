@@ -38,34 +38,19 @@ export async function approveEnrollment(
   request: any,
   reviewerId: string
 ): Promise<void> {
-  // 1. Call RPC to approve and create user
-  const { data: rpcData, error: rpcError } = await supabase.rpc('approve_enrollment' as any, {
-    p_request_id: request.id,
-    p_reviewer_id: reviewerId
-  })
-  
-  if (rpcError) throw rpcError;
-  if (!rpcData || !rpcData.success) throw new Error(rpcData?.error || "Failed to approve enrollment");
-
-  // 2. Call Edge Function to send email
-  if (request.email) {
-    try {
-      await supabase.functions.invoke('send-enrollment-email', {
-        body: {
-          type: 'approve',
-          email: request.email,
-          firstName: request.first_name,
-          idNumber: request.id_number
-        }
-      });
-      
-      // Update email_sent flag
-      await supabase.from('enrollment_requests').update({ email_sent: true }).eq('id', request.id);
-    } catch (emailErr) {
-      console.error("Failed to send approval email:", emailErr);
-      // We don't throw here because the approval itself succeeded
+  const { data, error } = await supabase.functions.invoke('process-enrollment', {
+    body: {
+      type: 'approve',
+      requestId: request.id,
+      email: request.email,
+      firstName: request.first_name,
+      idNumber: request.id_number,
+      fullRequestData: request
     }
-  }
+  });
+
+  if (error) throw new Error("Failed to process enrollment: " + error.message);
+  if (!data?.success) throw new Error(data?.error || "Failed to process enrollment");
 }
 
 export async function rejectEnrollment(
@@ -73,37 +58,18 @@ export async function rejectEnrollment(
   reviewerId: string,
   reason: string
 ): Promise<void> {
-  // 1. Update status
-  const { error } = await supabase
-    .from('enrollment_requests')
-    .update({
-      status: 'rejected',
-      rejection_reason: reason,
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString()
-    })
-    .eq('id', request.id)
-
-  if (error) throw error
-
-  // 2. Call Edge Function to send email
-  if (request.email) {
-    try {
-      await supabase.functions.invoke('send-enrollment-email', {
-        body: {
-          type: 'reject',
-          email: request.email,
-          firstName: request.first_name,
-          rejectionReason: reason
-        }
-      });
-      
-      // Update email_sent flag
-      await supabase.from('enrollment_requests').update({ email_sent: true }).eq('id', request.id);
-    } catch (emailErr) {
-      console.error("Failed to send rejection email:", emailErr);
+  const { data, error } = await supabase.functions.invoke('process-enrollment', {
+    body: {
+      type: 'reject',
+      requestId: request.id,
+      email: request.email,
+      firstName: request.first_name,
+      rejectionReason: reason
     }
-  }
+  });
+
+  if (error) throw new Error("Failed to reject enrollment: " + error.message);
+  if (!data?.success) throw new Error(data?.error || "Failed to reject enrollment");
 }
 
 export async function bulkImportCadets(rows: any[]): Promise<{ success: number; errors: string[] }> {
