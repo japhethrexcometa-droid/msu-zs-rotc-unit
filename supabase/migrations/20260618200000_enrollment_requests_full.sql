@@ -42,8 +42,8 @@ ALTER TABLE public.enrollment_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "enrollment_insert_anon" ON public.enrollment_requests FOR INSERT TO anon, authenticated WITH CHECK (status = 'pending');
 
 -- Only admins/officers can view and update
-CREATE POLICY "enrollment_select_admin" ON public.enrollment_requests FOR SELECT USING (check_access());
-CREATE POLICY "enrollment_update_admin" ON public.enrollment_requests FOR UPDATE USING (check_access()) WITH CHECK (check_access());
+CREATE POLICY "enrollment_select_admin" ON public.enrollment_requests FOR SELECT TO anon USING (public.check_access());
+CREATE POLICY "enrollment_update_admin" ON public.enrollment_requests FOR UPDATE TO anon USING (public.check_access()) WITH CHECK (public.check_access());
 
 -- Approve Enrollment RPC
 -- This creates the user account and marks the request as approved.
@@ -87,7 +87,7 @@ BEGIN
     password_hash, qr_token, short_token, is_active
   ) VALUES (
     req_rec.id_number, 
-    req_rec.first_name || ' ' || COALESCE(req_rec.middle_initial || ' ', '') || req_rec.last_name || COALESCE(' ' || req_rec.suffix, ''), 
+    req_rec.first_name || ' ' || COALESCE(req_rec.middle_initial || '. ', '') || req_rec.last_name || CASE WHEN req_rec.suffix IS NOT NULL AND req_rec.suffix <> 'N/A' AND req_rec.suffix <> '' THEN ' ' || req_rec.suffix ELSE '' END, 
     COALESCE(req_rec.role, 'cadet'), 
     req_rec.platoon, 
     req_rec.gender, 
@@ -111,3 +111,7 @@ EXCEPTION WHEN OTHERS THEN
   RETURN json_build_object('success', false, 'error', SQLERRM);
 END;
 $$;
+
+-- Grant permissions so the frontend can interact with the table and sequence
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.enrollment_requests TO anon, authenticated;
+GRANT USAGE ON SEQUENCE public.cadet_token_seq TO anon, authenticated;

@@ -33,7 +33,7 @@ interface EnrollmentState {
 }
 
 const initialFormState: EnrollmentState = {
-  id_number: "", school: "", last_name: "", first_name: "", middle_initial: "", suffix: "N/A", gender: "Male", date_of_birth: "", course_year: "",
+  id_number: "", school: "", last_name: "", first_name: "", middle_initial: "", suffix: "", gender: "Male", date_of_birth: "", course_year: "",
   contact_number: "", home_address: "", religion: "", blood_type: "Unknown", height_feet: "", email: "", beneficiary_name: "", beneficiary_relationship: "",
   emergency_name: "", emergency_relationship: "", emergency_contact: ""
 };
@@ -45,7 +45,7 @@ export default function EnrollPage() {
   const [formData, setFormData] = useState<EnrollmentState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   const validRole = role === "officer" || role === "cadet" ? role : "cadet";
@@ -53,9 +53,20 @@ export default function EnrollPage() {
   useEffect(() => {
     // Check if enrollment is open
     const checkSettings = async () => {
-      const { data } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single();
-      if (data && data.value === false) setIsOpen(false);
-      setIsLoadingSettings(false);
+      try {
+        const { data, error } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single();
+        if (error) throw error;
+        if (data && (data.value === true || data.value === 'true')) {
+          setIsOpen(true);
+        } else {
+          setIsOpen(false);
+        }
+      } catch (err) {
+        console.error("Failed to check enrollment status:", err);
+        setIsOpen(false);
+      } finally {
+        setIsLoadingSettings(false);
+      }
     };
     checkSettings();
 
@@ -74,11 +85,22 @@ export default function EnrollPage() {
 
   // Validation Logic
   const isStep1Valid = () => {
-    return !!(formData.id_number.trim() && formData.school.trim() && formData.last_name.trim() && formData.first_name.trim() && formData.date_of_birth && formData.course_year.trim());
+    return !!(
+      formData.id_number.trim() && formData.school.trim() && 
+      formData.last_name.trim() && formData.first_name.trim() && 
+      formData.middle_initial.trim() && formData.suffix.trim() &&
+      formData.gender.trim() && formData.date_of_birth && 
+      formData.course_year.trim()
+    );
   };
   
   const isStep2Valid = () => {
-    return !!(formData.contact_number.trim() && formData.home_address.trim() && formData.email.trim().includes('@') && formData.beneficiary_name.trim() && formData.beneficiary_relationship.trim());
+    return !!(
+      formData.contact_number.trim() && formData.home_address.trim() && 
+      formData.email.trim().includes('@') && formData.religion.trim() &&
+      formData.blood_type.trim() && formData.height_feet.trim() &&
+      formData.beneficiary_name.trim() && formData.beneficiary_relationship.trim()
+    );
   };
   
   const isStep3Valid = () => {
@@ -106,6 +128,13 @@ export default function EnrollPage() {
     setIsSubmitting(true);
 
     try {
+      // Double check if enrollment is open
+      const { data: settingData, error: settingError } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single();
+      if (settingError) throw new Error("Failed to verify enrollment status.");
+      if (!settingData || (settingData.value !== true && settingData.value !== 'true')) {
+        throw new Error("Enrollment is currently closed. You cannot submit an application at this time.");
+      }
+
       const { error } = await supabase.from("enrollment_requests").insert({
         ...formData,
         role: validRole,
@@ -146,8 +175,9 @@ export default function EnrollPage() {
     );
   }
 
-  const InputField = ({ label, field, placeholder, type = "text", required = true }: any) => (
+  const renderInputField = ({ label, field, placeholder, type = "text", required = true }: any) => (
     <Input
+      key={field}
       label={`${label} ${required ? '*' : ''}`}
       type={type}
       placeholder={placeholder}
@@ -203,12 +233,12 @@ export default function EnrollPage() {
             <div className="space-y-5 animate-fade-in">
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2">Personal Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InputField label="Student ID Number" field="id_number" placeholder="e.g. 1008352" />
-                <InputField label="School" field="school" placeholder="e.g. MSU Buug" />
-                <InputField label="First Name" field="first_name" placeholder="Juan" />
-                <InputField label="Last Name" field="last_name" placeholder="Dela Cruz" />
-                <InputField label="Middle Initial" field="middle_initial" placeholder="A" required={false} />
-                <InputField label="Suffix" field="suffix" placeholder="Jr, N/A" required={false} />
+                {renderInputField({ label: "Student ID Number", field: "id_number", placeholder: "e.g. 1008352" })}
+                {renderInputField({ label: "School", field: "school", placeholder: "e.g. MSU Buug" })}
+                {renderInputField({ label: "First Name", field: "first_name", placeholder: "Juan" })}
+                {renderInputField({ label: "Last Name", field: "last_name", placeholder: "Dela Cruz" })}
+                {renderInputField({ label: "Middle Initial", field: "middle_initial", placeholder: "A" })}
+                {renderInputField({ label: "Suffix", field: "suffix", placeholder: "Jr, III, N/A" })}
                 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Gender *</label>
@@ -221,8 +251,8 @@ export default function EnrollPage() {
                   </select>
                 </div>
                 
-                <InputField label="Date of Birth" field="date_of_birth" type="date" />
-                <InputField label="Course & Year" field="course_year" placeholder="e.g. BSIT 1" />
+                {renderInputField({ label: "Date of Birth", field: "date_of_birth", type: "date" })}
+                {renderInputField({ label: "Course & Year", field: "course_year", placeholder: "e.g. BSIT 1" })}
               </div>
             </div>
           )}
@@ -232,13 +262,13 @@ export default function EnrollPage() {
             <div className="space-y-5 animate-fade-in">
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2">Contact & Other Details</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InputField label="Contact Number" field="contact_number" placeholder="09123456789" />
-                <InputField label="Email Address (Gmail req)" field="email" type="email" placeholder="you@gmail.com" />
+                {renderInputField({ label: "Contact Number", field: "contact_number", placeholder: "09123456789" })}
+                {renderInputField({ label: "Email Address (Gmail req)", field: "email", type: "email", placeholder: "you@gmail.com" })}
                 <div className="sm:col-span-2">
-                  <InputField label="Home Address" field="home_address" placeholder="Poblacion, Buug, ZSP" />
+                  {renderInputField({ label: "Home Address", field: "home_address", placeholder: "Poblacion, Buug, ZSP" })}
                 </div>
-                <InputField label="Religion" field="religion" placeholder="e.g. Roman Catholic" required={false} />
-                <InputField label="Height (Feet)" field="height_feet" placeholder="e.g. 5'7" required={false} />
+                {renderInputField({ label: "Religion", field: "religion", placeholder: "e.g. Roman Catholic" })}
+                {renderInputField({ label: "Height (Feet)", field: "height_feet", placeholder: "e.g. 5'7" })}
                 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Blood Type</label>
@@ -255,8 +285,8 @@ export default function EnrollPage() {
 
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2 mt-8">Beneficiary</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InputField label="Beneficiary Name" field="beneficiary_name" placeholder="Full Name" />
-                <InputField label="Relationship" field="beneficiary_relationship" placeholder="Mother, Uncle, etc." />
+                {renderInputField({ label: "Beneficiary Name", field: "beneficiary_name", placeholder: "Full Name" })}
+                {renderInputField({ label: "Relationship", field: "beneficiary_relationship", placeholder: "Mother, Uncle, etc." })}
               </div>
             </div>
           )}
@@ -267,9 +297,9 @@ export default function EnrollPage() {
               <div>
                 <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2 mb-4 text-rotc-danger">Emergency Contact</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-rotc-danger/5 p-4 rounded-xl border border-rotc-danger/10">
-                  <div className="sm:col-span-2"><InputField label="Contact Name" field="emergency_name" placeholder="Full Name" /></div>
-                  <InputField label="Relationship" field="emergency_relationship" placeholder="Mother, Father, etc." />
-                  <InputField label="Contact Number" field="emergency_contact" placeholder="09123456789" />
+                  <div className="sm:col-span-2">{renderInputField({ label: "Contact Name", field: "emergency_name", placeholder: "Full Name" })}</div>
+                  {renderInputField({ label: "Relationship", field: "emergency_relationship", placeholder: "Mother, Father, etc." })}
+                  {renderInputField({ label: "Contact Number", field: "emergency_contact", placeholder: "09123456789" })}
                 </div>
               </div>
 
@@ -278,12 +308,17 @@ export default function EnrollPage() {
                   <CheckCircle2 className="h-5 w-5 text-rotc-success" /> Review Your Details
                 </h2>
                 <div className="text-sm space-y-3 bg-rotc-bg rounded-xl p-4 border border-rotc-border">
-                  <div className="grid grid-cols-2 gap-y-2">
-                    <span className="text-rotc-textMuted">ID Number:</span><span className="text-rotc-text font-medium">{formData.id_number}</span>
-                    <span className="text-rotc-textMuted">Name:</span><span className="text-rotc-text font-medium">{formData.first_name} {formData.last_name}</span>
-                    <span className="text-rotc-textMuted">School:</span><span className="text-rotc-text font-medium">{formData.school}</span>
-                    <span className="text-rotc-textMuted">Course & Year:</span><span className="text-rotc-text font-medium">{formData.course_year}</span>
-                    <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{formData.email}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">ID Number</span><span className="text-rotc-text font-medium break-words">{formData.id_number}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Name</span><span className="text-rotc-text font-medium break-words">{formData.first_name} {formData.middle_initial} {formData.last_name} {formData.suffix !== 'N/A' && formData.suffix !== '' ? formData.suffix : ''}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">School</span><span className="text-rotc-text font-medium break-words">{formData.school}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Course & Year</span><span className="text-rotc-text font-medium break-words">{formData.course_year}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Email</span><span className="text-rotc-text font-medium break-all">{formData.email}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Contact No.</span><span className="text-rotc-text font-medium break-words">{formData.contact_number}</span></div>
+                    <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Home Address</span><span className="text-rotc-text font-medium break-words">{formData.home_address}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Religion</span><span className="text-rotc-text font-medium break-words">{formData.religion}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Blood Type</span><span className="text-rotc-text font-medium break-words">{formData.blood_type}</span></div>
+                    <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Emergency Contact</span><span className="text-rotc-text font-medium break-words">{formData.emergency_name} ({formData.emergency_relationship}) - {formData.emergency_contact}</span></div>
                   </div>
                   <p className="text-xs text-rotc-textMuted/70 italic mt-2 border-t border-rotc-border pt-2">By submitting this form, you verify that all information provided is accurate and true.</p>
                 </div>
