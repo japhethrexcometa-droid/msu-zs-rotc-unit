@@ -1,11 +1,11 @@
 -- Enforce bcrypt hash for the live admin account
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 DO $$
 BEGIN
   -- Always ensure the admin account has the proper bcrypt hash for 'admin123'
   UPDATE public.users
-  SET password_hash = crypt('admin123', gen_salt('bf')),
+  SET password_hash = extensions.crypt('admin123', extensions.gen_salt('bf')),
       is_active = true
   WHERE id_number = 'admin' OR lower(full_name) = 's1 admin';
 
@@ -24,8 +24,8 @@ BEGIN
       'S1 Admin',
       'admin',
       true,
-      crypt('admin123', gen_salt('bf')),
-      encode(gen_random_bytes(32), 'hex')
+      extensions.crypt('admin123', extensions.gen_salt('bf')),
+      encode(extensions.gen_random_bytes(32), 'hex')
     );
   END IF;
 END
