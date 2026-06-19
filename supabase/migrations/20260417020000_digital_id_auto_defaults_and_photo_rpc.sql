@@ -4,7 +4,7 @@
 -- - Allow public portal photo update via credential verification RPC
 -- ============================================================
 
--- Ensure pgcrypto exists for digest() + gen_random_uuid()
+-- Ensure pgcrypto exists
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 1) Auto-generate qr_token if missing (cadet/officer)
@@ -14,8 +14,8 @@ DECLARE
   generated_token text;
 BEGIN
   IF NEW.qr_token IS NULL OR length(trim(NEW.qr_token)) = 0 THEN
-    -- 64-char hex string (sha256)
-    generated_token := encode(digest(gen_random_uuid()::text, 'sha256'), 'hex');
+    -- 64-char hex string using random bytes (secure, no SHA-256)
+    generated_token := encode(gen_random_bytes(32), 'hex');
     NEW.qr_token := generated_token;
   END IF;
 
@@ -30,9 +30,8 @@ FOR EACH ROW
 WHEN (NEW.role IN ('cadet', 'officer'))
 EXECUTE FUNCTION public.users_ensure_qr_token();
 
--- 2) Secure-ish photo update for public portal:
---    Cadet provides ID Number + Password (ROTCxxxx). We verify against password_hash.
---    The app uses SHA256(plain) via expo-crypto, stored as hex; pgcrypto digest() matches.
+-- 2) Secure photo update for public portal:
+--    Cadet provides ID Number + Password. We verify against bcrypt password_hash.
 CREATE OR REPLACE FUNCTION public.set_user_photo_by_credentials(
   p_id_number text,
   p_password text,
@@ -74,7 +73,8 @@ BEGIN
     RETURN false;
   END IF;
 
-  IF lower(expected_hash) <> lower(encode(digest(p_password, 'sha256'), 'hex')) THEN
+  -- Verify password using bcrypt
+  IF crypt(p_password, expected_hash) <> expected_hash THEN
     RETURN false;
   END IF;
 
@@ -88,4 +88,3 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.set_user_photo_by_credentials(text, text, text) TO anon, authenticated;
-

@@ -1,4 +1,4 @@
--- Create verify_login RPC for custom authentication
+-- Create verify_login RPC for custom authentication (bcrypt only)
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE OR REPLACE FUNCTION public.verify_login(
@@ -12,7 +12,6 @@ SET search_path = public, extensions
 AS $$
 DECLARE
   target_user public.users%ROWTYPE;
-  password_sha256 TEXT;
 BEGIN
   -- Look up the user (case-insensitive on id_number)
   SELECT * INTO target_user 
@@ -30,12 +29,8 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Account is deactivated.');
   END IF;
 
-  -- Compute SHA-256 hash of the provided password
-  -- pgcrypto lives in the extensions schema, so we set search_path above
-  password_sha256 := encode(extensions.digest(p_password::bytea, 'sha256'), 'hex');
-
-  -- Verify password hash
-  IF lower(target_user.password_hash) = lower(password_sha256) THEN
+  -- Verify password using bcrypt
+  IF crypt(p_password, target_user.password_hash) = target_user.password_hash THEN
     -- Success! Return user data
     RETURN json_build_object(
       'success', true,

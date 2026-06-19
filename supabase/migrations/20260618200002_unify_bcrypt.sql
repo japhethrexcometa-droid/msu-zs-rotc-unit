@@ -1,11 +1,9 @@
--- Unify all password handling to use bcrypt instead of SHA-256
--- This migration replaces verify_login and admin_reset_user_password
--- to use bcrypt via pgcrypto's crypt() and gen_salt() functions.
--- It also re-hashes the admin account's password to bcrypt.
+-- Unify all password handling to use bcrypt via pgcrypto (pure bcrypt, no SHA-256 fallback)
+-- This is the final, authoritative version of verify_login and admin_reset_user_password.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. Update verify_login to support BOTH bcrypt and SHA-256 (backward compatible)
+-- 1. verify_login — pure bcrypt only
 CREATE OR REPLACE FUNCTION public.verify_login(
   p_id_number TEXT,
   p_password TEXT
@@ -34,50 +32,28 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Account is deactivated.');
   END IF;
 
-  -- Check password: try bcrypt first, then fall back to SHA-256 for legacy
-  IF target_user.password_hash LIKE '$2a$%' OR target_user.password_hash LIKE '$2b$%' THEN
-    -- Bcrypt format
-    IF crypt(p_password, target_user.password_hash) = target_user.password_hash THEN
-      RETURN json_build_object(
-        'success', true,
-        'user', json_build_object(
-          'id', target_user.id,
-          'id_number', target_user.id_number,
-          'full_name', target_user.full_name,
-          'role', target_user.role,
-          'platoon', target_user.platoon,
-          'photo_url', target_user.photo_url
-        )
-      );
-    ELSE
-      RETURN json_build_object('success', false, 'error', 'Wrong password.');
-    END IF;
+  -- Verify password with bcrypt
+  IF crypt(p_password, target_user.password_hash) = target_user.password_hash THEN
+    RETURN json_build_object(
+      'success', true,
+      'user', json_build_object(
+        'id', target_user.id,
+        'id_number', target_user.id_number,
+        'full_name', target_user.full_name,
+        'role', target_user.role,
+        'platoon', target_user.platoon,
+        'photo_url', target_user.photo_url
+      )
+    );
   ELSE
-    -- Legacy SHA-256 format (for existing accounts not yet migrated)
-    IF lower(target_user.password_hash) = lower(encode(extensions.digest(p_password::bytea, 'sha256'), 'hex')) THEN
-      -- Success AND auto-upgrade the password to bcrypt for future logins
-      UPDATE public.users SET password_hash = crypt(p_password, gen_salt('bf')) WHERE id = target_user.id;
-      RETURN json_build_object(
-        'success', true,
-        'user', json_build_object(
-          'id', target_user.id,
-          'id_number', target_user.id_number,
-          'full_name', target_user.full_name,
-          'role', target_user.role,
-          'platoon', target_user.platoon,
-          'photo_url', target_user.photo_url
-        )
-      );
-    ELSE
-      RETURN json_build_object('success', false, 'error', 'Wrong password.');
-    END IF;
+    RETURN json_build_object('success', false, 'error', 'Wrong password.');
   END IF;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
 
--- 2. Update admin_reset_user_password to use bcrypt
+-- 2. admin_reset_user_password — pure bcrypt only
 CREATE OR REPLACE FUNCTION public.admin_reset_user_password(
   p_target_id UUID,
   p_new_password TEXT
