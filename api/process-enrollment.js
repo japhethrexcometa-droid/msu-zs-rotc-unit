@@ -57,11 +57,11 @@ export default async function handler(req, res) {
     }
 
     // 4. Create Account
-    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const tempPassword = idNumber;
 
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
-      password: temporaryPassword,
+      password: tempPassword,
       email_confirm: true
     });
 
@@ -127,7 +127,7 @@ export default async function handler(req, res) {
             <p>Your enrollment request has been approved.</p>
             <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0;"><strong>ID Number:</strong> ${idNumber}</p>
-              <p style="margin: 5px 0 0 0;"><strong>Temporary Password:</strong> ${temporaryPassword}</p>
+              <p style="margin: 5px 0 0 0;"><strong>Password:</strong> ${tempPassword}</p>
             </div>
             <p>You can now log in to the ROTC Portal using these credentials. Please change your password after logging in.</p>
             <br/>
