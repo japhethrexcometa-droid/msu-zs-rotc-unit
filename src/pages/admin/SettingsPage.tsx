@@ -34,7 +34,7 @@ export default function SettingsPage() {
   const handleToggleEnrollment = async () => {
     setSavingSettings(true)
     try {
-      const { error } = await supabase.from('system_settings').update({ value: !enrollmentOpen }).eq('id', 'enrollment_open')
+      const { error } = await supabase.from('system_settings').upsert({ id: 'enrollment_open', value: !enrollmentOpen, description: 'Toggle to allow or block new enrollment requests' })
       if (error) throw error
       setEnrollmentOpen(!enrollmentOpen)
       toast.success(`Enrollment is now ${!enrollmentOpen ? 'OPEN' : 'CLOSED'}`)
