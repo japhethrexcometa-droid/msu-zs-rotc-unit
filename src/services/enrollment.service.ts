@@ -38,19 +38,33 @@ export async function approveEnrollment(
   request: any,
   reviewerId: string
 ): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('process-enrollment', {
-    body: {
+  // Fetch the current user session so we can attach the JWT manually
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("You must be logged in to approve requests.");
+
+  // Call the Vercel Serverless Function instead of the Supabase Edge Function
+  const response = await fetch('/api/process-enrollment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
       type: 'approve',
       requestId: request.id,
       email: request.email,
       firstName: request.first_name,
       idNumber: request.id_number,
       fullRequestData: request
-    }
+    })
   });
 
-  if (error) throw new Error("Failed to process enrollment: " + error.message);
-  if (!data?.success) throw new Error(data?.error || "Failed to process enrollment");
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error("Failed to process enrollment: " + (result.error || response.statusText));
+  }
 }
 
 export async function rejectEnrollment(

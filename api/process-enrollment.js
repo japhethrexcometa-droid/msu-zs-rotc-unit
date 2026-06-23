@@ -1,0 +1,156 @@
+import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
+
+export default async function handler(req, res) {
+  // 1. Setup CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+  );
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  try {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    // VERY IMPORTANT: Ensure Vercel has SUPABASE_SERVICE_ROLE_KEY set (NOT VITE_...)
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing Supabase environment variables on server. Make sure SUPABASE_SERVICE_ROLE_KEY is set in Vercel.");
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      throw new Error("Missing Authorization header.");
+    }
+
+    // 2. Initialize Clients
+    const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '', {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 3. Verify Admin Access
+    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
+    if (authError || !user) throw new Error("Unauthorized: " + (authError?.message || "User not found"));
+
+    const { data: userData } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
+    if (!userData || userData.role !== 'admin') {
+      throw new Error("Forbidden: Only admins can process enrollments.");
+    }
+
+    const { type, requestId, email, firstName, idNumber, fullRequestData } = req.body;
+
+    if (type !== 'approve') {
+      throw new Error("Only 'approve' type is supported by this endpoint.");
+    }
+
+    // 4. Create Account
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+
+    const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: temporaryPassword,
+      email_confirm: true
+    });
+
+    if (createError) throw new Error("Failed to create user auth: " + createError.message);
+
+    // 5. Insert Profile
+    const { error: insertError } = await supabaseAdmin.from('users').insert({
+      id: authData.user.id,
+      id_number: idNumber,
+      first_name: firstName,
+      last_name: fullRequestData.last_name,
+      middle_initial: fullRequestData.middle_initial,
+      gender: fullRequestData.gender,
+      dob: fullRequestData.dob,
+      course: fullRequestData.course,
+      contact: fullRequestData.contact,
+      email: email,
+      address: fullRequestData.address,
+      blood_type: fullRequestData.blood_type,
+      emergency_contact_name: fullRequestData.emergency_contact_name,
+      emergency_contact_number: fullRequestData.emergency_contact_number,
+      role: 'cadet',
+      school: fullRequestData.school,
+      platoon: 'Unassigned',
+      is_deleted: false,
+      date_created: new Date().toISOString()
+    });
+
+    if (insertError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      throw new Error("Failed to create user profile: " + insertError.message);
+    }
+
+    // 6. Update Request Status
+    const { error: updateError } = await supabaseAdmin.from('enrollment_requests').update({ 
+      status: 'approved',
+      processed_by: user.id,
+      processed_at: new Date().toISOString()
+    }).eq('id', requestId);
+
+    if (updateError) {
+      console.error("Failed to update request status, but user was created:", updateError);
+    }
+
+    // 7. Send Email via Nodemailer (No TCP restrictions on Vercel AWS Lambda!)
+    try {
+      if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
+        console.warn("SMTP credentials missing, skipping email.");
+      } else {
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
+          auth: {
+            user: process.env.SMTP_EMAIL,
+            pass: process.env.SMTP_PASSWORD
+          }
+        });
+
+        const htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1a472a;">Welcome to MSU ZS ROTC</h2>
+            <p>Dear ${firstName},</p>
+            <p>Your enrollment request has been approved.</p>
+            <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>ID Number:</strong> ${idNumber}</p>
+              <p style="margin: 5px 0 0 0;"><strong>Temporary Password:</strong> ${temporaryPassword}</p>
+            </div>
+            <p>You can now log in to the ROTC Portal using these credentials. Please change your password after logging in.</p>
+            <br/>
+            <p>Best regards,<br/>MSU ZS ROTC Administration</p>
+          </div>
+        `;
+
+        await transporter.sendMail({
+          from: \`"MSU ZS ROTC Unit" <\${process.env.SMTP_EMAIL}>\`,
+          to: email,
+          subject: "Welcome to MSU ZS ROTC Unit",
+          html: htmlContent
+        });
+      }
+    } catch (emailError) {
+      console.error("Non-blocking email error:", emailError);
+    }
+
+    return res.status(200).json({ success: true, message: "Enrollment processed." });
+
+  } catch (error) {
+    console.error("Vercel Serverless Error:", error);
+    return res.status(400).json({ success: false, error: error.message });
+  }
+}
