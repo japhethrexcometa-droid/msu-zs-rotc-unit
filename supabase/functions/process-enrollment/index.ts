@@ -169,7 +169,7 @@ async function sendGmailEmail(smtpEmail: string, smtpPassword: string, email: st
   })
 
   await client.send({
-    from: \`MSU-ZS ROTC Unit <\${smtpEmail}>\`,
+    from: `MSU-ZS ROTC Unit <${smtpEmail}>`,
     to: email,
     subject: subject,
     content: "Please view this email in an HTML compatible client.",
