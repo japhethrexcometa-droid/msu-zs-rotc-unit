@@ -2,6 +2,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { supabase } from "@/lib/supabase";
 import { AlertCircle, ArrowLeft, ArrowRight, Shield, CheckCircle2 } from "lucide-react";
+import { useEnrollmentOpen } from '@/hooks/queries/useSettings';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -45,31 +46,11 @@ export default function EnrollPage() {
   const [formData, setFormData] = useState<EnrollmentState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const { data: isOpen = false, isLoading: isLoadingSettings } = useEnrollmentOpen();
 
   const validRole = role === "officer" || role === "cadet" ? role : "cadet";
 
   useEffect(() => {
-    // Check if enrollment is open
-    const checkSettings = async () => {
-      try {
-        const { data, error } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single();
-        if (error) throw error;
-        if (data && (data.value === true || data.value === 'true')) {
-          setIsOpen(true);
-        } else {
-          setIsOpen(false);
-        }
-      } catch (err) {
-        console.error("Failed to check enrollment status:", err);
-        setIsOpen(false);
-      } finally {
-        setIsLoadingSettings(false);
-      }
-    };
-    checkSettings();
-
     // Load from offline storage
     const saved = localStorage.getItem('enrollment_draft');
     if (saved) {

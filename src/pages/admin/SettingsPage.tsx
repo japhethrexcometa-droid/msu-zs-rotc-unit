@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { logoutUser } from '@/lib/auth'
 import { toast } from 'sonner'
 import { Settings, User, LogOut, Info } from 'lucide-react'
+import { Lock, Unlock, Shield, Bell, Save } from 'lucide-react'
+import { useEnrollmentOpen, useToggleEnrollment } from '@/hooks/queries/useSettings'
 import { format } from 'date-fns'
 
 export default function SettingsPage() {
@@ -20,28 +22,15 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
 
-  const [enrollmentOpen, setEnrollmentOpen] = useState(true)
-  const [savingSettings, setSavingSettings] = useState(false)
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      const { data } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single()
-      if (data) setEnrollmentOpen(data.value === true)
-    }
-    fetchSettings()
-  }, [])
+  const { data: enrollmentOpen = true, isLoading: isLoadingSettings } = useEnrollmentOpen()
+  const toggleMutation = useToggleEnrollment()
 
   const handleToggleEnrollment = async () => {
-    setSavingSettings(true)
     try {
-      const { error } = await supabase.from('system_settings').upsert({ id: 'enrollment_open', value: !enrollmentOpen, description: 'Toggle to allow or block new enrollment requests' })
-      if (error) throw error
-      setEnrollmentOpen(!enrollmentOpen)
+      await toggleMutation.mutateAsync(!enrollmentOpen)
       toast.success(`Enrollment is now ${!enrollmentOpen ? 'OPEN' : 'CLOSED'}`)
     } catch (err: any) {
       toast.error('Failed to update settings')
-    } finally {
-      setSavingSettings(false)
     }
   }
 
@@ -102,7 +91,7 @@ export default function SettingsPage() {
                 </div>
                 <Button 
                   onClick={handleToggleEnrollment} 
-                  isLoading={savingSettings}
+                  isLoading={toggleMutation.isPending || isLoadingSettings}
                   variant={enrollmentOpen ? 'default' : 'outline'}
                   className={enrollmentOpen ? 'bg-rotc-success hover:bg-rotc-success/90' : 'text-rotc-danger border-rotc-danger'}
                 >

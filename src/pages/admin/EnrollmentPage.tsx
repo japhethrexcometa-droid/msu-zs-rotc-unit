@@ -6,36 +6,52 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { useState, useEffect, useMemo } from 'react'
-import { approveEnrollment, rejectEnrollment, getAllEnrollmentRequests } from '@/services/enrollment.service'
+import { useState, useMemo } from 'react'
+import { 
+  useEnrollmentRequests, 
+  useApproveEnrollment, 
+  useRejectEnrollment 
+} from '@/hooks/queries/useEnrollment'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { Check, X, Download, UserCheck, AlertCircle } from 'lucide-react'
+import { Check, X, Download, AlertCircle } from 'lucide-react'
+
+function ProfileDetails({ data }: { data: any }) {
+  return (
+    <div className="bg-rotc-bg border border-rotc-border rounded-xl p-4 text-sm space-y-3 max-h-[50vh] overflow-y-auto">
+      <div className="grid grid-cols-2 gap-y-2">
+        <span className="text-rotc-textMuted">ID Number:</span><span className="text-rotc-text font-medium">{data.id_number}</span>
+        <span className="text-rotc-textMuted">School:</span><span className="text-rotc-text font-medium">{data.school}</span>
+        <span className="text-rotc-textMuted">Name:</span><span className="text-rotc-text font-medium">{data.first_name} {data.middle_initial} {data.last_name} {data.suffix !== 'N/A' ? data.suffix : ''}</span>
+        <span className="text-rotc-textMuted">Gender:</span><span className="text-rotc-text font-medium">{data.gender}</span>
+        <span className="text-rotc-textMuted">DOB:</span><span className="text-rotc-text font-medium">{data.date_of_birth}</span>
+        <span className="text-rotc-textMuted">Course:</span><span className="text-rotc-text font-medium">{data.course_year}</span>
+        <span className="col-span-2 border-t border-rotc-border my-2"></span>
+        <span className="text-rotc-textMuted">Contact:</span><span className="text-rotc-text font-medium">{data.contact_number}</span>
+        <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{data.email}</span>
+        <span className="text-rotc-textMuted">Address:</span><span className="text-rotc-text font-medium col-span-2 mt-1">{data.home_address}</span>
+        <span className="col-span-2 border-t border-rotc-border my-2"></span>
+        <span className="text-rotc-textMuted">Blood Type:</span><span className="text-rotc-text font-medium">{data.blood_type}</span>
+        <span className="text-rotc-textMuted">Height:</span><span className="text-rotc-text font-medium">{data.height_feet} ft</span>
+        <span className="col-span-2 border-t border-rotc-border my-2"></span>
+        <span className="text-rotc-textMuted">Beneficiary:</span><span className="text-rotc-text font-medium">{data.beneficiary_name} ({data.beneficiary_relationship})</span>
+        <span className="text-rotc-textMuted">Emergency:</span><span className="text-rotc-text font-medium">{data.emergency_name} ({data.emergency_relationship}) - {data.emergency_contact}</span>
+      </div>
+    </div>
+  )
+}
 
 export default function EnrollmentPage() {
   const session = useSession()
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
-  const [allRequests, setAllRequests] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  
+  const { data: allRequests = [], isLoading } = useEnrollmentRequests()
+  const approveMutation = useApproveEnrollment()
+  const rejectMutation = useRejectEnrollment()
 
   const [approveItem, setApproveItem] = useState<any | null>(null)
   const [rejectItem, setRejectItem] = useState<any | null>(null)
   const [rejectReason, setRejectReason] = useState('')
-  const [actionLoading, setActionLoading] = useState(false)
-
-  const fetchRequests = async () => {
-    setIsLoading(true)
-    try {
-      const data = await getAllEnrollmentRequests()
-      setAllRequests(data)
-    } catch (err: any) {
-      toast.error('Failed to load requests: ' + err.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchRequests() }, [])
 
   const currentRequests = useMemo(() => {
     return allRequests.filter(r => r.status === tab).sort((a, b) => {
@@ -85,63 +101,26 @@ export default function EnrollmentPage() {
 
   const handleApprove = async () => {
     if (!approveItem) return
-    setActionLoading(true)
     try {
-      await approveEnrollment(approveItem, session.id)
+      await approveMutation.mutateAsync({ request: approveItem, adminId: session.id })
       toast.success('Enrollment approved! Account created and email sent.')
       setApproveItem(null)
-      fetchRequests()
     } catch (err: any) {
       toast.error(err.message)
-    } finally {
-      setActionLoading(false)
     }
   }
 
   const handleReject = async () => {
     if (!rejectItem || !rejectReason.trim()) return toast.error('Rejection reason is required')
-    setActionLoading(true)
     try {
-      await rejectEnrollment(rejectItem, session.id, rejectReason)
+      await rejectMutation.mutateAsync({ request: rejectItem, adminId: session.id, reason: rejectReason })
       toast.success('Enrollment rejected and email sent.')
       setRejectItem(null)
       setRejectReason('')
-      fetchRequests()
     } catch (err: any) {
       toast.error(err.message)
-    } finally {
-      setActionLoading(false)
     }
   }
-
-  const ProfileDetails = ({ data }: { data: any }) => (
-    <div className="bg-rotc-bg border border-rotc-border rounded-xl p-4 text-sm space-y-3 max-h-[50vh] overflow-y-auto">
-      <div className="grid grid-cols-2 gap-y-2">
-        <span className="text-rotc-textMuted">ID Number:</span><span className="text-rotc-text font-medium">{data.id_number}</span>
-        <span className="text-rotc-textMuted">School:</span><span className="text-rotc-text font-medium">{data.school}</span>
-        <span className="text-rotc-textMuted">Name:</span><span className="text-rotc-text font-medium">{data.first_name} {data.middle_initial} {data.last_name} {data.suffix !== 'N/A' ? data.suffix : ''}</span>
-        <span className="text-rotc-textMuted">Gender:</span><span className="text-rotc-text font-medium">{data.gender}</span>
-        <span className="text-rotc-textMuted">DOB:</span><span className="text-rotc-text font-medium">{data.date_of_birth}</span>
-        <span className="text-rotc-textMuted">Course:</span><span className="text-rotc-text font-medium">{data.course_year}</span>
-        
-        <span className="col-span-2 border-t border-rotc-border my-2"></span>
-        
-        <span className="text-rotc-textMuted">Contact:</span><span className="text-rotc-text font-medium">{data.contact_number}</span>
-        <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{data.email}</span>
-        <span className="text-rotc-textMuted">Address:</span><span className="text-rotc-text font-medium col-span-2 mt-1">{data.home_address}</span>
-        
-        <span className="col-span-2 border-t border-rotc-border my-2"></span>
-
-        <span className="text-rotc-textMuted">Blood Type:</span><span className="text-rotc-text font-medium">{data.blood_type}</span>
-        <span className="text-rotc-textMuted">Height:</span><span className="text-rotc-text font-medium">{data.height_feet} ft</span>
-        
-        <span className="col-span-2 border-t border-rotc-border my-2"></span>
-
-        <span className="text-rotc-textMuted">Beneficiary:</span><span className="text-rotc-text font-medium">{data.beneficiary_name} ({data.beneficiary_relationship})</span>
-        <span className="text-rotc-textMuted">Emergency:</span><span className="text-rotc-text font-medium">{data.emergency_name} ({data.emergency_relationship}) - {data.emergency_contact}</span>
-      </div>
-    </div>
-  )
 
   const tabs = ['pending', 'approved', 'rejected'] as const
 
@@ -239,7 +218,7 @@ export default function EnrollmentPage() {
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setApproveItem(null)}>Cancel</Button>
-                  <Button onClick={handleApprove} isLoading={actionLoading}>
+                  <Button onClick={handleApprove} isLoading={approveMutation.isPending}>
                     <Check className="h-4 w-4 mr-2" /> Approve & Create Account
                   </Button>
                 </div>
@@ -272,7 +251,7 @@ export default function EnrollmentPage() {
 
           <div className="flex justify-end gap-3 pt-6">
             <Button variant="outline" onClick={() => { setRejectItem(null); setRejectReason(''); }}>Cancel</Button>
-            <Button variant="danger" onClick={handleReject} isLoading={actionLoading} disabled={!rejectReason.trim()}>
+            <Button variant="danger" onClick={handleReject} isLoading={rejectMutation.isPending} disabled={!rejectReason.trim()}>
               Confirm Rejection
             </Button>
           </div>

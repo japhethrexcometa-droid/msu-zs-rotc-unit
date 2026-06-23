@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch / debug scripts (may contain DB credentials)
+scratch/
+test-email.js
+*.mjs

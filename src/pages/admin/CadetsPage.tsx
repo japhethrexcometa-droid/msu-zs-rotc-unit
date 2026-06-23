@@ -7,8 +7,8 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { useAllCadets, useUpdateUser, useDeactivateUser, useResetUserPassword } from '@/hooks/queries/useUsers'
-import { useState } from 'react'
-import { Search, Edit, UserX, Key } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Search, Edit, UserX, Key, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
 
@@ -33,12 +33,14 @@ export default function CadetsPage() {
 
   const platoons = ['All', 'Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo']
 
-  const filteredCadets = (cadets ?? []).filter(c => {
-    const matchesSearch = c.full_name.toLowerCase().includes(search.toLowerCase()) || 
-                          c.id_number.toLowerCase().includes(search.toLowerCase())
-    const matchesPlatoon = platoonFilter === 'All' || c.platoon === platoonFilter
-    return matchesSearch && matchesPlatoon
-  })
+  const filteredCadets = useMemo(() => {
+    return (cadets ?? []).filter(c => {
+      const matchesSearch = c.full_name.toLowerCase().includes(search.toLowerCase()) || 
+                            c.id_number.toLowerCase().includes(search.toLowerCase())
+      const matchesPlatoon = platoonFilter === 'All' || c.platoon === platoonFilter
+      return matchesSearch && matchesPlatoon
+    })
+  }, [cadets, search, platoonFilter])
 
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

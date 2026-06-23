@@ -7,7 +7,7 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { useAllOfficers, useUpdateUser, useDeactivateUser, useResetUserPassword } from '@/hooks/queries/useUsers'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Search, Edit, UserX, Key } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
@@ -33,12 +33,14 @@ export default function OfficersPage() {
 
   const platoons = ['All', 'Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'HQ']
 
-  const filteredOfficers = (officers ?? []).filter(o => {
-    const matchesSearch = o.full_name.toLowerCase().includes(search.toLowerCase()) || 
-                          o.id_number.toLowerCase().includes(search.toLowerCase())
-    const matchesPlatoon = platoonFilter === 'All' || o.platoon === platoonFilter
-    return matchesSearch && matchesPlatoon
-  })
+  const filteredOfficers = useMemo(() => {
+    return (officers ?? []).filter(o => {
+      const matchesSearch = o.full_name.toLowerCase().includes(search.toLowerCase()) || 
+                            o.id_number.toLowerCase().includes(search.toLowerCase())
+      const matchesPlatoon = platoonFilter === 'All' || o.platoon === platoonFilter
+      return matchesSearch && matchesPlatoon
+    })
+  }, [officers, search, platoonFilter])
 
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
