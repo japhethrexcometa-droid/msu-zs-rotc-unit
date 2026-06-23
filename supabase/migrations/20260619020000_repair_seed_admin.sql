@@ -1,31 +1,18 @@
 -- =============================================================================
--- Migration: Migrate to Supabase Auth
+-- Repair Migration: Seed Admin after partial migration failure
 -- =============================================================================
+-- The previous migration (20260619010000) partially applied:
+--   ✅ Truncated tables
+--   ✅ Linked public.users to auth.users  
+--   ✅ Dropped password_hash column
+--   ✅ Dropped obsolete RPCs
+--   ❌ Failed on gen_salt() because pgcrypto extension was dropped
+--
+-- This migration completes the admin seeding using the extensions schema.
 
--- 1. Wipe existing tables that depend on users due to Auth migration
-TRUNCATE TABLE public.attendance CASCADE;
-TRUNCATE TABLE public.enrollment_requests CASCADE;
-TRUNCATE TABLE public.users CASCADE;
-
--- 2. Link public.users to auth.users
-ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_pkey CASCADE;
-ALTER TABLE public.users ADD PRIMARY KEY (id);
-ALTER TABLE public.users ADD CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
--- 3. Drop custom password logic
-ALTER TABLE public.users DROP COLUMN IF EXISTS password_hash;
-
--- 4. Drop obsolete RPCs that reference password_hash or custom auth
-DROP FUNCTION IF EXISTS public.verify_login;
-DROP FUNCTION IF EXISTS public.admin_reset_user_password;
-DROP FUNCTION IF EXISTS public.approve_enrollment;
-DROP FUNCTION IF EXISTS public.bulk_enroll_users;
-DROP FUNCTION IF EXISTS public.update_cadet_photo_with_creds;
-
--- 5. Ensure pgcrypto is available in extensions schema
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
--- 6. Seed Admin into auth.users and public.users
+-- Seed Admin into auth.users and public.users
 DO $$
 DECLARE
   admin_uid UUID := gen_random_uuid();
