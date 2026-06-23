@@ -67,27 +67,26 @@ export default async function handler(req, res) {
 
     if (createError) throw new Error("Failed to create user auth: " + createError.message);
 
-    // 5. Insert Profile
+    // 5. Insert Profile — columns must match actual `users` table schema
+    const fullName = [
+      fullRequestData.first_name,
+      fullRequestData.middle_initial ? fullRequestData.middle_initial + '.' : '',
+      fullRequestData.last_name
+    ].filter(Boolean).join(' ');
+
     const { error: insertError } = await supabaseAdmin.from('users').insert({
       id: authData.user.id,
       id_number: idNumber,
-      first_name: firstName,
-      last_name: fullRequestData.last_name,
-      middle_initial: fullRequestData.middle_initial,
+      full_name: fullName,
       gender: fullRequestData.gender,
-      dob: fullRequestData.dob,
-      course: fullRequestData.course,
-      contact: fullRequestData.contact,
-      email: email,
-      address: fullRequestData.address,
-      blood_type: fullRequestData.blood_type,
-      emergency_contact_name: fullRequestData.emergency_contact_name,
-      emergency_contact_number: fullRequestData.emergency_contact_number,
       role: 'cadet',
       school: fullRequestData.school,
       platoon: 'Unassigned',
+      is_active: true,
       is_deleted: false,
-      date_created: new Date().toISOString()
+      blood_type: fullRequestData.blood_type,
+      emergency_contact_name: fullRequestData.emergency_contact_name,
+      emergency_contact_number: fullRequestData.emergency_contact_number
     });
 
     if (insertError) {
