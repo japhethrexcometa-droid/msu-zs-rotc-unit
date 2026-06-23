@@ -137,7 +137,7 @@ export default async function handler(req, res) {
         `;
 
         await transporter.sendMail({
-          from: \`"MSU ZS ROTC Unit" <\${process.env.SMTP_EMAIL}>\`,
+          from: `"MSU ZS ROTC Unit" <${process.env.SMTP_EMAIL}>`,
           to: email,
           subject: "Welcome to MSU ZS ROTC Unit",
           html: htmlContent
