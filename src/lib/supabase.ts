@@ -1,11 +1,25 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+// Allow overriding with explicit local variables if VITE_USE_LOCAL_SUPABASE is 1
+const isLocal = import.meta.env.VITE_USE_LOCAL_SUPABASE === '1'
+
+// If it's a Vercel production build, force the use of the real URL
+const supabaseUrl = (isLocal && import.meta.env.VITE_LOCAL_SUPABASE_URL) 
+  ? import.meta.env.VITE_LOCAL_SUPABASE_URL 
+  : import.meta.env.VITE_SUPABASE_URL as string
+
+const supabaseAnonKey = (isLocal && import.meta.env.VITE_LOCAL_SUPABASE_ANON_KEY)
+  ? import.meta.env.VITE_LOCAL_SUPABASE_ANON_KEY
+  : import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Check your .env file.')
+  console.warn('Missing Supabase environment variables. Features may be broken.')
+}
+
+// Ensure edge functions don't accidentally get called on 127.0.0.1 in production
+if (supabaseUrl && supabaseUrl.includes('127.0.0.1') && typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  console.error("CRITICAL: App is hosted remotely but trying to connect to a local Supabase instance (127.0.0.1). Edge functions will fail.")
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {

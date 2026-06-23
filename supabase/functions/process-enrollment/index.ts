@@ -36,11 +36,18 @@ serve(async (req) => {
       throw new Error("Forbidden: Only admins can process enrollments.")
     }
 
-    // 4. Parse request
+    // 4. Parse request and sanitize
     const payload = await req.json()
-    const { type, requestId, email, firstName, idNumber, rejectionReason, fullRequestData } = payload
+    const type = String(payload.type || '').trim()
+    const requestId = String(payload.requestId || '').trim()
+    const email = String(payload.email || '').trim()
+    const firstName = String(payload.firstName || '').trim()
+    const idNumber = String(payload.idNumber || '').trim()
+    const rejectionReason = payload.rejectionReason ? String(payload.rejectionReason).trim() : undefined
+    const fullRequestData = payload.fullRequestData
 
     if (!requestId || !type) throw new Error("Missing required parameters (requestId, type)")
+    if (!email || !firstName) throw new Error("Missing required parameters (email, firstName)")
 
     if (type === 'approve') {
       if (!idNumber || !fullRequestData) throw new Error("Missing full request data for approval")
