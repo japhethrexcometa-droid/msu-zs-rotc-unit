@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.44.2"
+import { SmtpClient } from "https://deno.land/x/smtp/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,15 +14,15 @@ serve(async (req) => {
 
   try {
     // 1. Get environment variables
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    if (!resendApiKey) throw new Error("RESEND_API_KEY is not set.")
+    const smtpEmail = Deno.env.get('SMTP_EMAIL')
+    const smtpPassword = Deno.env.get('SMTP_PASSWORD')
+    if (!smtpEmail || !smtpPassword) throw new Error("SMTP credentials are not set.")
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (!supabaseUrl || !supabaseServiceKey) throw new Error("Missing Supabase environment variables.")
 
     // 2. Initialize clients
-    // User client (to verify the caller is logged in and is an admin)
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) throw new Error("Missing Authorization header.")
     
@@ -29,7 +30,6 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } }
     })
 
-    // Admin client (to bypass RLS for user creation)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
     // 3. Verify Admin Role
@@ -50,26 +50,22 @@ serve(async (req) => {
     if (type === 'approve') {
       if (!idNumber || !fullRequestData) throw new Error("Missing full request data for approval")
 
-      // A. Create Supabase Auth User
-      // Convert ID number to a dummy email for auth login
       const dummyEmail = `${idNumber}@rotc.msubuug.edu.ph`
       
       const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: dummyEmail,
-        password: idNumber, // Default password is ID Number
-        email_confirm: true // Auto-confirm
+        password: idNumber,
+        email_confirm: true
       })
       if (createError) throw new Error("Failed to create Auth User: " + createError.message)
 
       const newUserId = authData.user.id
 
-      // B. Generate QR Token
       const tokenArray = new Uint8Array(32)
       crypto.getRandomValues(tokenArray)
       const qrToken = Array.from(tokenArray).map(b => b.toString(16).padStart(2, '0')).join('')
       const shortToken = 'CD' + Math.floor(Math.random() * 10000).toString().padStart(4, '0')
 
-      // C. Insert into public.users
       const { error: insertError } = await supabaseAdmin.from('users').insert({
         id: newUserId,
         id_number: idNumber,
@@ -83,18 +79,15 @@ serve(async (req) => {
         is_active: true
       })
       if (insertError) {
-        // Rollback auth user creation if public.users fails
         await supabaseAdmin.auth.admin.deleteUser(newUserId)
         throw new Error("Failed to create public user profile: " + insertError.message)
       }
 
-      // D. Update Enrollment Request Status
       await supabaseAdmin.from('enrollment_requests')
         .update({ status: 'approved', reviewed_by: user.id, reviewed_at: new Date().toISOString() })
         .eq('id', requestId)
 
-      // E. Send Approval Email
-      await sendResendEmail(resendApiKey, email, 'approve', firstName, idNumber)
+      await sendGmailEmail(smtpEmail, smtpPassword, email, 'approve', firstName, idNumber)
 
       return new Response(
         JSON.stringify({ success: true, message: "Enrollment approved and user created." }),
@@ -102,7 +95,6 @@ serve(async (req) => {
       )
 
     } else if (type === 'reject') {
-      // Reject Enrollment
       await supabaseAdmin.from('enrollment_requests')
         .update({ 
           status: 'rejected', 
@@ -112,8 +104,7 @@ serve(async (req) => {
         })
         .eq('id', requestId)
 
-      // Send Rejection Email
-      await sendResendEmail(resendApiKey, email, 'reject', firstName, null, rejectionReason)
+      await sendGmailEmail(smtpEmail, smtpPassword, email, 'reject', firstName, null, rejectionReason)
 
       return new Response(
         JSON.stringify({ success: true, message: "Enrollment rejected." }),
@@ -132,7 +123,7 @@ serve(async (req) => {
   }
 })
 
-async function sendResendEmail(apiKey: string, email: string, type: string, firstName: string, idNumber?: string, rejectionReason?: string) {
+async function sendGmailEmail(smtpEmail: string, smtpPassword: string, email: string, type: string, firstName: string, idNumber?: string, rejectionReason?: string) {
   let subject = ''
   let htmlContent = ''
 
@@ -168,23 +159,22 @@ async function sendResendEmail(apiKey: string, email: string, type: string, firs
     `
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from: 'MSU-ZS ROTC Unit <onboarding@resend.dev>', // Users must update this via Resend dashboard later
-      to: email,
-      subject: subject,
-      html: htmlContent,
-    }),
+  const client = new SmtpClient()
+
+  await client.connectTLS({
+    hostname: "smtp.gmail.com",
+    port: 465,
+    username: smtpEmail,
+    password: smtpPassword,
   })
 
-  if (!res.ok) {
-    const resData = await res.json()
-    console.error("Resend API Error:", resData)
-    throw new Error("Failed to send email via Resend.")
-  }
+  await client.send({
+    from: \`MSU-ZS ROTC Unit <\${smtpEmail}>\`,
+    to: email,
+    subject: subject,
+    content: "Please view this email in an HTML compatible client.",
+    html: htmlContent,
+  })
+
+  await client.close()
 }
