@@ -57,10 +57,16 @@ export default async function handler(req, res) {
     }
 
     // 4. Create Account
+    // Password is the student ID number — cadets can change it after first login
     const tempPassword = idNumber;
 
+    // CRITICAL: Use the dummy-email convention that matches the login flow in auth.ts
+    // Login constructs: `${idNumber}@rotc.msubuug.edu.ph`
+    // The student's real email (from enrollment form) is ONLY for sending notifications
+    const authEmail = `${idNumber.trim().toUpperCase()}@rotc.msubuug.edu.ph`;
+
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
+      email: authEmail,
       password: tempPassword,
       email_confirm: true
     });
@@ -78,6 +84,7 @@ export default async function handler(req, res) {
       id: authData.user.id,
       id_number: idNumber,
       full_name: fullName,
+      email: email,
       gender: fullRequestData.gender,
       role: 'cadet',
       school: fullRequestData.school,
