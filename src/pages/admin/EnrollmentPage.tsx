@@ -55,11 +55,22 @@ export default function EnrollmentPage() {
 
   const currentRequests = useMemo(() => {
     return allRequests.filter(r => r.status === tab).sort((a, b) => {
-      return tab === 'pending' 
-        ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (tab === 'pending') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      // Approved/Rejected: newest processed first
+      const aDate = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0
+      const bDate = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0
+      return bDate - aDate
     })
   }, [allRequests, tab])
+
+  // Count per tab for badges
+  const tabCounts = useMemo(() => ({
+    pending: allRequests.filter(r => r.status === 'pending').length,
+    approved: allRequests.filter(r => r.status === 'approved').length,
+    rejected: allRequests.filter(r => r.status === 'rejected').length,
+  }), [allRequests])
 
   // Dynamic stats
   const statsBySchool = useMemo(() => {
@@ -75,6 +86,19 @@ export default function EnrollmentPage() {
 
   const exportCSV = () => {
     if (currentRequests.length === 0) return toast.error('No records to export in this tab.')
+
+    // Debug: Log sample data to check what fields are present
+    console.log('CSV Export Debug - Sample record:', currentRequests[0])
+    console.log('CSV Export Debug - All fields in first record:', Object.keys(currentRequests[0] || {}))
+    
+    // Check specific fields that should be present
+    const criticalFields = ['religion', 'blood_type', 'height_feet', 'beneficiary_name', 'beneficiary_relationship', 'emergency_name', 'emergency_relationship', 'emergency_contact']
+    const fieldStatus = criticalFields.map(field => ({
+      field,
+      hasValue: currentRequests[0][field] !== null && currentRequests[0][field] !== undefined && currentRequests[0][field] !== '',
+      value: currentRequests[0][field]
+    }))
+    console.log('CSV Export Debug - Critical field status:', fieldStatus)
 
     // Sort by school, then gender (Female first, Male second) for organized export
     const sorted = [...currentRequests].sort((a, b) => {
@@ -229,11 +253,18 @@ export default function EnrollmentPage() {
                   <button
                     key={t}
                     onClick={() => setTab(t)}
-                    className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors flex items-center gap-1.5 ${
                       tab === t ? 'bg-rotc-accent text-white' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                     }`}
                   >
                     {t}
+                    {tabCounts[t] > 0 && (
+                      <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold ${
+                        tab === t ? 'bg-white/20 text-white' : t === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-rotc-border text-rotc-textMuted'
+                      }`}>
+                        {tabCounts[t]}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -243,7 +274,9 @@ export default function EnrollmentPage() {
             <Table
               headers={tab === 'pending' 
                 ? ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Email Status', 'Actions']
-                : ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Processed', 'Actions']
+                : tab === 'rejected'
+                  ? ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Reason', 'Processed']
+                  : ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Processed', 'Actions']
               }
               isLoading={isLoading}
               data={currentRequests}
@@ -251,28 +284,44 @@ export default function EnrollmentPage() {
               renderRow={(r) => (
                 <>
                   <td className="p-4 text-sm font-medium text-rotc-text">{r.id_number}</td>
-                  <td className="p-4 text-sm text-rotc-text">{r.first_name} {r.last_name}</td>
+                  <td className="p-4 text-sm text-rotc-text">
+                    {r.first_name} {r.middle_initial ? r.middle_initial + '.' : ''} {r.last_name}{r.suffix && r.suffix !== 'N/A' ? ' ' + r.suffix : ''}
+                  </td>
                   <td className="p-4 text-sm text-rotc-textMuted">{r.school}</td>
                   <td className="p-4 text-sm text-rotc-textMuted">{r.gender}</td>
                   <td className="p-4 text-sm text-rotc-textMuted">{format(new Date(r.created_at), 'MMM d, yyyy')}</td>
-                  <td className="p-4">
-                    {tab === 'pending' ? (
-                      r.email_sent ? (
-                        <Badge status="success" label="Sent" />
-                      ) : (
-                        <Badge status="warning" label="Pending" />
-                      )
-                    ) : (
-                      r.reviewed_at ? (
-                        <span className="text-sm text-rotc-textMuted">{format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a')}</span>
-                      ) : (
-                        <span className="text-sm text-rotc-textMuted">—</span>
-                      )
-                    )}
-                  </td>
-                  <td className="p-4 flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setApproveItem(r)}>Review</Button>
-                  </td>
+                  {tab === 'pending' ? (
+                    <>
+                      <td className="p-4">
+                        {r.email_sent ? (
+                          <Badge status="success" label="Sent" />
+                        ) : (
+                          <Badge status="warning" label="Pending" />
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <Button variant="outline" size="sm" onClick={() => setApproveItem(r)}>Review</Button>
+                      </td>
+                    </>
+                  ) : tab === 'rejected' ? (
+                    <>
+                      <td className="p-4 text-sm text-rotc-danger max-w-[200px] truncate" title={r.rejection_reason || ''}>
+                        {r.rejection_reason || '—'}
+                      </td>
+                      <td className="p-4 text-sm text-rotc-textMuted">
+                        {r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : '—'}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="p-4 text-sm text-rotc-textMuted">
+                        {r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : '—'}
+                      </td>
+                      <td className="p-4">
+                        <Button variant="outline" size="sm" onClick={() => setApproveItem(r)}>View</Button>
+                      </td>
+                    </>
+                  )}
                 </>
               )}
             />
