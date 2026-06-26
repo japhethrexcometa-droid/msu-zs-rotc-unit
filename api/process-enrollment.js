@@ -1,6 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
-import { validateUsersPayload } from './schema/users.contract.mjs';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCHEMA CONTRACT: Exact columns in public.users table
+// Update this list when adding new columns via SQL migration
+// ⛔ enrollment_requests columns (email, contact_number, etc.) do NOT exist here
+// ═══════════════════════════════════════════════════════════════════════════════
+const VALID_USERS_COLUMNS = [
+  'id', 'id_number', 'full_name', 'role', 'gender',
+  'school', 'platoon', 'designation', 'year_level',
+  'qr_token', 'short_token', 'photo_url',
+  'blood_type', 'emergency_contact_name', 'emergency_contact_number',
+  'is_active', 'is_deleted', 'created_at'
+];
+
+function validateUsersPayload(payload) {
+  const invalid = Object.keys(payload).filter(k => !VALID_USERS_COLUMNS.includes(k));
+  if (invalid.length > 0) {
+    throw new Error(`SCHEMA VIOLATION: [${invalid.join(', ')}] do not exist in public.users table.`);
+  }
+}
 
 export default async function handler(req, res) {
   // 1. Setup CORS
