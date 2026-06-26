@@ -84,7 +84,6 @@ export default async function handler(req, res) {
       id: authData.user.id,
       id_number: idNumber,
       full_name: fullName,
-      email: email,
       gender: fullRequestData.gender,
       role: 'cadet',
       school: fullRequestData.school,
