@@ -26,3 +26,14 @@ This document outlines the professional engineering flow for the ROTC PWA to pre
 ## 4. Notifications (Resend)
 - **Environment Isolation**: Never place production API keys in the frontend codebase. Use Supabase Edge Functions or a secure backend environment to trigger Resend emails.
 - **Dynamic Routing**: Email addresses must always be retrieved dynamically from the database record during the approval flow, never hardcoded.
+
+## 5. Schema Contracts (Prevent Column Mismatch Bugs)
+- **NEVER guess table columns**: Before inserting into any table from a serverless function (`api/*.js`), check the schema contract file at `api/schema/<table>.contract.mjs`. If the column doesn't exist there, it doesn't exist in the database.
+- **Validate before insert**: All serverless function inserts MUST call `validateUsersPayload(payload)` (or equivalent) before `supabaseAdmin.from('users').insert(...)`. This catches invalid columns at runtime with a clear error instead of a cryptic "schema cache" failure.
+- **Co-evolve schema + contract**: When writing a new SQL migration that adds columns, update the matching contract file in the SAME commit. Never add a column reference in JS code without first confirming it exists in the migration history AND the contract file.
+- **enrollment_requests ≠ users**: The `enrollment_requests` table has columns like `email`, `contact_number`, `home_address`, `course_year`, `religion` — these do NOT exist in `public.users`. Never copy enrollment fields into the users insert without checking the contract.
+
+## 6. Auth Email Convention
+- **Dummy email for auth, real email for notifications**: The login flow constructs `${idNumber}@rotc.msubuug.edu.ph`. Account creation in `process-enrollment.js` MUST use the exact same pattern. The student's real Gmail is ONLY used for sending notification emails via Nodemailer — never for Supabase auth account creation.
+- **Password = Student ID Number**: The default password is the student's ID number (no hashing, no random strings). Cadets can change it after first login.
+

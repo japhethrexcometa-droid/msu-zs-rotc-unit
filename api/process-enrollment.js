@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import { validateUsersPayload } from './schema/users.contract.mjs';
 
 export default async function handler(req, res) {
   // 1. Setup CORS
@@ -73,14 +74,14 @@ export default async function handler(req, res) {
 
     if (createError) throw new Error("Failed to create user auth: " + createError.message);
 
-    // 5. Insert Profile — columns must match actual `users` table schema
+    // 5. Insert Profile — columns validated against schema contract (api/schema/users.contract.mjs)
     const fullName = [
       fullRequestData.first_name,
       fullRequestData.middle_initial ? fullRequestData.middle_initial + '.' : '',
       fullRequestData.last_name
     ].filter(Boolean).join(' ');
 
-    const { error: insertError } = await supabaseAdmin.from('users').insert({
+    const userProfile = {
       id: authData.user.id,
       id_number: idNumber,
       full_name: fullName,
@@ -93,7 +94,12 @@ export default async function handler(req, res) {
       blood_type: fullRequestData.blood_type,
       emergency_contact_name: fullRequestData.emergency_contact_name,
       emergency_contact_number: fullRequestData.emergency_contact_number
-    });
+    };
+
+    // Validate payload against schema contract BEFORE hitting the database
+    validateUsersPayload(userProfile);
+
+    const { error: insertError } = await supabaseAdmin.from('users').insert(userProfile);
 
     if (insertError) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
