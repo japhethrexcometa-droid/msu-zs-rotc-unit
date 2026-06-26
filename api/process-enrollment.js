@@ -72,8 +72,68 @@ export default async function handler(req, res) {
 
     const { type, requestId, email, firstName, idNumber, fullRequestData } = req.body;
 
-    if (type !== 'approve') {
-      throw new Error("Only 'approve' type is supported by this endpoint.");
+    if (type !== 'approve' && type !== 'reject') {
+      throw new Error("Only 'approve' and 'reject' types are supported.");
+    }
+
+    // ─── REJECT FLOW ────────────────────────────────────────────────────
+    if (type === 'reject') {
+      const { rejectionReason } = req.body;
+      if (!rejectionReason) throw new Error("Rejection reason is required.");
+
+      const { error: updateError } = await supabaseAdmin.from('enrollment_requests').update({
+        status: 'rejected',
+        rejection_reason: rejectionReason,
+        processed_by: user.id,
+        processed_at: new Date().toISOString()
+      }).eq('id', requestId);
+
+      if (updateError) throw new Error("Failed to update request: " + updateError.message);
+
+      // Send rejection email (non-blocking)
+      try {
+        if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
+          const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com', port: 465, secure: true,
+            auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASSWORD }
+          });
+          await transporter.sendMail({
+            from: `"MSU ZS ROTC Unit" <${process.env.SMTP_EMAIL}>`,
+            to: email,
+            subject: "MSU ZS ROTC - Enrollment Update",
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1a472a;">MSU ZS ROTC Enrollment Update</h2>
+                <p>Dear ${firstName},</p>
+                <p>We regret to inform you that your enrollment request has been <strong>rejected</strong>.</p>
+                <div style="background: #fff3f3; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;">
+                  <p style="margin: 0;"><strong>Reason:</strong> ${rejectionReason}</p>
+                </div>
+                <p>If you believe this was a mistake, please contact the ROTC office for assistance.</p>
+                <br/>
+                <p>Best regards,<br/>MSU ZS ROTC Administration</p>
+              </div>
+            `
+          });
+        }
+      } catch (emailError) {
+        console.error("Non-blocking rejection email error:", emailError);
+      }
+
+      return res.status(200).json({ success: true, message: "Enrollment rejected." });
+    }
+
+    // ─── APPROVE FLOW ───────────────────────────────────────────────────
+
+    // PRE-CHECK: Prevent duplicate approvals
+    const { data: existingUser } = await supabaseAdmin.from('users')
+      .select('id').eq('id_number', idNumber).maybeSingle();
+    if (existingUser) {
+      // User already exists — just mark the request as approved and return
+      await supabaseAdmin.from('enrollment_requests').update({
+        status: 'approved', processed_by: user.id, processed_at: new Date().toISOString()
+      }).eq('id', requestId);
+      return res.status(200).json({ success: true, message: "Already approved — account exists." });
     }
 
     // 4. Create Account

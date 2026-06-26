@@ -72,18 +72,31 @@ export async function rejectEnrollment(
   reviewerId: string,
   reason: string
 ): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('process-enrollment', {
-    body: {
+  // Use the same Vercel serverless API as approveEnrollment
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("You must be logged in to reject requests.");
+
+  const response = await fetch('/api/process-enrollment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
       type: 'reject',
       requestId: request.id,
       email: request.email,
       firstName: request.first_name,
       rejectionReason: reason
-    }
+    })
   });
 
-  if (error) throw new Error("Failed to reject enrollment: " + error.message);
-  if (!data?.success) throw new Error(data?.error || "Failed to reject enrollment");
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error("Failed to reject enrollment: " + (result.error || response.statusText));
+  }
 }
 
 export async function bulkImportCadets(rows: any[]): Promise<{ success: number; errors: string[] }> {
