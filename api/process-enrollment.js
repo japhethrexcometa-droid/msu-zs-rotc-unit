@@ -84,8 +84,8 @@ export default async function handler(req, res) {
       const { error: updateError } = await supabaseAdmin.from('enrollment_requests').update({
         status: 'rejected',
         rejection_reason: rejectionReason,
-        processed_by: user.id,
-        processed_at: new Date().toISOString()
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString()
       }).eq('id', requestId);
 
       if (updateError) throw new Error("Failed to update request: " + updateError.message);
@@ -131,7 +131,7 @@ export default async function handler(req, res) {
     if (existingUser) {
       // User already exists — just mark the request as approved and return
       await supabaseAdmin.from('enrollment_requests').update({
-        status: 'approved', processed_by: user.id, processed_at: new Date().toISOString()
+        status: 'approved', reviewed_by: user.id, reviewed_at: new Date().toISOString()
       }).eq('id', requestId);
       return res.status(200).json({ success: true, message: "Already approved — account exists." });
     }
@@ -188,8 +188,8 @@ export default async function handler(req, res) {
     // 6. Update Request Status
     const { error: updateError } = await supabaseAdmin.from('enrollment_requests').update({ 
       status: 'approved',
-      processed_by: user.id,
-      processed_at: new Date().toISOString()
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString()
     }).eq('id', requestId);
 
     if (updateError) {

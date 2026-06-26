@@ -76,22 +76,63 @@ export default function EnrollmentPage() {
   const exportCSV = () => {
     if (currentRequests.length === 0) return toast.error('No records to export in this tab.')
 
+    // Sort by school, then gender for organized export
+    const sorted = [...currentRequests].sort((a, b) => {
+      const schoolCompare = (a.school || '').localeCompare(b.school || '')
+      if (schoolCompare !== 0) return schoolCompare
+      return (a.gender || '').localeCompare(b.gender || '')
+    })
+
     const headers = [
       'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix', 'Gender', 
-      'DOB', 'Course & Year', 'Contact', 'Email', 'Address', 'Status', 'Date Submitted'
-    ]
+      'DOB', 'Course & Year', 'Contact', 'Email', 'Address', 'Status',
+      'Date Submitted', tab !== 'pending' ? 'Date Processed' : ''
+    ].filter(Boolean)
 
-    const rows = currentRequests.map(r => [
-      r.id_number, r.school, r.last_name, r.first_name, r.middle_initial || '', r.suffix || '', r.gender,
-      r.date_of_birth, r.course_year, r.contact_number, r.email, `"${r.home_address}"`, r.status, r.created_at
-    ])
+    const rows: string[][] = []
+    let currentSchool = ''
+    let schoolMale = 0, schoolFemale = 0
+
+    sorted.forEach((r, i) => {
+      // Add school separator header
+      if (r.school !== currentSchool) {
+        if (currentSchool) {
+          rows.push([`--- ${currentSchool} Total: Male=${schoolMale} Female=${schoolFemale} ---`])
+          rows.push([])
+          schoolMale = 0
+          schoolFemale = 0
+        }
+        currentSchool = r.school
+      }
+      if (r.gender === 'Male') schoolMale++
+      if (r.gender === 'Female') schoolFemale++
+
+      const row = [
+        r.id_number, r.school, r.last_name, r.first_name, r.middle_initial || '', r.suffix || '', r.gender,
+        r.date_of_birth, r.course_year, r.contact_number, r.email, `"${r.home_address || ''}"`, r.status,
+        r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy h:mm a') : '',
+        ...(tab !== 'pending' && r.reviewed_at ? [format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a')] : [])
+      ]
+      rows.push(row)
+
+      // Last item — close the final school group
+      if (i === sorted.length - 1) {
+        rows.push([`--- ${currentSchool} Total: Male=${schoolMale} Female=${schoolFemale} ---`])
+      }
+    })
+
+    // Grand total
+    const totalMale = sorted.filter(r => r.gender === 'Male').length
+    const totalFemale = sorted.filter(r => r.gender === 'Female').length
+    rows.push([])
+    rows.push([`GRAND TOTAL: ${sorted.length} (Male=${totalMale}, Female=${totalFemale}) — Exported ${format(new Date(), 'MMM d, yyyy h:mm a')}`])
 
     const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `ROTC_Enrollments_${tab}_${format(new Date(), 'yyyyMMdd')}.csv`)
+    link.setAttribute('download', `ROTC_Enrollments_${tab}_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -174,7 +215,10 @@ export default function EnrollmentPage() {
           </CardHeader>
           <CardContent className="p-0">
             <Table
-              headers={['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Email Status', 'Actions']}
+              headers={tab === 'pending' 
+                ? ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Email Status', 'Actions']
+                : ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Processed', 'Actions']
+              }
               isLoading={isLoading}
               data={currentRequests}
               keyExtractor={(r) => r.id}
@@ -186,10 +230,18 @@ export default function EnrollmentPage() {
                   <td className="p-4 text-sm text-rotc-textMuted">{r.gender}</td>
                   <td className="p-4 text-sm text-rotc-textMuted">{format(new Date(r.created_at), 'MMM d, yyyy')}</td>
                   <td className="p-4">
-                    {r.email_sent ? (
-                      <Badge status="success" label="Sent" />
+                    {tab === 'pending' ? (
+                      r.email_sent ? (
+                        <Badge status="success" label="Sent" />
+                      ) : (
+                        <Badge status="warning" label="Pending" />
+                      )
                     ) : (
-                      <Badge status="warning" label="Pending" />
+                      r.reviewed_at ? (
+                        <span className="text-sm text-rotc-textMuted">{format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a')}</span>
+                      ) : (
+                        <span className="text-sm text-rotc-textMuted">—</span>
+                      )
                     )}
                   </td>
                   <td className="p-4 flex items-center gap-2">

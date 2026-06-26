@@ -56,12 +56,20 @@ export default function ProfilePage() {
 
     setChangingPassword(true)
     try {
-      const { error } = await supabase.rpc('change_password' as any, {
-        p_user_id: session.id,
-        p_old_password: oldPassword,
-        p_new_password: newPassword
+      // Step 1: Verify old password using Supabase native auth
+      const dummyEmail = `${session.id_number.trim().toUpperCase()}@rotc.msubuug.edu.ph`
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: dummyEmail,
+        password: oldPassword
       })
-      if (error) throw error
+      if (verifyError) throw new Error('Current password is incorrect.')
+
+      // Step 2: Update to new password using Supabase native auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+      if (updateError) throw updateError
+
       toast.success('Password changed successfully')
       setOldPassword('')
       setNewPassword('')
