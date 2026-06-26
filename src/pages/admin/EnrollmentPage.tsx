@@ -76,18 +76,25 @@ export default function EnrollmentPage() {
   const exportCSV = () => {
     if (currentRequests.length === 0) return toast.error('No records to export in this tab.')
 
-    // Sort by school, then gender for organized export
+    // Sort by school, then gender (Female first, Male second) for organized export
     const sorted = [...currentRequests].sort((a, b) => {
       const schoolCompare = (a.school || '').localeCompare(b.school || '')
       if (schoolCompare !== 0) return schoolCompare
+      // Female first, Male second within each school
       return (a.gender || '').localeCompare(b.gender || '')
     })
 
+    // Column order matches the online enrollment form exactly
     const headers = [
-      'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix', 'Gender', 
-      'DOB', 'Course & Year', 'Contact', 'Email', 'Address', 'Status',
-      'Date Submitted', tab !== 'pending' ? 'Date Processed' : ''
-    ].filter(Boolean)
+      'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
+      'Gender', 'DOB', 'Course & Year', 'Contact', 'Address',
+      'Religion', 'Blood Type', 'Height',
+      'Beneficiary', 'Relationship',
+      'Email',
+      'Emergency Contact Name', 'Relationship', 'Contact Number',
+      'Status', 'Date Submitted',
+      ...(tab !== 'pending' ? ['Date Processed'] : [])
+    ]
 
     const rows: string[][] = []
     let currentSchool = ''
@@ -108,10 +115,29 @@ export default function EnrollmentPage() {
       if (r.gender === 'Female') schoolFemale++
 
       const row = [
-        r.id_number, r.school, r.last_name, r.first_name, r.middle_initial || '', r.suffix || '', r.gender,
-        r.date_of_birth, r.course_year, r.contact_number, r.email, `"${r.home_address || ''}"`, r.status,
+        r.id_number || '',
+        r.school || '',
+        r.last_name || '',
+        r.first_name || '',
+        r.middle_initial || '',
+        r.suffix || '',
+        r.gender || '',
+        r.date_of_birth || '',
+        r.course_year || '',
+        r.contact_number || '',
+        `"${(r.home_address || '').replace(/"/g, '""')}"`,
+        r.religion || '',
+        r.blood_type || '',
+        r.height_feet || '',
+        r.beneficiary_name || '',
+        r.beneficiary_relationship || '',
+        r.email || '',
+        r.emergency_name || '',
+        r.emergency_relationship || '',
+        r.emergency_contact || '',
+        r.status || '',
         r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy h:mm a') : '',
-        ...(tab !== 'pending' && r.reviewed_at ? [format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a')] : [])
+        ...(tab !== 'pending' ? [r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : ''] : [])
       ]
       rows.push(row)
 
@@ -125,7 +151,7 @@ export default function EnrollmentPage() {
     const totalMale = sorted.filter(r => r.gender === 'Male').length
     const totalFemale = sorted.filter(r => r.gender === 'Female').length
     rows.push([])
-    rows.push([`GRAND TOTAL: ${sorted.length} (Male=${totalMale}, Female=${totalFemale}) — Exported ${format(new Date(), 'MMM d, yyyy h:mm a')}`])
+    rows.push([`GRAND TOTAL: ${sorted.length} (Male=${totalMale} Female=${totalFemale}) — Exported ${format(new Date(), 'MMM d, yyyy h:mm a')}`])
 
     const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })

@@ -125,18 +125,6 @@ export default async function handler(req, res) {
 
     // ─── APPROVE FLOW ───────────────────────────────────────────────────
 
-    // PRE-CHECK: Prevent duplicate approvals
-    const { data: existingUser } = await supabaseAdmin.from('users')
-      .select('id').eq('id_number', idNumber).maybeSingle();
-    if (existingUser) {
-      // User already exists — just mark the request as approved and return
-      await supabaseAdmin.from('enrollment_requests').update({
-        status: 'approved', reviewed_by: user.id, reviewed_at: new Date().toISOString()
-      }).eq('id', requestId);
-      return res.status(200).json({ success: true, message: "Already approved — account exists." });
-    }
-
-    // 4. Create Account
     // Password is the student ID number — cadets can change it after first login
     const tempPassword = idNumber;
 
@@ -145,6 +133,39 @@ export default async function handler(req, res) {
     // The student's real email (from enrollment form) is ONLY for sending notifications
     const authEmail = `${idNumber.trim().toUpperCase()}@rotc.msubuug.edu.ph`;
 
+    // PRE-CHECK: Does this user already exist in public.users?
+    const { data: existingUser } = await supabaseAdmin.from('users')
+      .select('id').eq('id_number', idNumber).maybeSingle();
+
+    if (existingUser) {
+      // User profile exists — but auth might be broken (stale from failed attempts)
+      // Self-healing: delete the old auth user and recreate with correct credentials
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(existingUser.id);
+      } catch (_) { /* ignore if auth user doesn't exist */ }
+
+      const { data: fixedAuth, error: fixError } = await supabaseAdmin.auth.admin.createUser({
+        email: authEmail,
+        password: tempPassword,
+        email_confirm: true
+      });
+
+      if (fixError) throw new Error("Failed to fix user auth: " + fixError.message);
+
+      // Update the public.users row to point to the new auth user ID
+      await supabaseAdmin.from('users')
+        .update({ id: fixedAuth.user.id })
+        .eq('id_number', idNumber);
+
+      // Mark enrollment request as approved
+      await supabaseAdmin.from('enrollment_requests').update({
+        status: 'approved', reviewed_by: user.id, reviewed_at: new Date().toISOString()
+      }).eq('id', requestId);
+
+      return res.status(200).json({ success: true, message: "Account repaired and approved." });
+    }
+
+    // 4. Create fresh account (no existing user)
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: authEmail,
       password: tempPassword,
