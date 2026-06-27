@@ -4,7 +4,7 @@ import { logoutUser } from '@/lib/auth'
 import {
   LayoutDashboard, Users, UserCheck, QrCode, CalendarCheck,
   ClipboardList, BarChart3, CreditCard, Megaphone, UserPlus,
-  Settings, Archive, Calendar, LogOut, User, Shield, X, ChevronLeft
+  Settings, Archive, Calendar, LogOut, User, Shield, X, ChevronLeft, Lock
 } from 'lucide-react'
 import type { UserRole } from '@/stores/auth.store'
 import type { ReactNode } from 'react'
@@ -28,6 +28,7 @@ const adminNav: NavItem[] = [
   { label: 'Enrollment',    path: '/admin/enrollment',    icon: <UserPlus className="h-5 w-5" /> },
   { label: 'Settings',      path: '/admin/settings',      icon: <Settings className="h-5 w-5" /> },
   { label: 'Archives',      path: '/admin/archives',      icon: <Archive className="h-5 w-5" /> },
+  { label: 'Change Password', path: '/admin/change-password', icon: <Lock className="h-5 w-5" /> },
 ]
 
 const officerNav: NavItem[] = [
@@ -39,6 +40,7 @@ const officerNav: NavItem[] = [
   { label: 'Pull-out',      path: '/officer/pullout',     icon: <LogOut className="h-5 w-5" /> },
   { label: 'Digital ID',    path: '/officer/digital-id',  icon: <CreditCard className="h-5 w-5" /> },
   { label: 'Profile',       path: '/officer/profile',     icon: <User className="h-5 w-5" /> },
+  { label: 'Change Password', path: '/officer/change-password', icon: <Lock className="h-5 w-5" /> },
 ]
 
 const cadetNav: NavItem[] = [
@@ -47,6 +49,7 @@ const cadetNav: NavItem[] = [
   { label: 'Calendar',      path: '/cadet/calendar',       icon: <Calendar className="h-5 w-5" /> },
   { label: 'Digital ID',    path: '/cadet/digital-id',     icon: <CreditCard className="h-5 w-5" /> },
   { label: 'Profile',       path: '/cadet/profile',        icon: <User className="h-5 w-5" /> },
+  { label: 'Change Password', path: '/cadet/change-password', icon: <Lock className="h-5 w-5" /> },
 ]
 
 const navByRole: Record<UserRole, NavItem[]> = {
