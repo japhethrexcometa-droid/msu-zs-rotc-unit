@@ -78,3 +78,45 @@ export async function logoutUser(): Promise<void> {
   await supabase.auth.signOut()
   useAuthStore.getState().logout()
 }
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  try {
+    // 0. Prevent trivial password reuse (UX guardrail)
+    if (currentPassword === newPassword) {
+      throw new AuthError('New password must be different from your current password.', 'INVALID_CREDENTIALS')
+    }
+
+    // 1. Verify current password by re-authenticating with Supabase Auth.
+    //    This ensures the user knows their current password before changing it.
+    //    Note: signInWithPassword replaces the existing session token, which is
+    //    acceptable since updateUser() uses the current active session.
+    const { session } = useAuthStore.getState()
+    if (!session) {
+      throw new AuthError('You must be logged in to change your password.', 'SERVER_ERROR')
+    }
+
+    const dummyEmail = `${session.id_number.trim().toUpperCase()}@rotc.msubuug.edu.ph`
+    
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: dummyEmail,
+      password: currentPassword
+    })
+
+    if (verifyError) {
+      throw new AuthError('Current password is incorrect.', 'INVALID_CREDENTIALS')
+    }
+
+    // 2. Update password in Supabase Auth
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (updateError) {
+      throw new AuthError('Failed to update password. Please try again.', 'SERVER_ERROR')
+    }
+
+  } catch (err) {
+    if (err instanceof AuthError) throw err
+    throw new AuthError('An unexpected error occurred.', 'SERVER_ERROR')
+  }
+}
