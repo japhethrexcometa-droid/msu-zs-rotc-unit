@@ -31,9 +31,9 @@ interface AuthState {
 }
 
 const SESSION_DURATION: Record<UserRole, number> = {
-  admin:   2 * 60 * 60 * 1000,   // 2 hours
-  officer: 4 * 60 * 60 * 1000,   // 4 hours
-  cadet:   8 * 60 * 60 * 1000,   // 8 hours
+  admin:   12 * 60 * 60 * 1000,  // 12 hours (for long enrollment work)
+  officer: 8 * 60 * 60 * 1000,   // 8 hours
+  cadet:   4 * 60 * 60 * 1000,   // 4 hours
 }
 
 export const useAuthStore = create<AuthState>()(
