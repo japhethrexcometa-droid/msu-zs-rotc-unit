@@ -87,19 +87,6 @@ export default function EnrollmentPage() {
   const exportCSV = () => {
     if (currentRequests.length === 0) return toast.error('No records to export in this tab.')
 
-    // Debug: Log sample data to check what fields are present
-    console.log('CSV Export Debug - Sample record:', currentRequests[0])
-    console.log('CSV Export Debug - All fields in first record:', Object.keys(currentRequests[0] || {}))
-    
-    // Check specific fields that should be present
-    const criticalFields = ['religion', 'blood_type', 'height_feet', 'beneficiary_name', 'beneficiary_relationship', 'emergency_name', 'emergency_relationship', 'emergency_contact']
-    const fieldStatus = criticalFields.map(field => ({
-      field,
-      hasValue: currentRequests[0][field] !== null && currentRequests[0][field] !== undefined && currentRequests[0][field] !== '',
-      value: currentRequests[0][field]
-    }))
-    console.log('CSV Export Debug - Critical field status:', fieldStatus)
-
     // Sort by school, then gender (Female first, Male second) for organized export
     const sorted = [...currentRequests].sort((a, b) => {
       const schoolCompare = (a.school || '').localeCompare(b.school || '')
