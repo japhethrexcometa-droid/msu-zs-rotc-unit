@@ -4,16 +4,15 @@ import { useAuthStore } from "@/stores/auth.store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
-  ChevronRight,
   Eye,
   EyeOff,
   Lock,
   Shield,
   User,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -29,7 +28,6 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session, isExpired, getRouteForRole } = useAuthStore();
 
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -37,13 +35,6 @@ export default function LoginPage() {
   const [showForgotAlert, setShowForgotAlert] = useState(false);
 
   const expired = searchParams.get("expired") === "1";
-
-  // Auto-redirect if already logged in
-  useEffect(() => {
-    if (session && !isExpired()) {
-      navigate(getRouteForRole(), { replace: true });
-    }
-  }, [session]);
 
   const {
     register,

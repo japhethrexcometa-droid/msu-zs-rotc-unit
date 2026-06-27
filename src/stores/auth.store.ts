@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist, subscribeWithSelector } from 'zustand/middleware'
+import { persist, subscribeWithSelector, createJSONStorage } from 'zustand/middleware'
 
 export type UserRole = 'admin' | 'officer' | 'cadet'
 
@@ -31,9 +31,9 @@ interface AuthState {
 }
 
 const SESSION_DURATION: Record<UserRole, number> = {
-  admin:   12 * 60 * 60 * 1000,
-  officer: 12 * 60 * 60 * 1000,
-  cadet:   24 * 60 * 60 * 1000,
+  admin:   2 * 60 * 60 * 1000,   // 2 hours
+  officer: 4 * 60 * 60 * 1000,   // 4 hours
+  cadet:   8 * 60 * 60 * 1000,   // 8 hours
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -90,7 +90,8 @@ export const useAuthStore = create<AuthState>()(
       }),
       {
         name: 'rotc_user_session',
-        partialize: (state) => ({ session: state.session })
+        partialize: (state) => ({ session: state.session }),
+        storage: createJSONStorage(() => sessionStorage)
       }
     )
   )

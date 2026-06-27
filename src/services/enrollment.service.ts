@@ -98,24 +98,3 @@ export async function rejectEnrollment(
     throw new Error("Failed to reject enrollment: " + (result.error || response.statusText));
   }
 }
-
-export async function bulkImportCadets(rows: any[]): Promise<{ success: number; errors: string[] }> {
-  const results = await Promise.allSettled(
-    rows.map(row =>
-      supabase.from('enrollment_requests').insert({ ...row, status: 'pending' })
-    )
-  )
-
-  const errors: string[] = []
-  let success = 0
-
-  results.forEach((result, i) => {
-    if (result.status === 'fulfilled' && !result.value.error) {
-      success++
-    } else {
-      errors.push(`Row ${i + 1}: ${result.status === 'rejected' ? result.reason?.message : result.value.error?.message}`)
-    }
-  })
-
-  return { success, errors }
-}
