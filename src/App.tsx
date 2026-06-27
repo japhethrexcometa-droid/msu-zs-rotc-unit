@@ -38,6 +38,7 @@ const CadetAttendance = lazy(() => import('@/pages/cadet/AttendancePage'))
 const CadetCalendar = lazy(() => import('@/pages/cadet/CalendarPage'))
 const CadetDigitalID = lazy(() => import('@/pages/cadet/DigitalIDPage'))
 const CadetProfile = lazy(() => import('@/pages/cadet/ProfilePage'))
+const ChangePasswordPage = lazy(() => import('@/components/ChangePasswordPage'))
 
 export default function App() {
   return (
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="enrollment" element={<AdminEnrollment />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="archives" element={<AdminArchives />} />
+          <Route path="change-password" element={<ChangePasswordPage />} />
         </Route>
 
         {/* Officer routes */}
@@ -80,6 +82,7 @@ export default function App() {
           <Route path="pullout" element={<OfficerPullout />} />
           <Route path="digital-id" element={<OfficerDigitalID />} />
           <Route path="profile" element={<OfficerProfile />} />
+          <Route path="change-password" element={<ChangePasswordPage />} />
         </Route>
 
         {/* Cadet routes */}
@@ -92,6 +95,7 @@ export default function App() {
           <Route path="calendar" element={<CadetCalendar />} />
           <Route path="digital-id" element={<CadetDigitalID />} />
           <Route path="profile" element={<CadetProfile />} />
+          <Route path="change-password" element={<ChangePasswordPage />} />
         </Route>
 
         {/* Catch all */}
