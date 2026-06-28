@@ -6,6 +6,25 @@ import { useEnrollmentOpen } from '@/hooks/queries/useSettings';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+// MS Class mapping: year_class + semester → ms_subject + ms_title
+const MS_MAP: Record<string, Record<string, { subject: string; title: string }>> = {
+  '1st Year': {
+    '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
+    '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
+  },
+  '2nd Class (2CL)': {
+    '1st Semester': { subject: 'MS31', title: 'Military Science 31' },
+    '2nd Semester': { subject: 'MS32', title: 'Military Science 32' },
+  },
+  '1st Class (1CL)': {
+    '1st Semester': { subject: 'MS41', title: 'Military Science 41' },
+    '2nd Semester': { subject: 'MS42', title: 'Military Science 42' },
+  },
+};
+
+const YEAR_CLASSES = Object.keys(MS_MAP);
+const SEMESTERS = ['1st Semester', '2nd Semester'];
+
 // Form State Types
 interface EnrollmentState {
   // Step 1
@@ -18,6 +37,8 @@ interface EnrollmentState {
   gender: string;
   date_of_birth: string;
   course_year: string;
+  year_class: string;
+  semester: string;
   // Step 2
   contact_number: string;
   home_address: string;
@@ -35,9 +56,14 @@ interface EnrollmentState {
 
 const initialFormState: EnrollmentState = {
   id_number: "", school: "", last_name: "", first_name: "", middle_initial: "", suffix: "", gender: "Male", date_of_birth: "", course_year: "",
+  year_class: "1st Year", semester: "1st Semester",
   contact_number: "", home_address: "", religion: "", blood_type: "Unknown", height_feet: "", email: "", beneficiary_name: "", beneficiary_relationship: "",
   emergency_name: "", emergency_relationship: "", emergency_contact: ""
 };
+
+// Validation helpers
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidPhone = (phone: string) => /^09\d{9}$/.test(phone.replace(/\s/g, ''));
 
 export default function EnrollPage() {
   const { role } = useParams<{ role: string }>();
@@ -69,28 +95,33 @@ export default function EnrollPage() {
     return !!(
       formData.id_number.trim() && formData.school.trim() && 
       formData.last_name.trim() && formData.first_name.trim() && 
-      formData.middle_initial.trim() && formData.suffix.trim() &&
       formData.gender.trim() && formData.date_of_birth && 
-      formData.course_year.trim()
+      formData.course_year.trim() && formData.year_class.trim() && formData.semester.trim()
     );
   };
   
   const isStep2Valid = () => {
     return !!(
-      formData.contact_number.trim() && formData.home_address.trim() && 
-      formData.email.trim().includes('@') && formData.religion.trim() &&
-      formData.blood_type.trim() && formData.height_feet.trim() &&
+      formData.contact_number.trim() && isValidPhone(formData.contact_number) &&
+      formData.home_address.trim() && 
+      formData.email.trim() && isValidEmail(formData.email) &&
+      formData.religion.trim() &&
+      formData.blood_type.trim() && formData.blood_type !== 'Unknown' &&
+      formData.height_feet.trim() &&
       formData.beneficiary_name.trim() && formData.beneficiary_relationship.trim()
     );
   };
   
   const isStep3Valid = () => {
-    return !!(formData.emergency_name.trim() && formData.emergency_relationship.trim() && formData.emergency_contact.trim());
+    return !!(formData.emergency_name.trim() && formData.emergency_relationship.trim() && formData.emergency_contact.trim() && isValidPhone(formData.emergency_contact));
   };
 
   const nextStep = () => {
     if (step === 1 && !isStep1Valid()) { setSubmitError("Please fill in all required fields."); return; }
-    if (step === 2 && !isStep2Valid()) { setSubmitError("Please fill in all required fields and provide a valid email."); return; }
+    if (step === 2 && !isStep2Valid()) { 
+      setSubmitError("Please fill in all required fields, provide a valid email, and a valid PH mobile number (09XXXXXXXXX)."); 
+      return; 
+    }
     setSubmitError(null);
     setStep(s => Math.min(s + 1, 3));
     window.scrollTo(0, 0);
@@ -103,7 +134,7 @@ export default function EnrollPage() {
   };
 
   const onSubmit = async () => {
-    if (!isStep3Valid()) { setSubmitError("Please fill in emergency contact details."); return; }
+    if (!isStep3Valid()) { setSubmitError("Please fill in emergency contact details with a valid phone number."); return; }
     
     setSubmitError(null);
     setIsSubmitting(true);
@@ -116,13 +147,16 @@ export default function EnrollPage() {
         throw new Error("Enrollment is currently closed. You cannot submit an application at this time.");
       }
 
+      // Derive MS subject and title from year_class + semester
+      const msData = MS_MAP[formData.year_class]?.[formData.semester];
+      if (!msData) throw new Error("Invalid year class or semester selection.");
+
       const { error } = await supabase.from("enrollment_requests").insert({
         ...formData,
         role: validRole,
         status: "pending",
-        ms_subject: "MS1",
-        ms_title: "Military Science 1",
-        semester: "1st Semester"
+        ms_subject: msData.subject,
+        ms_title: msData.title,
       });
 
       if (error) {
@@ -156,7 +190,7 @@ export default function EnrollPage() {
     );
   }
 
-  const renderInputField = ({ label, field, placeholder, type = "text", required = true }: any) => (
+  const renderInputField = ({ label, field, placeholder, type = "text", required = true, autoComplete = "off" }: any) => (
     <Input
       key={field}
       label={`${label} ${required ? '*' : ''}`}
@@ -164,9 +198,14 @@ export default function EnrollPage() {
       placeholder={placeholder}
       value={(formData as any)[field]}
       onChange={e => updateForm({ [field]: e.target.value })}
+      autoComplete={autoComplete}
+      data-1p-ignore="true"
+      data-lpignore="true"
       className={required && !(formData as any)[field].trim() ? "border-rotc-danger/30" : ""}
     />
   );
+
+  const currentMS = MS_MAP[formData.year_class]?.[formData.semester];
 
   return (
     <div className="min-h-screen flex flex-col items-center py-8 px-4 bg-rotc-bg relative overflow-x-hidden">
@@ -218,8 +257,8 @@ export default function EnrollPage() {
                 {renderInputField({ label: "School", field: "school", placeholder: "e.g. MSU Buug" })}
                 {renderInputField({ label: "First Name", field: "first_name", placeholder: "Juan" })}
                 {renderInputField({ label: "Last Name", field: "last_name", placeholder: "Dela Cruz" })}
-                {renderInputField({ label: "Middle Initial", field: "middle_initial", placeholder: "A" })}
-                {renderInputField({ label: "Suffix", field: "suffix", placeholder: "Jr, III, N/A" })}
+                {renderInputField({ label: "Middle Initial", field: "middle_initial", placeholder: "A", required: false })}
+                {renderInputField({ label: "Suffix", field: "suffix", placeholder: "Jr, III, N/A", required: false })}
                 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Gender *</label>
@@ -234,6 +273,40 @@ export default function EnrollPage() {
                 
                 {renderInputField({ label: "Date of Birth", field: "date_of_birth", type: "date" })}
                 {renderInputField({ label: "Course & Year", field: "course_year", placeholder: "e.g. BSIT 1" })}
+                
+                {/* Year Class Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-rotc-textMuted">Year / Class *</label>
+                  <select 
+                    value={formData.year_class} onChange={e => updateForm({ year_class: e.target.value })}
+                    className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
+                  >
+                    {YEAR_CLASSES.map(yc => (
+                      <option key={yc} value={yc}>{yc}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Semester Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-rotc-textMuted">Semester *</label>
+                  <select 
+                    value={formData.semester} onChange={e => updateForm({ semester: e.target.value })}
+                    className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
+                  >
+                    {SEMESTERS.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* MS Preview */}
+                {currentMS && (
+                  <div className="sm:col-span-2 px-4 py-3 rounded-lg bg-rotc-accent/10 border border-rotc-accent/20 text-sm">
+                    <span className="text-rotc-textMuted">Enrolling for: </span>
+                    <span className="font-semibold text-rotc-accent">{currentMS.title} ({currentMS.subject})</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -243,16 +316,16 @@ export default function EnrollPage() {
             <div className="space-y-5 animate-fade-in">
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2">Contact & Other Details</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {renderInputField({ label: "Contact Number", field: "contact_number", placeholder: "09123456789" })}
-                {renderInputField({ label: "Email Address (Gmail req)", field: "email", type: "email", placeholder: "you@gmail.com" })}
+                {renderInputField({ label: "Contact Number", field: "contact_number", placeholder: "09XXXXXXXXX", type: "tel" })}
+                {renderInputField({ label: "Email Address (Gmail required)", field: "email", type: "email", placeholder: "you@gmail.com" })}
                 <div className="sm:col-span-2">
                   {renderInputField({ label: "Home Address", field: "home_address", placeholder: "Poblacion, Buug, ZSP" })}
                 </div>
                 {renderInputField({ label: "Religion", field: "religion", placeholder: "e.g. Roman Catholic" })}
-                {renderInputField({ label: "Height (Feet)", field: "height_feet", placeholder: "e.g. 5'7" })}
+                {renderInputField({ label: "Height (Feet)", field: "height_feet", placeholder: "e.g. 5'7\" or 5.7" })}
                 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-rotc-textMuted">Blood Type</label>
+                  <label className="text-sm font-medium text-rotc-textMuted">Blood Type *</label>
                   <select 
                     value={formData.blood_type} onChange={e => updateForm({ blood_type: e.target.value })}
                     className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
@@ -280,7 +353,7 @@ export default function EnrollPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-rotc-danger/5 p-4 rounded-xl border border-rotc-danger/10">
                   <div className="sm:col-span-2">{renderInputField({ label: "Contact Name", field: "emergency_name", placeholder: "Full Name" })}</div>
                   {renderInputField({ label: "Relationship", field: "emergency_relationship", placeholder: "Mother, Father, etc." })}
-                  {renderInputField({ label: "Contact Number", field: "emergency_contact", placeholder: "09123456789" })}
+                  {renderInputField({ label: "Contact Number", field: "emergency_contact", placeholder: "09XXXXXXXXX", type: "tel" })}
                 </div>
               </div>
 
@@ -294,12 +367,15 @@ export default function EnrollPage() {
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Name</span><span className="text-rotc-text font-medium break-words">{formData.first_name} {formData.middle_initial} {formData.last_name} {formData.suffix !== 'N/A' && formData.suffix !== '' ? formData.suffix : ''}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">School</span><span className="text-rotc-text font-medium break-words">{formData.school}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Course & Year</span><span className="text-rotc-text font-medium break-words">{formData.course_year}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Year / Class</span><span className="text-rotc-text font-medium break-words">{formData.year_class}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Semester</span><span className="text-rotc-text font-medium break-words">{formData.semester}</span></div>
+                    <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Military Science</span><span className="text-rotc-text font-medium break-words">{currentMS?.title} ({currentMS?.subject})</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Email</span><span className="text-rotc-text font-medium break-all">{formData.email}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Contact No.</span><span className="text-rotc-text font-medium break-words">{formData.contact_number}</span></div>
                     <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Home Address</span><span className="text-rotc-text font-medium break-words">{formData.home_address}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Religion</span><span className="text-rotc-text font-medium break-words">{formData.religion}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Blood Type</span><span className="text-rotc-text font-medium break-words">{formData.blood_type}</span></div>
-                    <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Emergency Contact</span><span className="text-rotc-text font-medium break-words">{formData.emergency_name} ({formData.emergency_relationship}) - {formData.emergency_contact}</span></div>
+                    <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Emergency Contact</span><span className="text-rotc-text font-medium break-words">{formData.emergency_name} ({formData.emergency_relationship}) — {formData.emergency_contact}</span></div>
                   </div>
                   <p className="text-xs text-rotc-textMuted/70 italic mt-2 border-t border-rotc-border pt-2">By submitting this form, you verify that all information provided is accurate and true.</p>
                 </div>

@@ -26,6 +26,8 @@ function ProfileDetails({ data }: { data: any }) {
         <span className="text-rotc-textMuted">Gender:</span><span className="text-rotc-text font-medium">{data.gender}</span>
         <span className="text-rotc-textMuted">DOB:</span><span className="text-rotc-text font-medium">{data.date_of_birth}</span>
         <span className="text-rotc-textMuted">Course:</span><span className="text-rotc-text font-medium">{data.course_year}</span>
+        <span className="text-rotc-textMuted">MS Class:</span><span className="text-rotc-text font-medium">{data.ms_title} ({data.ms_subject})</span>
+        <span className="text-rotc-textMuted">Semester:</span><span className="text-rotc-text font-medium">{data.semester}</span>
         <span className="col-span-2 border-t border-rotc-border my-2"></span>
         <span className="text-rotc-textMuted">Contact:</span><span className="text-rotc-text font-medium">{data.contact_number}</span>
         <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{data.email}</span>
@@ -108,7 +110,7 @@ export default function EnrollmentPage() {
     // Column order matches the online enrollment form exactly
     const headers = [
       'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
-      'Gender', 'DOB', 'Course & Year', 'Contact', 'Address',
+      'Gender', 'DOB', 'Course & Year', 'MS Class', 'Semester', 'Contact', 'Address',
       'Religion', 'Blood Type', 'Height',
       'Beneficiary', 'Relationship',
       'Email',
@@ -145,6 +147,8 @@ export default function EnrollmentPage() {
         sanitize(r.gender),
         sanitize(r.date_of_birth),
         sanitize(r.course_year),
+        sanitize(r.ms_title ? `${r.ms_title} (${r.ms_subject})` : ''),
+        sanitize(r.semester),
         sanitize(r.contact_number),
         sanitize(r.home_address),
         sanitize(r.religion),
