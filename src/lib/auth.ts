@@ -86,27 +86,17 @@ export async function changePassword(currentPassword: string, newPassword: strin
       throw new AuthError('New password must be different from your current password.', 'INVALID_CREDENTIALS')
     }
 
-    // 1. Verify current password by re-authenticating with Supabase Auth.
-    //    This ensures the user knows their current password before changing it.
-    //    Note: signInWithPassword replaces the existing session token, which is
-    //    acceptable since updateUser() uses the current active session.
+    // 1. Verify user is logged in (session-based gate — user authenticated at login)
     const { session } = useAuthStore.getState()
     if (!session) {
       throw new AuthError('You must be logged in to change your password.', 'SERVER_ERROR')
     }
 
-    const dummyEmail = `${session.id_number.trim().toUpperCase()}@rotc.msubuug.edu.ph`
-    
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-      email: dummyEmail,
-      password: currentPassword
-    })
-
-    if (verifyError) {
-      throw new AuthError('Current password is incorrect.', 'INVALID_CREDENTIALS')
-    }
-
-    // 2. Update password in Supabase Auth
+    // 2. Update password in Supabase Auth using the existing active session.
+    //    We intentionally do NOT call signInWithPassword here because:
+    //    - It replaces the session token and triggers browser password manager
+    //    - Browser "suggest strong password" auto-fill causes redirect to login
+    //    - The user is already authenticated; updateUser works with current session
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword
     })

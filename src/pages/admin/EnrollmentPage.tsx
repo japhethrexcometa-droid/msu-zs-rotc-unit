@@ -87,6 +87,16 @@ export default function EnrollmentPage() {
   const exportCSV = () => {
     if (currentRequests.length === 0) return toast.error('No records to export in this tab.')
 
+    // CSV field sanitizer: wraps in quotes and escapes inner quotes if needed
+    const sanitize = (value: string | number | null | undefined): string => {
+      const str = String(value ?? '')
+      // If contains comma, newline, or double-quote, wrap in quotes and escape
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
     // Sort by school, then gender (Female first, Male second) for organized export
     const sorted = [...currentRequests].sort((a, b) => {
       const schoolCompare = (a.school || '').localeCompare(b.school || '')
@@ -126,29 +136,29 @@ export default function EnrollmentPage() {
       if (r.gender === 'Female') schoolFemale++
 
       const row = [
-        r.id_number || '',
-        r.school || '',
-        r.last_name || '',
-        r.first_name || '',
-        r.middle_initial || '',
-        r.suffix || '',
-        r.gender || '',
-        r.date_of_birth || '',
-        r.course_year || '',
-        r.contact_number || '',
-        `"${(r.home_address || '').replace(/"/g, '""')}"`,
-        r.religion || '',
-        r.blood_type || '',
-        r.height_feet || '',
-        r.beneficiary_name || '',
-        r.beneficiary_relationship || '',
-        r.email || '',
-        r.emergency_name || '',
-        r.emergency_relationship || '',
-        r.emergency_contact || '',
-        r.status || '',
-        r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy h:mm a') : '',
-        ...(tab !== 'pending' ? [r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : ''] : [])
+        sanitize(r.id_number),
+        sanitize(r.school),
+        sanitize(r.last_name),
+        sanitize(r.first_name),
+        sanitize(r.middle_initial),
+        sanitize(r.suffix),
+        sanitize(r.gender),
+        sanitize(r.date_of_birth),
+        sanitize(r.course_year),
+        sanitize(r.contact_number),
+        sanitize(r.home_address),
+        sanitize(r.religion),
+        sanitize(r.blood_type),
+        sanitize(r.height_feet),
+        sanitize(r.beneficiary_name),
+        sanitize(r.beneficiary_relationship),
+        sanitize(r.email),
+        sanitize(r.emergency_name),
+        sanitize(r.emergency_relationship),
+        sanitize(r.emergency_contact),
+        sanitize(r.status),
+        sanitize(r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy h:mm a') : ''),
+        ...(tab !== 'pending' ? [sanitize(r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : '')] : [])
       ]
       rows.push(row)
 
@@ -164,7 +174,8 @@ export default function EnrollmentPage() {
     rows.push([])
     rows.push([`GRAND TOTAL: ${sorted.length} (Male=${totalMale} Female=${totalFemale}) — Exported ${format(new Date(), 'MMM d, yyyy h:mm a')}`])
 
-    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    // UTF-8 BOM ensures Excel opens special characters correctly
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')

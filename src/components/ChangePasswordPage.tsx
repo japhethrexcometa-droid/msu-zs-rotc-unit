@@ -148,7 +148,9 @@ export default function ChangePasswordPage() {
                   id="currentPassword"
                   type={showCurrent ? "text" : "password"}
                   placeholder="Enter current password"
-                  autoComplete="current-password"
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
                   className={[
                     "w-full pl-10 pr-12 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
                     "placeholder-rotc-textMuted/50 transition-all duration-150",
@@ -195,7 +197,9 @@ export default function ChangePasswordPage() {
                   id="newPassword"
                   type={showNew ? "text" : "password"}
                   placeholder="Enter new password"
-                  autoComplete="new-password"
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
                   className={[
                     "w-full pl-10 pr-12 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
                     "placeholder-rotc-textMuted/50 transition-all duration-150",
@@ -243,7 +247,9 @@ export default function ChangePasswordPage() {
                   id="confirmPassword"
                   type={showConfirm ? "text" : "password"}
                   placeholder="Confirm new password"
-                  autoComplete="new-password"
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
                   className={[
                     "w-full pl-10 pr-12 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
                     "placeholder-rotc-textMuted/50 transition-all duration-150",
