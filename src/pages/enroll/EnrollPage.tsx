@@ -63,7 +63,11 @@ const initialFormState: EnrollmentState = {
 
 // Validation helpers
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const isValidPhone = (phone: string) => /^09\d{9}$/.test(phone.replace(/\s/g, ''));
+// Accepts: 09123456789, 0912 345 6789, 0912-345-6789, +639123456789, +63 912 345 6789
+const isValidPhone = (phone: string) => {
+  const cleaned = phone.replace(/[\s\-]/g, '');
+  return /^09\d{9}$/.test(cleaned) || /^\+639\d{9}$/.test(cleaned);
+};
 
 export default function EnrollPage() {
   const { role } = useParams<{ role: string }>();
@@ -77,7 +81,6 @@ export default function EnrollPage() {
   const validRole = role === "officer" || role === "cadet" ? role : "cadet";
 
   useEffect(() => {
-    // Load from offline storage
     const saved = localStorage.getItem('enrollment_draft');
     if (saved) {
       try { setFormData(JSON.parse(saved)); } catch (e) {}
@@ -101,25 +104,34 @@ export default function EnrollPage() {
   };
   
   const isStep2Valid = () => {
-    return !!(
-      formData.contact_number.trim() && isValidPhone(formData.contact_number) &&
-      formData.home_address.trim() && 
-      formData.email.trim() && isValidEmail(formData.email) &&
-      formData.religion.trim() &&
-      formData.blood_type.trim() && formData.blood_type !== 'Unknown' &&
-      formData.height_feet.trim() &&
-      formData.beneficiary_name.trim() && formData.beneficiary_relationship.trim()
-    );
+    const errors: string[] = [];
+    if (!formData.contact_number.trim()) errors.push("Contact Number is required");
+    else if (!isValidPhone(formData.contact_number)) errors.push("Contact Number must be a valid PH mobile (e.g. 09123456789, +639123456789)");
+    if (!formData.home_address.trim()) errors.push("Home Address is required");
+    if (!formData.email.trim()) errors.push("Email is required");
+    else if (!isValidEmail(formData.email)) errors.push("Email must be valid (e.g. name@gmail.com)");
+    if (!formData.religion.trim()) errors.push("Religion is required");
+    if (!formData.blood_type || formData.blood_type === 'Unknown') errors.push("Blood Type must be selected");
+    if (!formData.height_feet.trim()) errors.push("Height is required");
+    if (!formData.beneficiary_name.trim()) errors.push("Beneficiary Name is required");
+    if (!formData.beneficiary_relationship.trim()) errors.push("Beneficiary Relationship is required");
+    return errors;
   };
   
   const isStep3Valid = () => {
-    return !!(formData.emergency_name.trim() && formData.emergency_relationship.trim() && formData.emergency_contact.trim() && isValidPhone(formData.emergency_contact));
+    const errors: string[] = [];
+    if (!formData.emergency_name.trim()) errors.push("Emergency Contact Name is required");
+    if (!formData.emergency_relationship.trim()) errors.push("Emergency Relationship is required");
+    if (!formData.emergency_contact.trim()) errors.push("Emergency Contact Number is required");
+    else if (!isValidPhone(formData.emergency_contact)) errors.push("Emergency Contact Number must be a valid PH mobile");
+    return errors;
   };
 
   const nextStep = () => {
     if (step === 1 && !isStep1Valid()) { setSubmitError("Please fill in all required fields."); return; }
-    if (step === 2 && !isStep2Valid()) { 
-      setSubmitError("Please fill in all required fields, provide a valid email, and a valid PH mobile number (09XXXXXXXXX)."); 
+    const step2Errors = isStep2Valid();
+    if (step === 2 && step2Errors.length > 0) { 
+      setSubmitError(step2Errors.join(" • ")); 
       return; 
     }
     setSubmitError(null);
@@ -134,20 +146,19 @@ export default function EnrollPage() {
   };
 
   const onSubmit = async () => {
-    if (!isStep3Valid()) { setSubmitError("Please fill in emergency contact details with a valid phone number."); return; }
+    const step3Errors = isStep3Valid();
+    if (step3Errors.length > 0) { setSubmitError(step3Errors.join(" • ")); return; }
     
     setSubmitError(null);
     setIsSubmitting(true);
 
     try {
-      // Double check if enrollment is open
       const { data: settingData, error: settingError } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single();
       if (settingError) throw new Error("Failed to verify enrollment status.");
       if (!settingData || (settingData.value !== true && settingData.value !== 'true')) {
         throw new Error("Enrollment is currently closed. You cannot submit an application at this time.");
       }
 
-      // Derive MS subject and title from year_class + semester
       const msData = MS_MAP[formData.year_class]?.[formData.semester];
       if (!msData) throw new Error("Invalid year class or semester selection.");
 
@@ -216,7 +227,6 @@ export default function EnrollPage() {
           <ArrowLeft className="h-4 w-4" /> Back to login
         </Link>
 
-        {/* Header & Progress */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-rotc-accent/10 flex items-center justify-center">
@@ -248,7 +258,6 @@ export default function EnrollPage() {
             </div>
           )}
 
-          {/* STEP 1: Personal Info */}
           {step === 1 && (
             <div className="space-y-5 animate-fade-in">
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2">Personal Information</h2>
@@ -274,7 +283,6 @@ export default function EnrollPage() {
                 {renderInputField({ label: "Date of Birth", field: "date_of_birth", type: "date" })}
                 {renderInputField({ label: "Course & Year", field: "course_year", placeholder: "e.g. BSIT 1" })}
                 
-                {/* Year Class Selector */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Year / Class *</label>
                   <select 
@@ -287,7 +295,6 @@ export default function EnrollPage() {
                   </select>
                 </div>
                 
-                {/* Semester Selector */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Semester *</label>
                   <select 
@@ -300,7 +307,6 @@ export default function EnrollPage() {
                   </select>
                 </div>
                 
-                {/* MS Preview */}
                 {currentMS && (
                   <div className="sm:col-span-2 px-4 py-3 rounded-lg bg-rotc-accent/10 border border-rotc-accent/20 text-sm">
                     <span className="text-rotc-textMuted">Enrolling for: </span>
@@ -311,7 +317,6 @@ export default function EnrollPage() {
             </div>
           )}
 
-          {/* STEP 2: Other Details & Beneficiary */}
           {step === 2 && (
             <div className="space-y-5 animate-fade-in">
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2">Contact & Other Details</h2>
@@ -345,7 +350,6 @@ export default function EnrollPage() {
             </div>
           )}
 
-          {/* STEP 3: Emergency & Summary */}
           {step === 3 && (
             <div className="space-y-6 animate-fade-in">
               <div>
@@ -383,7 +387,6 @@ export default function EnrollPage() {
             </div>
           )}
 
-          {/* Navigation Buttons */}
           <div className="flex items-center justify-between mt-8 pt-6 border-t border-rotc-border">
             {step > 1 ? (
               <Button variant="outline" onClick={prevStep} type="button">
