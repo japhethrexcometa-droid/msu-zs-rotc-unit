@@ -189,6 +189,7 @@ export default async function handler(req, res) {
       role: 'cadet',
       school: fullRequestData.school,
       platoon: 'Unassigned',
+      year_level: fullRequestData.year_level || '1st Year',
       year_class: fullRequestData.year_class || '1st Year',
       is_active: true,
       is_deleted: false,
