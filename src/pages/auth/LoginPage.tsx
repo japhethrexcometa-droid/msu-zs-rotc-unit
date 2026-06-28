@@ -132,7 +132,7 @@ export default function LoginPage() {
                   id="idNumber"
                   type="text"
                   placeholder="Enter your ID Number"
-                  autoComplete="id-number"
+                  autoComplete="off"
                   autoCapitalize="characters"
                   className={[
                     "w-full pl-10 pr-4 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
@@ -168,7 +168,9 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
-                  autoComplete="current-password"
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
                   className={[
                     "w-full pl-10 pr-12 py-3 rounded-xl bg-rotc-bg/60 border text-rotc-text text-sm",
                     "placeholder-rotc-textMuted/50 transition-all duration-150",
