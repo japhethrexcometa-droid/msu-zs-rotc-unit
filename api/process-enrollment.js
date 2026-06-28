@@ -8,7 +8,7 @@ import nodemailer from 'nodemailer';
 // ═══════════════════════════════════════════════════════════════════════════════
 const VALID_USERS_COLUMNS = [
   'id', 'id_number', 'full_name', 'role', 'gender',
-  'school', 'platoon', 'designation', 'year_level',
+  'school', 'platoon', 'designation', 'year_level', 'year_class',
   'qr_token', 'short_token', 'photo_url',
   'blood_type', 'emergency_contact_name', 'emergency_contact_number',
   'is_active', 'is_deleted', 'created_at'
@@ -189,6 +189,7 @@ export default async function handler(req, res) {
       role: 'cadet',
       school: fullRequestData.school,
       platoon: 'Unassigned',
+      year_class: fullRequestData.year_class || '1st Year',
       is_active: true,
       is_deleted: false,
       blood_type: fullRequestData.blood_type,
