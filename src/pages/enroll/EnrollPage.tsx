@@ -8,19 +8,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 // MS Class mapping: year_class + semester → ms_subject + ms_title
 const MS_MAP: Record<string, Record<string, { subject: string; title: string }>> = {
-  '1st Year': {
-    '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
-    '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
-  },
-  '2nd Year': {
-    '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
-    '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
-  },
-  '3rd Year': {
-    '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
-    '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
-  },
-  '4th Year': {
+  'Basic Cadet': {
     '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
     '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
   },
@@ -35,6 +23,7 @@ const MS_MAP: Record<string, Record<string, { subject: string; title: string }>>
 };
 
 const YEAR_CLASSES = Object.keys(MS_MAP);
+const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
 const SEMESTERS = ['1st Semester', '2nd Semester'];
 
 // Form State Types
@@ -49,6 +38,7 @@ interface EnrollmentState {
   gender: string;
   date_of_birth: string;
   course_year: string;
+  year_level: string;
   year_class: string;
   semester: string;
   // Step 2
@@ -68,7 +58,7 @@ interface EnrollmentState {
 
 const initialFormState: EnrollmentState = {
   id_number: "", school: "", last_name: "", first_name: "", middle_initial: "", suffix: "", gender: "Male", date_of_birth: "", course_year: "",
-  year_class: "1st Year", semester: "1st Semester",
+  year_level: "1st Year", year_class: "Basic Cadet", semester: "1st Semester",
   contact_number: "", home_address: "", religion: "", blood_type: "Unknown", height_feet: "", email: "", beneficiary_name: "", beneficiary_relationship: "",
   emergency_name: "", emergency_relationship: "", emergency_contact: ""
 };
@@ -111,7 +101,7 @@ export default function EnrollPage() {
       formData.id_number.trim() && formData.school.trim() && 
       formData.last_name.trim() && formData.first_name.trim() && 
       formData.gender.trim() && formData.date_of_birth && 
-      formData.course_year.trim() && formData.year_class.trim() && formData.semester.trim()
+      formData.course_year.trim() && formData.year_level.trim() && formData.year_class.trim() && formData.semester.trim()
     );
   };
   
@@ -293,10 +283,22 @@ export default function EnrollPage() {
                 </div>
                 
                 {renderInputField({ label: "Date of Birth", field: "date_of_birth", type: "date" })}
-                {renderInputField({ label: "Course & Year", field: "course_year", placeholder: "e.g. BSIT 1" })}
+                {renderInputField({ label: "Course (e.g. BSIT)", field: "course_year", placeholder: "e.g. BSIT" })}
                 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-rotc-textMuted">Year / Class *</label>
+                  <label className="text-sm font-medium text-rotc-textMuted">Academic Year *</label>
+                  <select 
+                    value={formData.year_level} onChange={e => updateForm({ year_level: e.target.value })}
+                    className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
+                  >
+                    {YEAR_LEVELS.map(yl => (
+                      <option key={yl} value={yl}>{yl}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-rotc-textMuted">ROTC MS Class *</label>
                   <select 
                     value={formData.year_class} onChange={e => updateForm({ year_class: e.target.value })}
                     className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
