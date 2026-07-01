@@ -1,6 +1,6 @@
 import Button from "@/components/ui/Button";
 import { AuthError, loginUser } from "@/lib/auth";
-import { useAuthStore } from "@/stores/auth.store";
+import { ROLE_HOME } from "@/lib/authz";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
@@ -50,9 +50,8 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await loginUser(data.idNumber, data.password);
-      const route = useAuthStore.getState().getRouteForRole();
-      navigate(route, { replace: true });
+      const session = await loginUser(data.idNumber, data.password);
+      navigate(ROLE_HOME[session.role], { replace: true });
     } catch (err) {
       if (err instanceof AuthError) {
         setLoginError(err.message);

@@ -1,15 +1,12 @@
 import { useSession } from '@/hooks/useSession'
 import AppLayout from '@/components/layout/AppLayout'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
-import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
 import { logoutUser } from '@/lib/auth'
 import { toast } from 'sonner'
-import { Settings, User, LogOut, Info } from 'lucide-react'
-import { Lock, Unlock, Shield, Bell, Save } from 'lucide-react'
+import { Settings, User, LogOut, Info, Lock } from 'lucide-react'
 import { useEnrollmentOpen, useToggleEnrollment } from '@/hooks/queries/useSettings'
 import { format } from 'date-fns'
 
@@ -17,10 +14,6 @@ export default function SettingsPage() {
   const session = useSession()
   const navigate = useNavigate()
 
-  const [oldPassword, setOldPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [changingPassword, setChangingPassword] = useState(false)
 
   const { data: enrollmentOpen = true, isLoading: isLoadingSettings } = useEnrollmentOpen()
   const toggleMutation = useToggleEnrollment()
@@ -36,43 +29,6 @@ export default function SettingsPage() {
 
   if (!session) return null
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      return
-    }
-
-    setChangingPassword(true)
-    try {
-      // Step 1: Verify old password using Supabase native auth
-      const dummyEmail = `${session.id_number.trim().toUpperCase()}@rotc.msubuug.edu.ph`
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: dummyEmail,
-        password: oldPassword
-      })
-      if (verifyError) throw new Error('Current password is incorrect.')
-
-      // Step 2: Update to new password using Supabase native auth
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      })
-      if (updateError) throw updateError
-
-      toast.success('Password changed successfully')
-      setOldPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to change password')
-    } finally {
-      setChangingPassword(false)
-    }
-  }
 
   const handleSignOut = () => {
     logoutUser()
@@ -112,34 +68,10 @@ export default function SettingsPage() {
 
         {/* Change Password */}
         <Card>
-          <CardHeader title="Change Password">
-            <Settings className="h-5 w-5 text-rotc-textMuted" />
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <Input
-                label="Current Password"
-                type="password"
-                value={oldPassword}
-                onChange={e => setOldPassword(e.target.value)}
-                required
-              />
-              <Input
-                label="New Password"
-                type="password"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                required
-              />
-              <Input
-                label="Confirm New Password"
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                required
-              />
-              <Button type="submit" isLoading={changingPassword}>Update Password</Button>
-            </form>
+          <CardContent className="p-5">
+            <Button onClick={() => navigate('/admin/change-password')} className="w-full">
+              <Lock className="h-4 w-4 mr-2" /> Change Password
+            </Button>
           </CardContent>
         </Card>
 

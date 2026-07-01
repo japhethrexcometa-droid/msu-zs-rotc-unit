@@ -1,34 +1,14 @@
 import { supabase } from '@/lib/supabase'
 
-// Ensure we don't depend on strict generated types if they are not updated yet
-export type EnrollmentRequest = any;
-
-export async function submitEnrollmentRequest(
-  payload: any
-): Promise<void> {
-  const { error } = await supabase
-    .from('enrollment_requests')
-    .insert({ ...payload, status: 'pending' })
-
-  if (error) throw error
-}
+// enrollment_requests is not in the generated database.types.ts yet.
+// Using `any` until `npx supabase gen types` is re-run to include this table.
+type EnrollmentRequest = any
 
 export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
   const { data, error } = await supabase
     .from('enrollment_requests')
     .select('*')
     .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return data ?? []
-}
-
-export async function getPendingEnrollments(): Promise<EnrollmentRequest[]> {
-  const { data, error } = await supabase
-    .from('enrollment_requests')
-    .select('*')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
 
   if (error) throw error
   return data ?? []

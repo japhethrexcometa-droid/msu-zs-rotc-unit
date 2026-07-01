@@ -303,133 +303,16 @@ This provides the best security-to-effort ratio and aligns with industry best pr
 
 ---
 
-## Additional Security Recommendations (Beyond Session Fix)
-
-### 1. Rate Limiting for Login Attempts (Recommended Addition)
-**Purpose**: Prevent brute force password attacks
-
-**Implementation**:
-- Add rate limiting middleware at API level
-- Limit: 5 failed login attempts per IP per 15 minutes
-- Lockout: Temporary IP block after threshold
-- Use Supabase Edge Functions or Vercel middleware
-
-**Files to modify**:
-- Create: `src/lib/rateLimit.ts`
-- Modify: `src/lib/auth.ts` - add rate limit check before login
-
-**Priority**: HIGH - protects against password guessing
-
----
-
-### 2. Account Lockout After Failed Attempts
-**Purpose**: Prevent credential stuffing attacks
-
-**Implementation**:
-- Track failed login attempts per user in database
-- Lock account after 5 failed attempts for 30 minutes
-- Send email notification to user on lockout
-- Admin can unlock via admin panel
-
-**Database changes**:
-- Add column: `users.failed_login_attempts` (integer)
-- Add column: `users.locked_until` (timestamp)
-
-**Priority**: HIGH - protects account takeover
-
----
-
-### 3. Two-Factor Authentication (2FA) for Admin (Future Enhancement)
-**Purpose**: Add extra security layer for sensitive admin access
-
-**Implementation**:
-- Use Supabase Auth MFA or TOTP (Time-based One-Time Password)
-- Require 2FA for admin login
-- Optional for officers/cadets
-
-**Priority**: MEDIUM - nice to have, not critical
-
----
-
-### 4. Audit Logging for Admin Actions
-**Purpose**: Track who did what for security investigations
-
-**Implementation**:
-- Log all admin actions (approve/reject enrollments, delete users, etc.)
-- Store: user_id, action, timestamp, IP address, details
-- Viewable in admin panel
-
-**Database changes**:
-- Create table: `audit_logs`
-
-**Priority**: MEDIUM - important for compliance
-
----
-
-### 5. IP Whitelisting for Admin Access (Optional)
-**Purpose**: Restrict admin access to specific locations/networks
-
-**Implementation**:
-- Configure allowed IP ranges in environment variables
-- Check IP on admin login
-- Use Vercel Edge Config or middleware
-
-**Priority**: LOW - only if you have specific security requirements
-
----
-
-### 6. Password Change Feature (User-Requested)
-**Purpose**: Allow cadets to change their password after login
-
-**Current state**: 
-- Default password = ID number (acceptable - cadet's choice)
-- No password change functionality exists
-
-**Implementation**:
-- Add "Change Password" page in Profile section
-- Require current password for verification
-- Allow cadets to set their own password
-- Optional: Enforce password strength (min 8 chars, mixed case, number)
-
-**Files to create/modify**:
-- Create: `src/pages/cadet/ChangePasswordPage.tsx`
-- Create: `src/pages/officer/ChangePasswordPage.tsx`
-- Create: `src/pages/admin/ChangePasswordPage.tsx`
-- Modify: `src/components/layout/Sidebar.tsx` - add "Change Password" link
-- Modify: `src/lib/auth.ts` - add `changePassword` function
-- Database: Add `users.password_changed_at` column (optional, for tracking)
-
-**Priority**: MEDIUM - user convenience feature, not security critical
-
----
-
-## Recommended Implementation Priority
-
-### Phase 1 (Critical - Do Now)
-1. ✅ Session storage fix (Option A)
-2. ✅ Remove auto-redirect from LoginPage
-3. ✅ Reduce session durations
-4. ✅ Remove Bulk Enroll feature
-
-### Phase 2 (Important - User-Requested)
-5. **NEW**: Password change feature for all users (cadets, officers, admin)
-
-### Phase 3 (Security Enhancements - Optional)
-6. Rate limiting for login attempts (Vercel middleware)
-7. Account lockout after failed attempts (PostgreSQL)
-8. Audit logging for admin actions (PostgreSQL)
-
-### Phase 4 (Future Enhancements)
-9. Two-factor authentication (2FA) for admin (Supabase MFA)
-10. IP whitelisting for admin access (Vercel Edge Config - if needed)
-
----
-
 ## Questions for Review
 
 1. **Do you agree with sessionStorage approach?** (Most secure, simplest)
 2. **Are the proposed session durations acceptable?** (Admin: 2h, Officer: 4h, Cadet: 8h)
-3. **Should we keep auto-redirect or remove it?** (Recommend remove for security)
+3. **Should we 128 x 10
+Thought for 1s
+Command git in /C:/rotc-pwa
+
+
+keep auto-redirect or remove it?** (Recommend remove for security)
 4. **Any additional security concerns to address?**
 5. **Should we add session timeout warnings?** (Can be added in Phase 2)
 

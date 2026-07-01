@@ -1,18 +1,9 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 
-/** Call this once at the top of any protected page to auto-redirect if expired. */
+/**
+ * Convenience hook to access the current user session.
+ * Auth guards (expiry redirect, role checks) are handled by ProtectedRoute.
+ */
 export function useSession() {
-  const { session, isExpired, logout, getRouteForRole } = useAuthStore()
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!session || isExpired()) {
-      logout()
-      navigate('/?expired=1', { replace: true })
-    }
-  }, [])
-
-  return session
+  return useAuthStore((s) => s.session)
 }

@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
   allowedRoles: UserRole[]
 }
 
-const ROLE_HOME: Record<UserRole, string> = {
+export const ROLE_HOME: Record<UserRole, string> = {
   admin: '/admin/dashboard',
   officer: '/officer/dashboard',
   cadet: '/cadet/dashboard',

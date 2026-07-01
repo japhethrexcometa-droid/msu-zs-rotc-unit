@@ -25,7 +25,6 @@ interface AuthState {
   logout: () => void
   isExpired: () => boolean
   refreshActivity: () => void
-  getRouteForRole: () => string
   setLoading: (v: boolean) => void
   setError: (e: string | null) => void
 }
@@ -75,14 +74,6 @@ export const useAuthStore = create<AuthState>()(
           } else {
             set({ session: { ...session, last_activity: now } })
           }
-        },
-
-        getRouteForRole: () => {
-          const role = get().session?.role
-          if (role === 'admin') return '/admin/dashboard'
-          if (role === 'officer') return '/officer/dashboard'
-          if (role === 'cadet') return '/cadet/dashboard'
-          return '/'
         },
 
         setLoading: (v) => set({ isLoading: v }),
