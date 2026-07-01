@@ -112,6 +112,7 @@ export type Database = {
           suffix: string | null
           updated_at: string | null
           year_class: string | null
+          year_level: string | null
         }
         Insert: {
           beneficiary_name?: string | null
@@ -148,6 +149,7 @@ export type Database = {
           suffix?: string | null
           updated_at?: string | null
           year_class?: string | null
+          year_level?: string | null
         }
         Update: {
           beneficiary_name?: string | null
@@ -184,6 +186,7 @@ export type Database = {
           suffix?: string | null
           updated_at?: string | null
           year_class?: string | null
+          year_level?: string | null
         }
         Relationships: []
       }
