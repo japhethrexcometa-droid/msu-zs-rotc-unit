@@ -188,7 +188,7 @@ export default async function handler(req, res) {
       id_number: cleanIdNumber,
       full_name: fullName,
       gender: fullRequestData.gender,
-      role: 'cadet',
+      role: fullRequestData.role === 'officer' ? 'officer' : 'cadet',
       school: fullRequestData.school,
       platoon: 'Unassigned',
       year_level: fullRequestData.year_level || '1st Year',

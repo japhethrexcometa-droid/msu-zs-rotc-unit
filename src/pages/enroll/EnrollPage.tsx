@@ -12,6 +12,18 @@ const MS_MAP: Record<string, Record<string, { subject: string; title: string }>>
     '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
     '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
   },
+  '2nd Year': {
+    '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
+    '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
+  },
+  '3rd Year': {
+    '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
+    '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
+  },
+  '4th Year': {
+    '1st Semester': { subject: 'MS1', title: 'Military Science 1' },
+    '2nd Semester': { subject: 'MS2', title: 'Military Science 2' },
+  },
   '2nd Class (2CL)': {
     '1st Semester': { subject: 'MS31', title: 'Military Science 31' },
     '2nd Semester': { subject: 'MS32', title: 'Military Science 32' },
