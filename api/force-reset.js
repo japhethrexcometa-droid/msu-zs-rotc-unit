@@ -13,15 +13,15 @@ export default async function handler(req, res) {
     let results = [];
 
     for (let id of ids) {
-      // Find the user by id_number
+      // Find the user by id_number using ilike in case of hidden spaces
       const { data: user, error: findError } = await supabaseAdmin
         .from('users')
-        .select('id')
-        .eq('id_number', id)
-        .single();
+        .select('id, id_number')
+        .ilike('id_number', `%${id}%`)
+        .maybeSingle();
 
       if (findError || !user) {
-        results.push({ id, status: 'Not found in public.users' });
+        results.push({ id, status: `Not found in public.users. DB Error: ${findError?.message || 'No rows match'}` });
         continue;
       }
 

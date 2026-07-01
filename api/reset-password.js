@@ -24,11 +24,15 @@ export default async function handler(req, res) {
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser(token);
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { data: adminUser } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
-    if (!adminUser || adminUser.role !== 'admin') throw new Error("Forbidden: Admins only");
+    const { data: adminUser, error: dbError } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
+    if (dbError) throw new Error("DB Error verifying admin: " + dbError.message);
+    if (!adminUser || adminUser.role !== 'admin') {
+      throw new Error(`Forbidden: Admins only. Found role: ${adminUser?.role || 'none'} for user ID: ${user.id}`);
+    }
 
     const { targetUserId, newPassword } = req.body;
     if (!targetUserId || !newPassword) throw new Error("Missing required fields");
