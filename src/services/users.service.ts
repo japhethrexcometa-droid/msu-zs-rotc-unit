@@ -109,13 +109,25 @@ export async function getUserCountByRole(): Promise<Record<string, number>> {
 }
 
 export async function resetUserPassword(targetUserId: string, newPassword: string): Promise<void> {
-  const { data, error } = await supabase.rpc('admin_reset_user_password', {
-    p_target_id: targetUserId,
-    p_new_password: newPassword
-  })
+  const { data: { session } } = await supabase.auth.getSession()
   
-  if (error) throw error
-  if (data && typeof data === 'object' && !data.success) {
+  if (!session) throw new Error('Not authenticated')
+
+  const response = await fetch('/api/reset-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({
+      targetUserId,
+      newPassword
+    })
+  })
+
+  const data = await response.json()
+  
+  if (!response.ok || !data.success) {
     throw new Error(data.error || 'Failed to reset password')
   }
 }
