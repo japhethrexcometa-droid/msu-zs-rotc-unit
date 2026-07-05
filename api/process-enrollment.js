@@ -21,6 +21,30 @@ function validateUsersPayload(payload) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROLE DETERMINATION — Bulletproof: uses explicit role + year_class fallback
+// 2CL / 1CL year_class ⇒ officer  |  Basic Cadet ⇒ cadet
+// This prevents silent 'cadet' default when fullRequestData.role is missing
+// ═══════════════════════════════════════════════════════════════════════════════
+function determineRole(requestData) {
+  // 1. Check explicit role from enrollment form
+  const explicitRole = String(requestData.role || '').trim().toLowerCase();
+  if (explicitRole === 'officer' || explicitRole === 'cadet') {
+    return explicitRole;
+  }
+
+  // 2. Fallback: infer from year_class (2CL/1CL = officer, Basic Cadet = cadet)
+  const yearClass = String(requestData.year_class || '').trim();
+  if (yearClass.includes('2CL') || yearClass.includes('1CL')) {
+    console.log(`[ROLE-FIX] Inferred 'officer' from year_class="${yearClass}" (explicit role was "${requestData.role}")`);
+    return 'officer';
+  }
+
+  // 3. Default to cadet (Basic Cadet / unknown)
+  console.log(`[ROLE-FIX] Defaulting to 'cadet' — role="${requestData.role}", year_class="${yearClass}"`);
+  return 'cadet';
+}
+
 export default async function handler(req, res) {
   // 1. Setup CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -188,7 +212,7 @@ export default async function handler(req, res) {
       id_number: cleanIdNumber,
       full_name: fullName,
       gender: fullRequestData.gender,
-      role: fullRequestData.role === 'officer' ? 'officer' : 'cadet',
+      role: determineRole(fullRequestData),
       school: fullRequestData.school,
       platoon: 'Unassigned',
       year_level: fullRequestData.year_level || '1st Year',

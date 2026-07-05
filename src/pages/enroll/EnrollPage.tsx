@@ -82,12 +82,24 @@ export default function EnrollPage() {
 
   const validRole = role === "officer" || role === "cadet" ? role : "cadet";
 
+  // Filter MS Class options per role: cadet = Basic Cadet only, officer = 2CL/1CL only
+  const filteredYearClasses = validRole === 'officer'
+    ? YEAR_CLASSES.filter(yc => yc.includes('2CL') || yc.includes('1CL'))
+    : YEAR_CLASSES.filter(yc => yc === 'Basic Cadet');
+
   useEffect(() => {
     const saved = localStorage.getItem('enrollment_draft');
     if (saved) {
       try { setFormData(JSON.parse(saved)); } catch (e) {}
     }
   }, []);
+
+  // Auto-fix year_class when it doesn't belong to the current role's options
+  useEffect(() => {
+    if (filteredYearClasses.length > 0 && !filteredYearClasses.includes(formData.year_class)) {
+      updateForm({ year_class: filteredYearClasses[0] });
+    }
+  }, [validRole]);
 
   const updateForm = (updates: Partial<EnrollmentState>) => {
     const updated = { ...formData, ...updates };
@@ -303,7 +315,7 @@ export default function EnrollPage() {
                     value={formData.year_class} onChange={e => updateForm({ year_class: e.target.value })}
                     className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
                   >
-                    {YEAR_CLASSES.map(yc => (
+                    {filteredYearClasses.map(yc => (
                       <option key={yc} value={yc}>{yc}</option>
                     ))}
                   </select>
