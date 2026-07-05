@@ -14,7 +14,7 @@ import {
 } from '@/hooks/queries/useEnrollment'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { Check, X, Download, AlertCircle } from 'lucide-react'
+import { Check, X, Download, AlertCircle, RefreshCw } from 'lucide-react'
 
 function ProfileDetails({ data }: { data: any }) {
   return (
@@ -48,7 +48,7 @@ export default function EnrollmentPage() {
   const session = useSession()
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
   
-  const { data: allRequests = [], isLoading } = useEnrollmentRequests()
+  const { data: allRequests = [], isLoading, isFetching, dataUpdatedAt, refetch } = useEnrollmentRequests()
   const approveMutation = useApproveEnrollment()
   const rejectMutation = useRejectEnrollment()
 
@@ -249,6 +249,26 @@ export default function EnrollmentPage() {
         <Card>
           <CardHeader title="Enrollment Requests">
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-rotc-textMuted">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  Live
+                  {dataUpdatedAt > 0 && (
+                    <span className="hidden sm:inline">· {new Date(dataUpdatedAt).toLocaleTimeString()}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  className="p-1.5 rounded-lg text-rotc-textMuted hover:bg-rotc-cardHover hover:text-rotc-text transition-colors disabled:opacity-50"
+                  title="Refresh now"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
               <Button variant="outline" size="sm" onClick={exportCSV}>
                 <Download className="h-4 w-4 mr-2" /> Export CSV
               </Button>

@@ -54,10 +54,9 @@ export function useEnrollmentRequests() {
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    // Poll every 15 seconds as a reliable fallback
-    // This ensures new enrollments, approvals, and rejections always appear
-    // even if Supabase Realtime is not configured for this table
-    refetchInterval: 15_000,
+    // Poll every 5 seconds — fast enough for live enrollment intake
+    // When thousands of enrollees submit, admin sees new entries within 5s
+    refetchInterval: 5_000,
   })
 }
 
