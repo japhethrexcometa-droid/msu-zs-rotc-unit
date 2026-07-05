@@ -14,11 +14,20 @@ async function ensureAuthSession(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return // Not logged in — let the query fail naturally
 
-  // If the token expires within 60 seconds, force a refresh
+  // If the token expires within 120 seconds, force a refresh
   const expiresAt = session.expires_at ?? 0
   const nowSec = Math.floor(Date.now() / 1000)
-  if (expiresAt - nowSec < 60) {
-    await supabase.auth.refreshSession()
+  if (expiresAt - nowSec < 120) {
+    const { error } = await supabase.auth.refreshSession()
+    if (error) {
+      // Retry once — network glitch or race condition
+      const { error: retryError } = await supabase.auth.refreshSession()
+      if (retryError) {
+        console.error('[ensureAuthSession] Session refresh failed after retry:', retryError.message)
+        // Don't throw — let the query attempt with current token
+        // The RLS will return empty results but at least we log the cause
+      }
+    }
   }
 }
 

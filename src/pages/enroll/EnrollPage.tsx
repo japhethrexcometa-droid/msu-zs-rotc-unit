@@ -90,16 +90,25 @@ export default function EnrollPage() {
   useEffect(() => {
     const saved = localStorage.getItem('enrollment_draft');
     if (saved) {
-      try { setFormData(JSON.parse(saved)); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        // Immediately correct year_class if it doesn't belong to this role
+        // This prevents the race condition where an officer draft loads on cadet page
+        if (filteredYearClasses.length > 0 && !filteredYearClasses.includes(parsed.year_class)) {
+          parsed.year_class = filteredYearClasses[0];
+        }
+        setFormData(parsed);
+        localStorage.setItem('enrollment_draft', JSON.stringify(parsed));
+      } catch (e) {}
     }
   }, []);
 
-  // Auto-fix year_class when it doesn't belong to the current role's options
+  // Auto-fix year_class whenever it doesn't belong to the current role's options
   useEffect(() => {
     if (filteredYearClasses.length > 0 && !filteredYearClasses.includes(formData.year_class)) {
       updateForm({ year_class: filteredYearClasses[0] });
     }
-  }, [validRole]);
+  }, [validRole, formData.year_class]);
 
   const updateForm = (updates: Partial<EnrollmentState>) => {
     const updated = { ...formData, ...updates };
