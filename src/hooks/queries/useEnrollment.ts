@@ -14,15 +14,19 @@ export const ENROLLMENT_KEYS = {
 
 /**
  * Fetches all enrollment requests with:
- * - staleTime: 0 → always re-fetches on mount
+ * - refetchInterval: 15s polling → ensures data always appears even without Realtime
+ * - Supabase Realtime subscription → instant updates when publication is configured
  * - refetchOnWindowFocus → picks up changes when admin returns to tab
- * - Supabase Realtime subscription → invalidates cache on INSERT/UPDATE/DELETE
- *   so pending data appears immediately after public user submits (Bug 2)
- *   and approved/rejected data stays current (Bug 3)
+ * - staleTime: 0 → always re-validates on mount
+ * 
+ * The auth session is refreshed before every query (in enrollment.service.ts)
+ * to prevent RLS is_admin() from returning false due to stale JWT tokens.
  */
 export function useEnrollmentRequests() {
   const queryClient = useQueryClient()
 
+  // Realtime subscription — works if enrollment_requests is in supabase_realtime publication
+  // Gracefully does nothing if not configured (polling covers it)
   useEffect(() => {
     const channel = supabase
       .channel('enrollment-realtime')
@@ -34,7 +38,6 @@ export function useEnrollmentRequests() {
           table: 'enrollment_requests',
         },
         (_payload) => {
-          // Any change to enrollment_requests → refresh the query
           queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
         }
       )
@@ -51,6 +54,10 @@ export function useEnrollmentRequests() {
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
+    // Poll every 15 seconds as a reliable fallback
+    // This ensures new enrollments, approvals, and rejections always appear
+    // even if Supabase Realtime is not configured for this table
+    refetchInterval: 15_000,
   })
 }
 

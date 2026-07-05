@@ -277,10 +277,10 @@ export default function EnrollmentPage() {
           <CardContent className="p-0">
             <Table
               headers={tab === 'pending' 
-                ? ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Email Status', 'Actions']
+                ? ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Actions']
                 : tab === 'rejected'
-                  ? ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Reason', 'Processed']
-                  : ['ID Number', 'Name', 'School', 'Gender', 'Submitted', 'Processed', 'Actions']
+                  ? ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Reason', 'Processed']
+                  : ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Processed', 'Actions']
               }
               isLoading={isLoading}
               data={currentRequests}
@@ -292,17 +292,13 @@ export default function EnrollmentPage() {
                     {r.first_name} {r.middle_initial ? r.middle_initial + '.' : ''} {r.last_name}{r.suffix && r.suffix !== 'N/A' ? ' ' + r.suffix : ''}
                   </td>
                   <td className="p-4 text-sm text-rotc-textMuted">{r.school}</td>
-                  <td className="p-4 text-sm text-rotc-textMuted">{r.gender}</td>
+                  <td className="p-4">
+                    <Badge status={r.role === 'officer' ? 'info' : 'default'} label={r.role === 'officer' ? 'Officer' : 'Cadet'} />
+                  </td>
+                  <td className="p-4 text-sm text-rotc-textMuted">{r.ms_subject || '—'}</td>
                   <td className="p-4 text-sm text-rotc-textMuted">{format(new Date(r.created_at), 'MMM d, yyyy')}</td>
                   {tab === 'pending' ? (
                     <>
-                      <td className="p-4">
-                        {r.email_sent ? (
-                          <Badge status="success" label="Sent" />
-                        ) : (
-                          <Badge status="warning" label="Pending" />
-                        )}
-                      </td>
                       <td className="p-4">
                         <Button variant="outline" size="sm" onClick={() => setApproveItem(r)}>Review</Button>
                       </td>

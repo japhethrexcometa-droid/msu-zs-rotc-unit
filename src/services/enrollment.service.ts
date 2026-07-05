@@ -4,7 +4,28 @@ import { supabase } from '@/lib/supabase'
 // Using `any` until `npx supabase gen types` is re-run to include this table.
 type EnrollmentRequest = any
 
+/**
+ * Ensures the Supabase auth session is fresh before any RLS-protected query.
+ * Without this, the JWT can silently expire, causing auth.uid() → NULL in
+ * Postgres RLS, which makes is_admin() return FALSE → empty result set.
+ * This is the root cause of enrollment data randomly disappearing.
+ */
+async function ensureAuthSession(): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return // Not logged in — let the query fail naturally
+
+  // If the token expires within 60 seconds, force a refresh
+  const expiresAt = session.expires_at ?? 0
+  const nowSec = Math.floor(Date.now() / 1000)
+  if (expiresAt - nowSec < 60) {
+    await supabase.auth.refreshSession()
+  }
+}
+
 export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
+  // CRITICAL: Refresh auth session BEFORE querying to ensure RLS works
+  await ensureAuthSession()
+
   const { data, error } = await supabase
     .from('enrollment_requests')
     .select('*')

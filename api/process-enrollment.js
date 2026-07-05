@@ -220,8 +220,8 @@ export default async function handler(req, res) {
       is_active: true,
       is_deleted: false,
       blood_type: fullRequestData.blood_type,
-      emergency_contact_name: fullRequestData.emergency_contact_name,
-      emergency_contact_number: fullRequestData.emergency_contact_number
+      emergency_contact_name: fullRequestData.emergency_name,
+      emergency_contact_number: fullRequestData.emergency_contact
     };
 
     // Validate payload against schema contract BEFORE hitting the database
