@@ -21,6 +21,7 @@ const AdminAnnouncements = lazy(() => import('@/pages/admin/AnnouncementsPage'))
 const AdminEnrollment = lazy(() => import('@/pages/admin/EnrollmentPage'))
 const AdminSettings = lazy(() => import('@/pages/admin/SettingsPage'))
 const AdminArchives = lazy(() => import('@/pages/admin/ArchivesPage'))
+const AdminAccessCodes = lazy(() => import('@/pages/admin/AccessCodesPage'))
 
 // Officer pages
 const OfficerDashboard = lazy(() => import('@/pages/officer/DashboardPage'))
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="digital-ids" element={<AdminDigitalIDs />} />
           <Route path="announcements" element={<AdminAnnouncements />} />
           <Route path="enrollment" element={<AdminEnrollment />} />
+          <Route path="access-codes" element={<AdminAccessCodes />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="archives" element={<AdminArchives />} />
           <Route path="change-password" element={<ChangePasswordPage />} />

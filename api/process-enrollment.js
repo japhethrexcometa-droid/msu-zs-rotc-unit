@@ -251,45 +251,31 @@ export default async function handler(req, res) {
       console.error("Failed to update request status, but user was created:", updateError);
     }
 
-    // 7. Send Email via Nodemailer (No TCP restrictions on Vercel AWS Lambda!)
+    // 7. Queue Email instead of sending synchronously (Background Email Processing)
     try {
-      if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
-        console.warn("SMTP credentials missing, skipping email.");
-      } else {
-        const transporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 465,
-          secure: true,
-          auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD
-          }
-        });
-
-        const htmlContent = `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #1a472a;">Welcome to MSU ZS ROTC</h2>
-            <p>Dear ${firstName},</p>
-            <p>Your enrollment request has been approved.</p>
-            <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0;"><strong>ID Number:</strong> ${cleanIdNumber}</p>
-              <p style="margin: 5px 0 0 0;"><strong>Password:</strong> ${tempPassword}</p>
-            </div>
-            <p>You can now log in to the ROTC Portal using these credentials. Please change your password after logging in.</p>
-            <br/>
-            <p>Best regards,<br/>MSU ZS ROTC Administration</p>
+      const htmlContent = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1a472a;">Welcome to MSU ZS ROTC</h2>
+          <p>Dear ${firstName},</p>
+          <p>Your enrollment request has been approved.</p>
+          <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>ID Number:</strong> ${cleanIdNumber}</p>
+            <p style="margin: 5px 0 0 0;"><strong>Password:</strong> ${tempPassword}</p>
           </div>
-        `;
+          <p>You can now log in to the ROTC Portal using these credentials. Please change your password after logging in.</p>
+          <br/>
+          <p>Best regards,<br/>MSU ZS ROTC Administration</p>
+        </div>
+      `;
 
-        await transporter.sendMail({
-          from: `"MSU ZS ROTC Unit" <${process.env.SMTP_EMAIL}>`,
-          to: email,
-          subject: "Welcome to MSU ZS ROTC Unit",
-          html: htmlContent
-        });
-      }
+      await supabaseAdmin.from('email_queue').insert({
+        recipient: email,
+        subject: "Welcome to MSU ZS ROTC Unit",
+        html_body: htmlContent,
+        status: 'pending'
+      });
     } catch (emailError) {
-      console.error("Non-blocking email error:", emailError);
+      console.error("Failed to queue email:", emailError);
     }
 
     return res.status(200).json({ success: true, message: "Enrollment processed." });

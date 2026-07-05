@@ -5,6 +5,12 @@
       "destination": "/index.html"
     }
   ],
+  "crons": [
+    {
+      "path": "/api/cron/process-emails",
+      "schedule": "* * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

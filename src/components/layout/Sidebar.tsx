@@ -4,7 +4,7 @@ import { logoutUser } from '@/lib/auth'
 import {
   LayoutDashboard, Users, UserCheck, QrCode, CalendarCheck,
   ClipboardList, BarChart3, CreditCard, Megaphone, UserPlus,
-  Settings, Archive, Calendar, LogOut, User, Shield, X, ChevronLeft, Lock
+  Settings, Archive, Calendar, LogOut, User, Shield, X, ChevronLeft, Lock, Key
 } from 'lucide-react'
 import type { UserRole } from '@/stores/auth.store'
 import type { ReactNode } from 'react'
@@ -26,6 +26,7 @@ const adminNav: NavItem[] = [
   { label: 'Digital IDs',   path: '/admin/digital-ids',   icon: <CreditCard className="h-5 w-5" /> },
   { label: 'Announcements', path: '/admin/announcements', icon: <Megaphone className="h-5 w-5" /> },
   { label: 'Enrollment',    path: '/admin/enrollment',    icon: <UserPlus className="h-5 w-5" /> },
+  { label: 'Access Codes',  path: '/admin/access-codes',  icon: <Key className="h-5 w-5" /> },
   { label: 'Settings',      path: '/admin/settings',      icon: <Settings className="h-5 w-5" /> },
   { label: 'Archives',      path: '/admin/archives',      icon: <Archive className="h-5 w-5" /> },
   { label: 'Change Password', path: '/admin/change-password', icon: <Lock className="h-5 w-5" /> },

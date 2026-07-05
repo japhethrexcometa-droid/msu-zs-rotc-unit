@@ -63,6 +63,8 @@ const initialFormState: EnrollmentState = {
   emergency_name: "", emergency_relationship: "", emergency_contact: ""
 };
 
+import { verifyAccessCode } from '@/services/accesscodes.service';
+
 // Validation helpers
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 // Accepts: 09123456789, 0912 345 6789, 0912-345-6789, +639123456789, +63 912 345 6789
@@ -74,7 +76,11 @@ const isValidPhone = (phone: string) => {
 export default function EnrollPage() {
   const { role } = useParams<{ role: string }>();
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Step 0 is the Access Code gate
+  const [accessCode, setAccessCode] = useState('');
+  const [isValidatingCode, setIsValidatingCode] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<EnrollmentState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -151,6 +157,7 @@ export default function EnrollPage() {
   };
 
   const nextStep = () => {
+    if (step === 0) return; // Handled by handleVerifyCode
     if (step === 1 && !isStep1Valid()) { setSubmitError("Please fill in all required fields."); return; }
     const step2Errors = isStep2Valid();
     if (step === 2 && step2Errors.length > 0) { 
@@ -169,6 +176,11 @@ export default function EnrollPage() {
   };
 
   const onSubmit = async () => {
+    if (!accessCode) {
+      setSubmitError("Access code is missing. Please reload the page.");
+      return;
+    }
+
     const step3Errors = isStep3Valid();
     if (step3Errors.length > 0) { setSubmitError(step3Errors.join(" • ")); return; }
     
@@ -185,7 +197,7 @@ export default function EnrollPage() {
       const msData = MS_MAP[formData.year_class]?.[formData.semester];
       if (!msData) throw new Error("Invalid year class or semester selection.");
 
-      const { error } = await supabase.from("enrollment_requests").insert({
+      const enrollmentData = {
         id_number: formData.id_number,
         school: formData.school,
         last_name: formData.last_name,
@@ -210,14 +222,21 @@ export default function EnrollPage() {
         emergency_relationship: formData.emergency_relationship,
         emergency_contact: formData.emergency_contact,
         role: validRole,
-        status: "pending",
         ms_subject: msData.subject,
         ms_title: msData.title,
+      };
+
+      const { data, error } = await supabase.rpc('submit_enrollment_with_code', {
+        p_access_code: accessCode,
+        p_enrollment_data: enrollmentData
       });
 
       if (error) {
-        if (error.code === "23505") throw new Error("An enrollment request with this ID number already exists.");
         throw new Error(error.message || "Failed to submit enrollment. Please try again.");
+      }
+
+      if (data && !data.success) {
+        throw new Error(data.error || "Failed to submit enrollment.");
       }
 
       localStorage.removeItem('enrollment_draft');
@@ -226,6 +245,31 @@ export default function EnrollPage() {
       setSubmitError(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessCode.trim()) return;
+    
+    setIsValidatingCode(true);
+    setCodeError(null);
+    
+    try {
+      // First, check if the student ID number already has an enrollment (Duplicate Prevention)
+      // Actually we don't know the ID number yet (it's asked in step 1).
+      // So duplicate check happens on submit or we could do it here if we asked for ID number.
+      // For now, just verify the code.
+      const res = await verifyAccessCode(accessCode);
+      if (res.valid) {
+        setStep(1);
+      } else {
+        setCodeError(res.message || "Invalid code");
+      }
+    } catch (err) {
+      setCodeError("Error verifying code. Please check your connection.");
+    } finally {
+      setIsValidatingCode(false);
     }
   };
 
@@ -241,6 +285,53 @@ export default function EnrollPage() {
           <h1 className="text-xl font-bold text-rotc-text">Enrollment Closed</h1>
           <p className="text-rotc-textMuted">Online enrollment is currently closed. Please contact the ROTC office for more information.</p>
           <Link to="/" className="inline-block mt-4 text-rotc-accent hover:underline">Return to Login</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 0: Access Code Gate
+  if (step === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-rotc-bg">
+        <div className="max-w-md w-full bg-rotc-card border border-rotc-border rounded-2xl shadow-xl overflow-hidden">
+          <div className="p-6 text-center border-b border-rotc-border bg-rotc-bg">
+            <div className="w-12 h-12 bg-rotc-accent/10 text-rotc-accent rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-bold text-rotc-text">Access Code Required</h1>
+            <p className="text-sm text-rotc-textMuted mt-1">
+              Please enter the 6-digit access code provided by the ROTC Office after paying your registration fee.
+            </p>
+          </div>
+          <div className="p-6">
+            <form onSubmit={handleVerifyCode} className="space-y-4">
+              <div>
+                <Input
+                  label="Access Code"
+                  placeholder="e.g. A7B9X2"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  required
+                  className="text-center text-2xl tracking-widest uppercase font-mono"
+                />
+                {codeError && (
+                  <p className="text-sm text-rotc-danger mt-2 text-center flex items-center justify-center gap-1">
+                    <AlertCircle className="w-4 h-4" /> {codeError}
+                  </p>
+                )}
+              </div>
+              <Button type="submit" className="w-full" disabled={isValidatingCode || accessCode.length < 5}>
+                {isValidatingCode ? 'Verifying...' : 'Continue'}
+              </Button>
+            </form>
+          </div>
+          <div className="p-4 bg-rotc-bg border-t border-rotc-border text-center">
+            <Link to="/" className="text-sm text-rotc-textMuted hover:text-rotc-text transition-colors">
+              Return to Login
+            </Link>
+          </div>
         </div>
       </div>
     );
