@@ -161,9 +161,15 @@ export default async function handler(req, res) {
 
     // PRE-CHECK: Does this user already exist in public.users?
     const { data: existingUser } = await supabaseAdmin.from('users')
-      .select('id').eq('id_number', cleanIdNumber).maybeSingle();
+      .select('id, role').eq('id_number', cleanIdNumber).maybeSingle();
 
     if (existingUser) {
+      if (existingUser.role === 'admin' || existingUser.role === 'officer') {
+        return res.status(400).json({ 
+          error: "This ID number belongs to an active Admin or Officer. You cannot re-enroll or override this account, as it will destroy their login session." 
+        });
+      }
+
       // User profile exists — but auth might be broken (stale from failed attempts)
       // Self-healing: delete the old auth user and recreate with correct credentials
       try {
