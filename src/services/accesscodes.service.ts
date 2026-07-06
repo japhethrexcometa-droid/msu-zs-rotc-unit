@@ -65,26 +65,31 @@ export async function revokeAccessCode(id: string): Promise<void> {
   if (error) throw error
 }
 
+function readAccessCodeStatus(row: { status: string; expires_at: string } | null): { valid: boolean; message?: string } {
+  if (!row) return { valid: false, message: 'Invalid access code.' }
+  if (row.status === 'used') return { valid: false, message: 'This access code has already been used.' }
+  if (row.status === 'revoked') return { valid: false, message: 'This access code has been revoked.' }
+  if (row.status === 'expired') return { valid: false, message: 'This access code has expired.' }
+  if (new Date(row.expires_at) < new Date()) return { valid: false, message: 'This access code has expired.' }
+  return { valid: true }
+}
+
 // For the public form
 export async function verifyAccessCode(code: string): Promise<{ valid: boolean; message?: string }> {
-  // Call an edge function or check directly via Supabase
-  // We can do a direct select because RLS allows reading status
-  const { data, error } = await supabase
+  const normalizedCode = code.toUpperCase()
+  const { data, error } = await supabase.rpc('verify_enrollment_access_code', {
+    p_access_code: normalizedCode,
+  })
+
+  if (!error) return data ?? { valid: false, message: 'Invalid access code.' }
+
+  // Temporary compatibility path for deployments before the hardening migration is applied.
+  const { data: legacyData, error: legacyError } = await supabase
     .from('enrollment_access_codes')
-    .select('id, status, expires_at')
-    .eq('code', code.toUpperCase())
+    .select('status, expires_at')
+    .eq('code', normalizedCode)
     .maybeSingle()
 
-  if (error) return { valid: false, message: 'Database error checking code.' }
-  if (!data) return { valid: false, message: 'Invalid access code.' }
-
-  if (data.status === 'used') return { valid: false, message: 'This access code has already been used.' }
-  if (data.status === 'revoked') return { valid: false, message: 'This access code has been revoked.' }
-  if (data.status === 'expired') return { valid: false, message: 'This access code has expired.' }
-
-  if (new Date(data.expires_at) < new Date()) {
-    return { valid: false, message: 'This access code has expired.' }
-  }
-
-  return { valid: true }
+  if (legacyError) return { valid: false, message: 'Database error checking code.' }
+  return readAccessCodeStatus(legacyData)
 }

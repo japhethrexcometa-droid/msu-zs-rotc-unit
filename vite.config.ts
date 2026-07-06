@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'MSU-ZS ROTC Attendance System',
         short_name: 'ROTC MSU-ZS',
-        description: 'ROTC Attendance, Enrollment, and Management System — MSU-Zamboanga Sibugay',
+        description: 'ROTC Attendance, Enrollment, and Management System - MSU-Zamboanga Sibugay',
         start_url: '/',
         display: 'standalone',
         orientation: 'portrait-primary',
@@ -47,6 +47,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
