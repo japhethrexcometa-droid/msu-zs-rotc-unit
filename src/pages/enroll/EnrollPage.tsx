@@ -305,15 +305,26 @@ export default function EnrollPage() {
             </p>
           </div>
           <div className="p-6">
-            <form onSubmit={handleVerifyCode} className="space-y-4">
+            <form onSubmit={handleVerifyCode} className="space-y-4" autoComplete="off" data-lpignore="true" data-1p-ignore="true">
               <div>
                 <Input
+                  id="rotc-entry-token"
+                  name="rotc_entry_token"
                   label="Access Code"
+                  type="password"
                   placeholder="e.g. A7B9X2"
                   value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                  onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  inputMode="text"
                   maxLength={6}
                   required
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-form-type="other"
                   className="text-center text-2xl tracking-widest uppercase font-mono"
                 />
                 {codeError && (
