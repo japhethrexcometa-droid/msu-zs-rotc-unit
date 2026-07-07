@@ -49,6 +49,7 @@ export default function EnrollmentPage() {
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
   
   const { data: allRequests = [], isLoading, isFetching, dataUpdatedAt, refetch } = useEnrollmentRequests()
+  const [isProcessingEmails, setIsProcessingEmails] = useState(false)
   const approveMutation = useApproveEnrollment()
   const rejectMutation = useRejectEnrollment()
 
@@ -269,6 +270,35 @@ export default function EnrollmentPage() {
                   <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
                 </button>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setIsProcessingEmails(true);
+                  try {
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const token = sessionData.session?.access_token;
+                    const res = await fetch('/api/cron/process-emails', {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const result = await res.json();
+                    if (res.ok) {
+                      toast.success(`Email queue processed: ${result.sent} sent, ${result.failed} failed.`);
+                    } else {
+                      toast.error(result.error || "Failed to process emails");
+                    }
+                  } catch (err: any) {
+                    toast.error(err.message);
+                  } finally {
+                    setIsProcessingEmails(false);
+                  }
+                }}
+                isLoading={isProcessingEmails}
+                title="Manually trigger email sending"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" /> Process Emails
+              </Button>
               <Button variant="outline" size="sm" onClick={exportCSV}>
                 <Download className="h-4 w-4 mr-2" /> Export CSV
               </Button>

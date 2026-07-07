@@ -37,34 +37,27 @@ export async function getPaginatedEnrollmentRequests(
   status: 'pending' | 'approved' | 'rejected',
   searchQuery: string = ''
 ): Promise<{ data: EnrollmentRequest[], count: number }> {
-  await ensureAuthSession()
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
 
-  let query = supabase
-    .from('enrollment_requests')
-    .select('*', { count: 'exact' })
-    .eq('status', status)
+  const params = new URLSearchParams({
+    status,
+    searchQuery,
+    page: page.toString(),
+    pageSize: pageSize.toString()
+  });
 
-  if (searchQuery) {
-    // Search by name or ID number
-    query = query.or(`id_number.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+  const response = await fetch(`/api/admin/enrollment-requests?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to fetch enrollment requests");
   }
 
-  // Order based on status
-  if (status === 'pending') {
-    query = query.order('created_at', { ascending: true })
-  } else {
-    query = query.order('reviewed_at', { ascending: false })
-  }
-
-  // Pagination
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-  query = query.range(from, to)
-
-  const { data, error, count } = await query
-
-  if (error) throw error
-  return { data: data ?? [], count: count ?? 0 }
+  return { data: result.data, count: result.count };
 }
 
 /**
@@ -72,15 +65,20 @@ export async function getPaginatedEnrollmentRequests(
  * Fetches ALL enrollment requests (all statuses) — used by the admin dashboard.
  */
 export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
-  await ensureAuthSession()
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
 
-  const { data, error } = await supabase
-    .from('enrollment_requests')
-    .select('*')
-    .order('created_at', { ascending: false })
+  const response = await fetch('/api/admin/enrollment-requests', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
 
-  if (error) throw error
-  return data ?? []
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to fetch enrollment requests");
+  }
+
+  return result.data;
 }
 
 export async function approveEnrollment(

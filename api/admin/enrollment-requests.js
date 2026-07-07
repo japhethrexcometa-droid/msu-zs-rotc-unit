@@ -1,0 +1,94 @@
+import { createClient } from '@supabase/supabase-js';
+
+export default async function handler(req, res) {
+  // 1. Setup CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+  );
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  try {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing Supabase environment variables on server.");
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      throw new Error("Missing Authorization header.");
+    }
+
+    // 2. Initialize Clients
+    const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '', {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 3. Verify Admin Access
+    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
+    if (authError || !user) throw new Error("Unauthorized: " + (authError?.message || "User not found"));
+
+    const { data: userData } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
+    if (!userData || (userData.role !== 'admin' && userData.role !== 'officer')) {
+      throw new Error("Forbidden: Only staff can view enrollment requests.");
+    }
+
+    // 4. Fetch Enrollment Requests
+    const { status, searchQuery, page, pageSize } = req.query;
+
+    let query = supabaseAdmin
+      .from('enrollment_requests')
+      .select('*', { count: 'exact' });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (searchQuery) {
+      query = query.or(`id_number.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`);
+    }
+
+    // Ordering
+    if (status === 'pending') {
+      query = query.order('created_at', { ascending: true });
+    } else {
+      query = query.order('reviewed_at', { ascending: false });
+    }
+
+    // Pagination
+    if (page && pageSize) {
+      const from = (parseInt(page) - 1) * parseInt(pageSize);
+      const to = from + parseInt(pageSize) - 1;
+      query = query.range(from, to);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      data: data || [],
+      count: count || 0
+    });
+
+  } catch (error) {
+    console.error("Vercel Serverless Error:", error);
+    return res.status(400).json({ success: false, error: error.message });
+  }
+}

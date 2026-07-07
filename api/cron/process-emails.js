@@ -7,11 +7,45 @@ const supabaseAdmin = createClient(
 );
 
 export default async function handler(req, res) {
-  // Security check for cron jobs if using Vercel cron
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-    console.warn("Unauthorized cron request");
-    // Depending on setup, you might want to return 401. 
-    // If testing locally, we might allow it. For production, enforce:
+  // 1. Setup CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+  );
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Security check: Either Vercel Cron Secret OR Admin Bearer Token
+  const authHeader = req.headers.authorization;
+  const isCronSecret = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  let isAdmin = false;
+
+  if (!isCronSecret && authHeader) {
+    try {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+      const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '', {
+        global: { headers: { Authorization: authHeader } }
+      });
+      const { data: { user } } = await supabaseUserClient.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
+        if (userData && (userData.role === 'admin' || userData.role === 'officer')) {
+          isAdmin = true;
+        }
+      }
+    } catch (e) {
+      console.error("Auth check failed:", e);
+    }
+  }
+
+  if (!isCronSecret && !isAdmin) {
+    console.warn("Unauthorized cron/manual request");
     if (process.env.NODE_ENV === 'production') {
       return res.status(401).json({ error: 'Unauthorized' });
     }

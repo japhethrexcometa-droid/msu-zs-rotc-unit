@@ -1,32 +1,45 @@
-# msu-zs-rotc-unit
+# MSU ZS ROTC Unit Portal
 
-## React + TypeScript + Vite
+A Professional Web Application (PWA) for managing ROTC enrollments, attendance, and cadet records.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🚀 Key Features
+- **Public Enrollment:** Online student enrollment with automatic account creation.
+- **Admin Dashboard:** Review and manage enrollment requests with live updates.
+- **Email Queue:** Non-blocking email notifications for approvals and rejections.
+- **Attendance System:** QR-code based attendance tracking.
 
-Currently, two official plugins are available:
+## 🛠️ Tech Stack
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS.
+- **Backend:** Supabase (Auth, Database, RLS).
+- **Serverless:** Vercel Functions (Node.js).
+- **State Management:** Zustand & React Query.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 📧 Email Cron Optimization (Vercel Hobby)
 
-## Expanding the ESLint configuration
+Since Vercel Hobby only supports daily cron jobs, we use a GitHub Action as an external scheduler to process the email queue every 15 minutes.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+### Setup GitHub Actions Cron:
+1. Go to your GitHub Repository **Settings** > **Secrets and variables** > **Actions**.
+2. Add the following **Repository secrets**:
+   - `VITE_SUPABASE_URL`: Your full production URL (e.g., `https://rotc-app.vercel.app`).
+   - `CRON_SECRET`: The same secret used in your Vercel Environment Variables.
+3. The workflow is already configured in `.github/workflows/process-emails.yml`.
 
-- Configure the top-level `parserOptions` property like this:
+### Manual Trigger:
+Admins can also manually trigger the email queue by clicking the **"Process Emails"** button in the Enrollment Management dashboard.
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json', './tsconfig.app.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
-```
+## 🛡️ Environment Variables
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+The following variables are required in Vercel/GitHub:
+- `VITE_SUPABASE_URL`: Supabase Project URL.
+- `VITE_SUPABASE_ANON_KEY`: Supabase Anonymous Key.
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase Service Role Key (Server-only).
+- `SMTP_EMAIL`: Gmail account for sending notifications.
+- `SMTP_PASSWORD`: Gmail App Password.
+- `CRON_SECRET`: Random string for securing the email cron endpoint.
+
+## 📦 Development
+1. Clone the repository.
+2. Install dependencies: `npm install`.
+3. Create a `.env` file based on `.env.example`.
+4. Start development server: `npm run dev`.
