@@ -151,6 +151,76 @@ export async function bulkRejectEnrollments(requestIds: string[], reason: string
   return result;
 }
 
+export async function archiveEnrollments(payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean }): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/archive-enrollment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to archive records");
+  }
+
+  return result;
+}
+
+export async function getEnrollmentArchives(params: { searchQuery?: string, academicYear?: string, page?: number, pageSize?: number }): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const urlParams = new URLSearchParams();
+  if (params.searchQuery) urlParams.append('searchQuery', params.searchQuery);
+  if (params.academicYear) urlParams.append('academicYear', params.academicYear);
+  if (params.page) urlParams.append('page', params.page.toString());
+  if (params.pageSize) urlParams.append('pageSize', params.pageSize.toString());
+
+  const response = await fetch(`/api/admin/enrollment-archives?${urlParams}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to fetch archives");
+  }
+
+  return result;
+}
+
+export async function importEnrollmentArchives(payload: { records: any[], academicYear: string }): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/import-archives', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to import archives");
+  }
+
+  return result;
+}
+
 export async function approveEnrollment(
   request: any,
   reviewerId: string

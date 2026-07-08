@@ -14,7 +14,8 @@ import {
   useRejectEnrollment,
   useBulkApproveEnrollments,
   useBulkRejectEnrollments,
-  useExportEnrollments
+  useExportEnrollments,
+  useArchiveEnrollments
 } from '@/hooks/queries/useEnrollment'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -100,10 +101,13 @@ export default function EnrollmentPage() {
   const rejectMutation = useRejectEnrollment()
   const bulkApproveMutation = useBulkApproveEnrollments()
   const bulkRejectMutation = useBulkRejectEnrollments()
+  const archiveMutation = useArchiveEnrollments()
 
   const [approveItem, setApproveItem] = useState<any | null>(null)
   const [rejectItem, setRejectItem] = useState<any | null>(null)
   const [isBulkRejectModalOpen, setIsBulkRejectModalOpen] = useState(false)
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false)
+  const [academicYear, setAcademicYear] = useState(format(new Date(), 'yyyy') + '-' + (parseInt(format(new Date(), 'yyyy')) + 1))
   const [rejectReason, setRejectReason] = useState('')
 
   // Clear selection when tab or page changes
@@ -271,6 +275,24 @@ export default function EnrollmentPage() {
       setSelectedIds([])
       setRejectReason('')
       setIsBulkRejectModalOpen(false)
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleArchive = async (allProcessed = false) => {
+    if (!academicYear.trim()) return toast.error('Academic Year is required')
+    if (!allProcessed && selectedIds.length === 0) return
+
+    try {
+      const result = await archiveMutation.mutateAsync({
+        requestIds: allProcessed ? undefined : selectedIds,
+        academicYear,
+        archiveAllProcessed: allProcessed
+      })
+      toast.success(result.message)
+      setSelectedIds([])
+      setIsArchiveModalOpen(false)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -483,6 +505,27 @@ export default function EnrollmentPage() {
                   </Button>
                 </div>
               )}
+              {tab !== 'pending' && (
+                <div className="flex gap-2">
+                  {selectedIds.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsArchiveModalOpen(true)}
+                    >
+                      Archive Selected ({selectedIds.length})
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsArchiveModalOpen(true)}
+                    title="Move all approved/rejected records to historical archives"
+                  >
+                    Archive All {tab}
+                  </Button>
+                </div>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -517,7 +560,7 @@ export default function EnrollmentPage() {
           </CardHeader>
           <CardContent className="p-0">
             <Table
-              headers={tab === 'pending' 
+              headers={tab !== 'archived' // reusing archived tab name logic elsewhere if needed
                 ? [
                     <div className="flex items-center">
                       <input
@@ -561,18 +604,16 @@ export default function EnrollmentPage() {
               rowClassName={(r) => duplicates.includes(r.id_number) ? 'bg-yellow-500/10' : ''}
               renderRow={(r) => (
                 <>
-                  {tab === 'pending' && (
-                    <td className="p-4">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
-                          checked={selectedIds.includes(r.id)}
-                          onChange={() => toggleSelect(r.id)}
-                        />
-                      </div>
-                    </td>
-                  )}
+                  <td className="p-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                        checked={selectedIds.includes(r.id)}
+                        onChange={() => toggleSelect(r.id)}
+                      />
+                    </div>
+                  </td>
                   <td className="p-4 text-sm font-medium text-rotc-text">
                     <div className="flex items-center gap-2">
                       {r.id_number}
@@ -717,6 +758,31 @@ export default function EnrollmentPage() {
             <Button variant="outline" onClick={() => { setRejectItem(null); setRejectReason(''); }}>Cancel</Button>
             <Button variant="danger" onClick={handleReject} isLoading={rejectMutation.isPending} disabled={!rejectReason.trim()}>
               Confirm Rejection
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Archive Modal */}
+      <Modal isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Move to Historical Archives">
+        <div className="space-y-4 mt-4">
+          <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-rotc-accent/10 border border-rotc-accent/20 text-sm text-rotc-accent">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <span>Archiving moves processed records to historical storage for CHED compliance. They will no longer appear in the active dashboard.</span>
+          </div>
+
+          <Input
+            label="Academic Year Grouping"
+            placeholder="e.g. 2023-2024"
+            value={academicYear}
+            onChange={e => setAcademicYear(e.target.value)}
+            required
+          />
+
+          <div className="flex justify-end gap-3 pt-6">
+            <Button variant="outline" onClick={() => setIsArchiveModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={() => handleArchive(selectedIds.length === 0)} isLoading={archiveMutation.isPending} disabled={!academicYear.trim()}>
+              Confirm Archive {selectedIds.length > 0 ? `(${selectedIds.length})` : `All ${tab}`}
             </Button>
           </div>
         </div>

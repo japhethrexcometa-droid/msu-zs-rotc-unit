@@ -7,7 +7,10 @@ import {
   approveEnrollment, 
   rejectEnrollment,
   bulkApproveEnrollments,
-  bulkRejectEnrollments
+  bulkRejectEnrollments,
+  archiveEnrollments,
+  getEnrollmentArchives,
+  importEnrollmentArchives
 } from '@/services/enrollment.service'
 
 export const ENROLLMENT_KEYS = {
@@ -140,6 +143,36 @@ export function useBulkApproveEnrollments() {
     mutationFn: (requestIds: string[]) => bulkApproveEnrollments(requestIds),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
+    },
+  })
+}
+
+export function useArchiveEnrollments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean }) =>
+      archiveEnrollments(payload),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
+    },
+  })
+}
+
+export function useEnrollmentArchives(params: { searchQuery?: string, academicYear?: string, page?: number, pageSize?: number }) {
+  return useQuery({
+    queryKey: ['enrollment-archives', params],
+    queryFn: () => getEnrollmentArchives(params),
+    staleTime: 60_000,
+  })
+}
+
+export function useImportEnrollmentArchives() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { records: any[], academicYear: string }) =>
+      importEnrollmentArchives(payload),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment-archives'] })
     },
   })
 }
