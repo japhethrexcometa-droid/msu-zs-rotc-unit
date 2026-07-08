@@ -782,7 +782,7 @@ export default function EnrollmentPage() {
           <div className="flex justify-end gap-3 pt-6">
             <Button variant="outline" onClick={() => setIsArchiveModalOpen(false)}>Cancel</Button>
             <Button variant="primary" onClick={() => handleArchive(selectedIds.length === 0)} isLoading={archiveMutation.isPending} disabled={!academicYear.trim()}>
-              Confirm Archive {selectedIds.length > 0 ? `(${selectedIds.length})` : `All ${tab}`}
+              Move to Archive {selectedIds.length > 0 ? `(${selectedIds.length})` : `All ${tab}`}
             </Button>
           </div>
         </div>

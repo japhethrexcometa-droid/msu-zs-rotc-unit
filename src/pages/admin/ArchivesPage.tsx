@@ -192,7 +192,7 @@ export default function ArchivesPage() {
         <div className="space-y-4 mt-4">
           <div className="p-3 bg-rotc-accent/10 border border-rotc-accent/20 rounded-lg flex gap-2 text-xs text-rotc-accent">
             <FolderIcon className="h-4 w-4 flex-shrink-0" />
-            <p>Import legacy records from past decades into a specific folder (e.g., <i>AER & ASR 2024-2025</i>) for easy retrieval and CHED reporting.</p>
+            <p>Digitize and organize your past records. Simply provide a <strong>Folder Name</strong> to group these historical entries (e.g., <i>AER & ASR 2024-2025</i>) for instant retrieval and professional CHED reporting.</p>
           </div>
           <Input
             label="Folder Name"
