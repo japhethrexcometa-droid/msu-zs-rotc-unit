@@ -1,12 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export default async function handler(req, res) {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
   // 1. Setup CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');

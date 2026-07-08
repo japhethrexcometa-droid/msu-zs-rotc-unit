@@ -66,8 +66,11 @@ export default async function handler(req, res) {
     // Ordering
     if (status === 'pending') {
       query = query.order('created_at', { ascending: true });
-    } else {
+    } else if (status === 'approved' || status === 'rejected') {
       query = query.order('reviewed_at', { ascending: false });
+    } else {
+      // Default for "fetch all"
+      query = query.order('created_at', { ascending: false });
     }
 
     // Pagination
