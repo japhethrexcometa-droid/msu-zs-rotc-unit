@@ -285,7 +285,7 @@ export default function EnrollmentPage() {
                     });
                     const result = await res.json();
                     if (res.ok) {
-                      toast.success(`Email queue processed: ${result.sent} sent, ${result.failed} failed.`);
+                      toast.success(`Email queue processed: ${result.sent ?? 0} sent, ${result.failed ?? 0} failed.`);
                     } else {
                       toast.error(result.error || "Failed to process emails");
                     }

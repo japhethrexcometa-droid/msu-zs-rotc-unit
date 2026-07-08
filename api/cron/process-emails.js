@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 
     if (fetchError) throw fetchError;
     if (!emails || emails.length === 0) {
-      return res.status(200).json({ message: "No pending emails" });
+      return res.status(200).json({ success: true, sent: 0, failed: 0, message: "No pending emails" });
     }
 
     // 2. Setup transporter
