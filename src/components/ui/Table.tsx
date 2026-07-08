@@ -24,7 +24,7 @@ interface ColumnTableProps<T> {
 
 /* ── Header+renderRow table (Phase 5 API) ── */
 interface RenderRowTableProps<T> {
-  headers: string[]
+  headers: ReactNode[]
   data: T[]
   isLoading?: boolean
   emptyMessage?: string
@@ -60,9 +60,9 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-rotc-bg/60 border-b border-rotc-border">
-              {headers.map((h) => (
+              {headers.map((h, i) => (
                 <th
-                  key={h}
+                  key={i}
                   className="px-4 py-3 font-medium text-rotc-textMuted text-xs uppercase tracking-wider text-left"
                 >
                   {h}
