@@ -65,7 +65,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;
     // VERY IMPORTANT: Ensure Vercel has SUPABASE_SERVICE_ROLE_KEY set (NOT VITE_...)
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
