@@ -748,7 +748,7 @@ export default function EnrollmentPage() {
           
           <Input
             label="Rejection Reason"
-            placeholder="e.g. Invalid ID format, please go to the office."
+            placeholder="Enter reason for rejection"
             value={rejectReason}
             onChange={e => setRejectReason(e.target.value)}
             required
@@ -773,7 +773,7 @@ export default function EnrollmentPage() {
 
           <Input
             label="Folder Name"
-            placeholder="e.g. AER & ASR 2024-2025"
+            placeholder="Enter Folder Name"
             value={academicYear}
             onChange={e => setAcademicYear(e.target.value)}
             required
@@ -798,7 +798,7 @@ export default function EnrollmentPage() {
 
           <Input
             label="Rejection Reason (Applied to all)"
-            placeholder="e.g. Incomplete requirements, please visit the office."
+            placeholder="Enter reason for rejection"
             value={rejectReason}
             onChange={e => setRejectReason(e.target.value)}
             required

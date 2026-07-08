@@ -180,7 +180,7 @@ export default function OfficersPage() {
                 {platoons.filter(p => p !== 'All').map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-            <Input label="Designation" name="designation" defaultValue={editUser.designation || ''} placeholder="e.g. Platoon Leader" />
+            <Input label="Designation" name="designation" defaultValue={editUser.designation || ''} placeholder="Enter designation" />
             <Input label="Photo URL (Optional)" name="photo_url" defaultValue={editUser.photo_url || ''} />
             <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">
               <Button type="button" variant="outline" onClick={() => setEditUser(null)}>Cancel</Button>
@@ -221,7 +221,7 @@ export default function OfficersPage() {
               type="text" 
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="e.g. tes123"
+              placeholder="Enter password"
               required 
             />
             <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">

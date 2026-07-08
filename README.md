@@ -6,6 +6,8 @@ A Professional Web Application (PWA) for managing ROTC enrollments, attendance, 
 - **Public Enrollment:** Online student enrollment with automatic account creation.
 - **Admin Dashboard:** Review and manage enrollment requests with live updates.
 - **Email Queue:** Non-blocking email notifications for approvals and rejections.
+- **Professional Archives:** Move records to custom folders (e.g., "AER & ASR 2024-2025") for CHED reporting.
+- **Legacy Import:** Digitally import old records via CSV into specific folders.
 - **Attendance System:** QR-code based attendance tracking.
 
 ## 🛠️ Tech Stack

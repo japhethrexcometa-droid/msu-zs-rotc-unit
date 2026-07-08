@@ -220,7 +220,7 @@ export default function CadetsPage() {
               type="text" 
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="e.g. rotc123"
+              placeholder="Enter password"
               required 
             />
             <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">
