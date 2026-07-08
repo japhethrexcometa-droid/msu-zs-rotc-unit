@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { 
   getAllEnrollmentRequests, 
   approveEnrollment, 
-  rejectEnrollment 
+  rejectEnrollment,
+  bulkApproveEnrollments
 } from '@/services/enrollment.service'
 
 export const ENROLLMENT_KEYS = {
@@ -101,6 +102,16 @@ export function useApproveEnrollment() {
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
       }, 500)
+    },
+  })
+}
+
+export function useBulkApproveEnrollments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (requestIds: string[]) => bulkApproveEnrollments(requestIds),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
     },
   })
 }

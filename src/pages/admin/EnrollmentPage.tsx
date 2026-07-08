@@ -11,7 +11,8 @@ import { useState, useMemo } from 'react'
 import { 
   useEnrollmentRequests, 
   useApproveEnrollment, 
-  useRejectEnrollment 
+  useRejectEnrollment,
+  useBulkApproveEnrollments
 } from '@/hooks/queries/useEnrollment'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -51,8 +52,11 @@ export default function EnrollmentPage() {
   
   const { data: allRequests = [], isLoading, isFetching, dataUpdatedAt, refetch } = useEnrollmentRequests()
   const [isProcessingEmails, setIsProcessingEmails] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+
   const approveMutation = useApproveEnrollment()
   const rejectMutation = useRejectEnrollment()
+  const bulkApproveMutation = useBulkApproveEnrollments()
 
   const [approveItem, setApproveItem] = useState<any | null>(null)
   const [rejectItem, setRejectItem] = useState<any | null>(null)
@@ -69,6 +73,11 @@ export default function EnrollmentPage() {
       return bDate - aDate
     })
   }, [allRequests, tab])
+
+  // Clear selection when tab changes
+  useMemo(() => {
+    setSelectedIds([])
+  }, [tab])
 
   // Count per tab for badges
   const tabCounts = useMemo(() => ({
@@ -219,6 +228,32 @@ export default function EnrollmentPage() {
     }
   }
 
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return
+    const count = selectedIds.length
+    try {
+      const result = await bulkApproveMutation.mutateAsync(selectedIds)
+      toast.success(`Successfully approved ${result.success} requests! ${result.failed} failed.`)
+      setSelectedIds([])
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === currentRequests.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(currentRequests.map(r => r.id))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
   const tabs = ['pending', 'approved', 'rejected'] as const
 
   return (
@@ -300,6 +335,16 @@ export default function EnrollmentPage() {
               >
                 <RefreshCw className="h-4 w-4 mr-2" /> Process Emails
               </Button>
+              {tab === 'pending' && selectedIds.length > 0 && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleBulkApprove}
+                  isLoading={bulkApproveMutation.isPending}
+                >
+                  <Check className="h-4 w-4 mr-2" /> Approve Selected ({selectedIds.length})
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={exportCSV}>
                 <Download className="h-4 w-4 mr-2" /> Export CSV
               </Button>
@@ -328,7 +373,15 @@ export default function EnrollmentPage() {
           <CardContent className="p-0">
             <Table
               headers={tab === 'pending' 
-                ? ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Actions']
+                ? [
+                    <input
+                      type="checkbox"
+                      className="rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent"
+                      checked={selectedIds.length === currentRequests.length && currentRequests.length > 0}
+                      onChange={toggleSelectAll}
+                    />,
+                    'ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Actions'
+                  ]
                 : tab === 'rejected'
                   ? ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Reason', 'Processed']
                   : ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Processed', 'Actions']
@@ -338,6 +391,16 @@ export default function EnrollmentPage() {
               keyExtractor={(r) => r.id}
               renderRow={(r) => (
                 <>
+                  {tab === 'pending' && (
+                    <td className="p-4">
+                      <input
+                        type="checkbox"
+                        className="rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent"
+                        checked={selectedIds.includes(r.id)}
+                        onChange={() => toggleSelect(r.id)}
+                      />
+                    </td>
+                  )}
                   <td className="p-4 text-sm font-medium text-rotc-text">{r.id_number}</td>
                   <td className="p-4 text-sm text-rotc-text">
                     {r.first_name} {r.middle_initial ? r.middle_initial + '.' : ''} {r.last_name}{r.suffix && r.suffix !== 'N/A' ? ' ' + r.suffix : ''}

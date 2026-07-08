@@ -81,6 +81,28 @@ export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
   return result.data;
 }
 
+export async function bulkApproveEnrollments(requestIds: string[]): Promise<any> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/bulk-approve', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ requestIds })
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to process bulk approval");
+  }
+
+  return result;
+}
+
 export async function approveEnrollment(
   request: any,
   reviewerId: string
