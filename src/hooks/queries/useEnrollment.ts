@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
+  getPaginatedEnrollmentRequests,
   getAllEnrollmentRequests, 
   approveEnrollment, 
   rejectEnrollment,
@@ -11,11 +12,12 @@ import {
 
 export const ENROLLMENT_KEYS = {
   all: ['enrollment'] as const,
-  requests: () => [...ENROLLMENT_KEYS.all, 'requests'] as const,
+  requests: (status?: string, search?: string, page?: number) =>
+    [...ENROLLMENT_KEYS.all, 'requests', { status, search, page }] as const,
 }
 
 /**
- * Fetches all enrollment requests with:
+ * Fetches enrollment requests with search and pagination support.
  * - refetchInterval: 15s polling → ensures data always appears even without Realtime
  * - Supabase Realtime subscription → instant updates when publication is configured
  * - refetchOnWindowFocus → picks up changes when admin returns to tab
@@ -24,7 +26,12 @@ export const ENROLLMENT_KEYS = {
  * The auth session is refreshed before every query (in enrollment.service.ts)
  * to prevent RLS is_admin() from returning false due to stale JWT tokens.
  */
-export function useEnrollmentRequests() {
+export function useEnrollmentRequests(
+  status: 'pending' | 'approved' | 'rejected',
+  searchQuery: string = '',
+  page: number = 1,
+  pageSize: number = 20
+) {
   const queryClient = useQueryClient()
 
   // Realtime subscription — works if enrollment_requests is in supabase_realtime publication
@@ -51,14 +58,13 @@ export function useEnrollmentRequests() {
   }, [queryClient])
 
   return useQuery({
-    queryKey: ENROLLMENT_KEYS.requests(),
-    queryFn: () => getAllEnrollmentRequests(),
+    queryKey: ENROLLMENT_KEYS.requests(status, searchQuery, page),
+    queryFn: () => getPaginatedEnrollmentRequests(page, pageSize, status, searchQuery),
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    // Poll every 5 seconds — fast enough for live enrollment intake
-    // When thousands of enrollees submit, admin sees new entries within 5s
-    refetchInterval: 5_000,
+    // Poll every 10 seconds (increased from 5s to be more server-friendly with pagination)
+    refetchInterval: 10_000,
   })
 }
 
@@ -101,7 +107,7 @@ export function useApproveEnrollment() {
     onSettled: () => {
       // Delay re-fetch to let DB write fully propagate
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
+        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
       }, 500)
     },
   })
@@ -113,7 +119,7 @@ export function useBulkRejectEnrollments() {
     mutationFn: ({ requestIds, reason }: { requestIds: string[], reason: string }) =>
       bulkRejectEnrollments(requestIds, reason),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
     },
   })
 }
@@ -123,7 +129,7 @@ export function useBulkApproveEnrollments() {
   return useMutation({
     mutationFn: (requestIds: string[]) => bulkApproveEnrollments(requestIds),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
     },
   })
 }
@@ -170,7 +176,7 @@ export function useRejectEnrollment() {
 
     onSettled: () => {
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
+        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
       }, 500)
     },
   })

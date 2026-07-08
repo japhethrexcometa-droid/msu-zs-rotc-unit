@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { 
   useEnrollmentRequests, 
   useApproveEnrollment, 
@@ -46,12 +46,30 @@ function ProfileDetails({ data }: { data: any }) {
     </div>
   )
 }
-
 export default function EnrollmentPage() {
   const session = useSession()
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
-  
-  const { data: allRequests = [], isLoading, isFetching, dataUpdatedAt, refetch } = useEnrollmentRequests()
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const pageSize = 20
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const {
+    data: { data: requests = [], count = 0 } = { data: [], count: 0 },
+    isLoading,
+    isFetching,
+    dataUpdatedAt,
+    refetch
+  } = useEnrollmentRequests(tab, debouncedSearch, page, pageSize)
+
   const [isProcessingEmails, setIsProcessingEmails] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
@@ -65,33 +83,14 @@ export default function EnrollmentPage() {
   const [isBulkRejectModalOpen, setIsBulkRejectModalOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
 
-  const currentRequests = useMemo(() => {
-    return allRequests.filter(r => r.status === tab).sort((a, b) => {
-      if (tab === 'pending') {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      }
-      // Approved/Rejected: newest processed first
-      const aDate = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0
-      const bDate = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0
-      return bDate - aDate
-    })
-  }, [allRequests, tab])
-
-  // Clear selection when tab changes
-  useMemo(() => {
+  // Clear selection when tab or page changes
+  useEffect(() => {
     setSelectedIds([])
-  }, [tab])
+  }, [tab, page, debouncedSearch])
 
-  // Count per tab for badges
-  const tabCounts = useMemo(() => ({
-    pending: allRequests.filter(r => r.status === 'pending').length,
-    approved: allRequests.filter(r => r.status === 'approved').length,
-    rejected: allRequests.filter(r => r.status === 'rejected').length,
-  }), [allRequests])
-
-  // Dynamic stats
+  // Simple stats based on current view
   const statsBySchool = useMemo(() => {
-    return currentRequests.reduce((acc, req) => {
+    return requests.reduce((acc, req) => {
       const school = req.school || 'Unknown'
       if (!acc[school]) acc[school] = { Male: 0, Female: 0, Total: 0 }
       if (req.gender === 'Male') acc[school].Male++
@@ -99,10 +98,10 @@ export default function EnrollmentPage() {
       acc[school].Total++
       return acc
     }, {} as Record<string, { Male: number, Female: number, Total: number }>)
-  }, [currentRequests])
+  }, [requests])
 
   const exportCSV = () => {
-    if (currentRequests.length === 0) return toast.error('No records to export in this tab.')
+    if (requests.length === 0) return toast.error('No records to export in this tab.')
 
     // CSV field sanitizer: wraps in quotes and escapes inner quotes if needed
     const sanitize = (value: string | number | null | undefined): string => {
@@ -115,7 +114,7 @@ export default function EnrollmentPage() {
     }
 
     // Sort by school, then gender (Female first, Male second) for organized export
-    const sorted = [...currentRequests].sort((a, b) => {
+    const sorted = [...requests].sort((a, b) => {
       const schoolCompare = (a.school || '').localeCompare(b.school || '')
       if (schoolCompare !== 0) return schoolCompare
       // Female first, Male second within each school
@@ -256,10 +255,10 @@ export default function EnrollmentPage() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === currentRequests.length) {
+    if (selectedIds.length === requests.length) {
       setSelectedIds([])
     } else {
-      setSelectedIds(currentRequests.map(r => r.id))
+      setSelectedIds(requests.map(r => r.id))
     }
   }
 
@@ -301,6 +300,17 @@ export default function EnrollmentPage() {
         <Card>
           <CardHeader title="Enrollment Requests">
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+              <div className="w-full sm:w-64">
+                <Input
+                  placeholder="Search Name or ID..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value)
+                    setPage(1) // Reset to page 1 on search
+                  }}
+                  className="h-9"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-rotc-textMuted">
                   <span className="relative flex h-2 w-2">
@@ -379,19 +389,16 @@ export default function EnrollmentPage() {
                 {tabs.map(t => (
                   <button
                     key={t}
-                    onClick={() => setTab(t)}
+                    onClick={() => {
+                      setTab(t)
+                      setPage(1)
+                      setSearch('')
+                    }}
                     className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors flex items-center gap-1.5 ${
                       tab === t ? 'bg-rotc-accent text-white' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                     }`}
                   >
                     {t}
-                    {tabCounts[t] > 0 && (
-                      <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold ${
-                        tab === t ? 'bg-white/20 text-white' : t === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-rotc-border text-rotc-textMuted'
-                      }`}>
-                        {tabCounts[t]}
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -405,7 +412,7 @@ export default function EnrollmentPage() {
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
-                        checked={selectedIds.length === currentRequests.length && currentRequests.length > 0}
+                        checked={selectedIds.length === requests.length && requests.length > 0}
                         onChange={toggleSelectAll}
                       />
                     </div>,
@@ -416,7 +423,7 @@ export default function EnrollmentPage() {
                   : ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Processed', 'Actions']
               }
               isLoading={isLoading}
-              data={currentRequests}
+              data={requests}
               keyExtractor={(r) => r.id}
               renderRow={(r) => (
                 <>
@@ -471,6 +478,36 @@ export default function EnrollmentPage() {
               )}
             />
           </CardContent>
+
+          {/* Pagination Controls */}
+          {count > pageSize && (
+            <div className="px-6 py-4 border-t border-rotc-border flex items-center justify-between bg-rotc-card/30">
+              <p className="text-xs text-rotc-textMuted">
+                Showing <span className="text-rotc-text font-medium">{requests.length}</span> of <span className="text-rotc-text font-medium">{count}</span> results
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1 || isFetching}
+                  onClick={() => setPage(p => p - 1)}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center px-4 text-xs font-medium text-rotc-text">
+                  Page {page} of {Math.ceil(count / pageSize)}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= Math.ceil(count / pageSize) || isFetching}
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
