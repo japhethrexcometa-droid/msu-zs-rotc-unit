@@ -12,7 +12,8 @@ import {
   useEnrollmentRequests, 
   useApproveEnrollment, 
   useRejectEnrollment,
-  useBulkApproveEnrollments
+  useBulkApproveEnrollments,
+  useBulkRejectEnrollments
 } from '@/hooks/queries/useEnrollment'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -57,9 +58,11 @@ export default function EnrollmentPage() {
   const approveMutation = useApproveEnrollment()
   const rejectMutation = useRejectEnrollment()
   const bulkApproveMutation = useBulkApproveEnrollments()
+  const bulkRejectMutation = useBulkRejectEnrollments()
 
   const [approveItem, setApproveItem] = useState<any | null>(null)
   const [rejectItem, setRejectItem] = useState<any | null>(null)
+  const [isBulkRejectModalOpen, setIsBulkRejectModalOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
 
   const currentRequests = useMemo(() => {
@@ -230,11 +233,23 @@ export default function EnrollmentPage() {
 
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return
-    const count = selectedIds.length
     try {
       const result = await bulkApproveMutation.mutateAsync(selectedIds)
       toast.success(`Successfully approved ${result.success} requests! ${result.failed} failed.`)
       setSelectedIds([])
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleBulkReject = async () => {
+    if (selectedIds.length === 0 || !rejectReason.trim()) return
+    try {
+      const result = await bulkRejectMutation.mutateAsync({ requestIds: selectedIds, reason: rejectReason })
+      toast.success(`Successfully rejected ${result.success} requests! ${result.failed} failed.`)
+      setSelectedIds([])
+      setRejectReason('')
+      setIsBulkRejectModalOpen(false)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -336,14 +351,26 @@ export default function EnrollmentPage() {
                 <RefreshCw className="h-4 w-4 mr-2" /> Process Emails
               </Button>
               {tab === 'pending' && selectedIds.length > 0 && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleBulkApprove}
-                  isLoading={bulkApproveMutation.isPending}
-                >
-                  <Check className="h-4 w-4 mr-2" /> Approve Selected ({selectedIds.length})
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleBulkApprove}
+                    isLoading={bulkApproveMutation.isPending}
+                    disabled={bulkRejectMutation.isPending}
+                  >
+                    <Check className="h-4 w-4 mr-2" /> Approve ({selectedIds.length})
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setIsBulkRejectModalOpen(true)}
+                    isLoading={bulkRejectMutation.isPending}
+                    disabled={bulkApproveMutation.isPending}
+                  >
+                    <X className="h-4 w-4 mr-2" /> Reject ({selectedIds.length})
+                  </Button>
+                </div>
               )}
               <Button variant="outline" size="sm" onClick={exportCSV}>
                 <Download className="h-4 w-4 mr-2" /> Export CSV
@@ -374,12 +401,14 @@ export default function EnrollmentPage() {
             <Table
               headers={tab === 'pending' 
                 ? [
-                    <input
-                      type="checkbox"
-                      className="rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent"
-                      checked={selectedIds.length === currentRequests.length && currentRequests.length > 0}
-                      onChange={toggleSelectAll}
-                    />,
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                        checked={selectedIds.length === currentRequests.length && currentRequests.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    </div>,
                     'ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Actions'
                   ]
                 : tab === 'rejected'
@@ -393,12 +422,14 @@ export default function EnrollmentPage() {
                 <>
                   {tab === 'pending' && (
                     <td className="p-4">
-                      <input
-                        type="checkbox"
-                        className="rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent"
-                        checked={selectedIds.includes(r.id)}
-                        onChange={() => toggleSelect(r.id)}
-                      />
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                          checked={selectedIds.includes(r.id)}
+                          onChange={() => toggleSelect(r.id)}
+                        />
+                      </div>
                     </td>
                   )}
                   <td className="p-4 text-sm font-medium text-rotc-text">{r.id_number}</td>
@@ -494,6 +525,31 @@ export default function EnrollmentPage() {
             <Button variant="outline" onClick={() => { setRejectItem(null); setRejectReason(''); }}>Cancel</Button>
             <Button variant="danger" onClick={handleReject} isLoading={rejectMutation.isPending} disabled={!rejectReason.trim()}>
               Confirm Rejection
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Reject Modal */}
+      <Modal isOpen={isBulkRejectModalOpen} onClose={() => { setIsBulkRejectModalOpen(false); setRejectReason(''); }} title={`Reject ${selectedIds.length} Enrollments`}>
+        <div className="space-y-4 mt-4">
+          <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-rotc-danger/10 border border-rotc-danger/20 text-sm text-rotc-danger">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <span>This will send rejection emails to all {selectedIds.length} selected applicants.</span>
+          </div>
+
+          <Input
+            label="Rejection Reason (Applied to all)"
+            placeholder="e.g. Incomplete requirements, please visit the office."
+            value={rejectReason}
+            onChange={e => setRejectReason(e.target.value)}
+            required
+          />
+
+          <div className="flex justify-end gap-3 pt-6">
+            <Button variant="outline" onClick={() => { setIsBulkRejectModalOpen(false); setRejectReason(''); }}>Cancel</Button>
+            <Button variant="danger" onClick={handleBulkReject} isLoading={bulkRejectMutation.isPending} disabled={!rejectReason.trim()}>
+              Confirm Bulk Rejection
             </Button>
           </div>
         </div>

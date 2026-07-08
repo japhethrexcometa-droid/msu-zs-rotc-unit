@@ -37,6 +37,7 @@ export async function getPaginatedEnrollmentRequests(
   status: 'pending' | 'approved' | 'rejected',
   searchQuery: string = ''
 ): Promise<{ data: EnrollmentRequest[], count: number }> {
+  await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Unauthorized");
@@ -65,6 +66,7 @@ export async function getPaginatedEnrollmentRequests(
  * Fetches ALL enrollment requests (all statuses) — used by the admin dashboard.
  */
 export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
+  await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Unauthorized");
@@ -82,6 +84,7 @@ export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
 }
 
 export async function bulkApproveEnrollments(requestIds: string[]): Promise<any> {
+  await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Unauthorized");
@@ -103,11 +106,35 @@ export async function bulkApproveEnrollments(requestIds: string[]): Promise<any>
   return result;
 }
 
+export async function bulkRejectEnrollments(requestIds: string[], reason: string): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/bulk-reject', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ requestIds, reason })
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to process bulk rejection");
+  }
+
+  return result;
+}
+
 export async function approveEnrollment(
   request: any,
   reviewerId: string
 ): Promise<void> {
   // Fetch the current user session so we can attach the JWT manually
+  await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("You must be logged in to approve requests.");
@@ -142,6 +169,7 @@ export async function rejectEnrollment(
   reason: string
 ): Promise<void> {
   // Use the same Vercel serverless API as approveEnrollment
+  await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("You must be logged in to reject requests.");

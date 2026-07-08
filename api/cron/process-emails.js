@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   if (!isCronSecret && authHeader) {
     try {
       const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-      const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '', {
+      const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '', {
         global: { headers: { Authorization: authHeader } }
       });
       const { data: { user } } = await supabaseUserClient.auth.getUser();

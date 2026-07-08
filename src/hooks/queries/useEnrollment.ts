@@ -5,7 +5,8 @@ import {
   getAllEnrollmentRequests, 
   approveEnrollment, 
   rejectEnrollment,
-  bulkApproveEnrollments
+  bulkApproveEnrollments,
+  bulkRejectEnrollments
 } from '@/services/enrollment.service'
 
 export const ENROLLMENT_KEYS = {
@@ -102,6 +103,17 @@ export function useApproveEnrollment() {
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
       }, 500)
+    },
+  })
+}
+
+export function useBulkRejectEnrollments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ requestIds, reason }: { requestIds: string[], reason: string }) =>
+      bulkRejectEnrollments(requestIds, reason),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
     },
   })
 }

@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     }
 
     // 2. Initialize Clients
-    const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '', {
+    const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '', {
       global: { headers: { Authorization: authHeader } }
     });
 

@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const authHeader = req.headers.authorization;
 
-    const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '', {
+    const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '', {
       global: { headers: { Authorization: authHeader } }
     });
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -78,9 +78,16 @@ export default async function handler(req, res) {
     }
 
     const results = { success: 0, failed: 0, errors: [] };
+    const startTime = Date.now();
 
     // Process each request (ideally these would be parallelized with Promise.all but sequential is safer for Supabase Auth limits)
     for (const request of requests) {
+      // Safety check: If we're approaching Vercel's 10s limit, stop processing
+      if (Date.now() - startTime > 8000) {
+        results.errors.push({ message: "Timed out. Some requests were not processed. Please try again for the remaining." });
+        break;
+      }
+
       try {
         const cleanIdNumber = String(request.id_number).trim().toUpperCase();
         const authEmail = `${cleanIdNumber}@rotc.msubuug.edu.ph`;
