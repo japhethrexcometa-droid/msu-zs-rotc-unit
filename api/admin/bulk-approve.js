@@ -92,19 +92,47 @@ export default async function handler(req, res) {
         const cleanIdNumber = String(request.id_number).trim().toUpperCase();
         const authEmail = `${cleanIdNumber}@rotc.msubuug.edu.ph`;
 
-        // 1. Create Auth User
-        const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email: authEmail,
-          password: cleanIdNumber,
-          email_confirm: true
-        });
+        // 1. Check if user already exists in public.users to handle gracefully
+        const { data: existingUser } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('id_number', cleanIdNumber)
+          .single();
 
-        if (createError) throw createError;
+        let userId = existingUser?.id;
 
-        // 2. Create User Profile
+        if (!userId) {
+          // 1a. Create Auth User if not exists
+          const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            email: authEmail,
+            password: cleanIdNumber,
+            email_confirm: true
+          });
+
+          // Handle case where auth user exists but public profile doesn't (rare sync issue)
+          if (createError) {
+            if (createError.message.includes('already registered')) {
+              // Try to find the user id via listUsers or just handle as error for now
+              // For simplicity, we'll try to get the user by email
+              const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+              const foundUser = listData.users.find(u => u.email === authEmail);
+              if (foundUser) {
+                userId = foundUser.id;
+              } else {
+                throw createError;
+              }
+            } else {
+              throw createError;
+            }
+          } else {
+            userId = authData.user.id;
+          }
+        }
+
+        // 2. Create or Update User Profile (Upsert)
         const fullName = [request.first_name, request.middle_initial ? request.middle_initial + '.' : '', request.last_name].filter(Boolean).join(' ');
         const userProfile = {
-          id: authData.user.id,
+          id: userId,
           id_number: cleanIdNumber,
           full_name: fullName,
           gender: request.gender,
@@ -121,12 +149,9 @@ export default async function handler(req, res) {
         };
 
         validateUsersPayload(userProfile);
-        const { error: insertError } = await supabaseAdmin.from('users').insert(userProfile);
+        const { error: upsertError } = await supabaseAdmin.from('users').upsert(userProfile);
 
-        if (insertError) {
-          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-          throw insertError;
-        }
+        if (upsertError) throw upsertError;
 
         // 3. Update Request Status
         await supabaseAdmin.from('enrollment_requests').update({

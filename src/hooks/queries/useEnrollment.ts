@@ -12,8 +12,8 @@ import {
 
 export const ENROLLMENT_KEYS = {
   all: ['enrollment'] as const,
-  requests: (status?: string, search?: string, page?: number) =>
-    [...ENROLLMENT_KEYS.all, 'requests', { status, search, page }] as const,
+  requests: (status?: string, search?: string, page?: number, sort?: any, school?: string) =>
+    [...ENROLLMENT_KEYS.all, 'requests', { status, search, page, sort, school }] as const,
 }
 
 /**
@@ -30,7 +30,10 @@ export function useEnrollmentRequests(
   status: 'pending' | 'approved' | 'rejected',
   searchQuery: string = '',
   page: number = 1,
-  pageSize: number = 20
+  pageSize: number = 20,
+  sortBy?: string,
+  sortOrder?: 'asc' | 'desc',
+  school?: string
 ) {
   const queryClient = useQueryClient()
 
@@ -58,8 +61,8 @@ export function useEnrollmentRequests(
   }, [queryClient])
 
   return useQuery({
-    queryKey: ENROLLMENT_KEYS.requests(status, searchQuery, page),
-    queryFn: () => getPaginatedEnrollmentRequests(page, pageSize, status, searchQuery),
+    queryKey: ENROLLMENT_KEYS.requests(status, searchQuery, page, { sortBy, sortOrder }, school),
+    queryFn: () => getPaginatedEnrollmentRequests(page, pageSize, status, searchQuery, sortBy, sortOrder, school),
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
@@ -110,6 +113,13 @@ export function useApproveEnrollment() {
         queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
       }, 500)
     },
+  })
+}
+
+export function useExportEnrollments() {
+  return useMutation({
+    mutationFn: ({ status, search }: { status: string, search: string }) =>
+      getAllEnrollmentRequests(status, search),
   })
 }
 

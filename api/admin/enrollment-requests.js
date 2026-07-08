@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     }
 
     // 4. Fetch Enrollment Requests
-    const { status, searchQuery, page, pageSize } = req.query;
+    const { status, searchQuery, page, pageSize, sortBy, sortOrder, school } = req.query;
 
     let query = supabaseAdmin
       .from('enrollment_requests')
@@ -59,12 +59,18 @@ export default async function handler(req, res) {
       query = query.eq('status', status);
     }
 
+    if (school) {
+      query = query.eq('school', school);
+    }
+
     if (searchQuery) {
       query = query.or(`id_number.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`);
     }
 
     // Ordering
-    if (status === 'pending') {
+    if (sortBy) {
+      query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+    } else if (status === 'pending') {
       query = query.order('created_at', { ascending: true });
     } else if (status === 'approved' || status === 'rejected') {
       query = query.order('reviewed_at', { ascending: false });
@@ -84,10 +90,32 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
-    // 5. Fetch Summary Counts (Total across all pages)
-    const { data: countsData } = await supabaseAdmin
-      .from('enrollment_requests')
-      .select('status');
+    // 4.1 Detect duplicates and existing accounts
+    let duplicates = [];
+    let existingAccounts = [];
+
+    if (data?.length > 0) {
+      const idNumbers = data.map(r => r.id_number);
+
+      const [{ data: dupeData }, { data: existingData }] = await Promise.all([
+        supabaseAdmin.from('enrollment_requests').select('id_number').in('id_number', idNumbers),
+        supabaseAdmin.from('users').select('id_number').in('id_number', idNumbers)
+      ]);
+
+      const counts = (dupeData || []).reduce((acc, r) => {
+        acc[r.id_number] = (acc[r.id_number] || 0) + 1;
+        return acc;
+      }, {});
+
+      duplicates = Object.keys(counts).filter(id => counts[id] > 1);
+      existingAccounts = (existingData || []).map(u => u.id_number);
+    }
+
+    // 5. Fetch Global Summary & Email Queue Count
+    const [{ data: countsData }, { count: emailQueueCount }] = await Promise.all([
+      supabaseAdmin.from('enrollment_requests').select('status, gender, school'),
+      supabaseAdmin.from('email_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+    ]);
 
     const summary = {
       pending: countsData?.filter(r => r.status === 'pending').length || 0,
@@ -95,11 +123,27 @@ export default async function handler(req, res) {
       rejected: countsData?.filter(r => r.status === 'rejected').length || 0
     };
 
+    // Calculate stats by school
+    const statsBySchool = (countsData || [])
+      .filter(r => r.status === (status || 'pending')) // Stats match the current tab's status
+      .reduce((acc, r) => {
+        const s = r.school || 'Unknown';
+        if (!acc[s]) acc[s] = { Male: 0, Female: 0, Total: 0 };
+        if (r.gender === 'Male') acc[s].Male++;
+        if (r.gender === 'Female') acc[s].Female++;
+        acc[s].Total++;
+        return acc;
+      }, {});
+
     return res.status(200).json({
       success: true,
       data: data || [],
       count: count || 0,
-      summary
+      summary,
+      statsBySchool,
+      emailQueueCount: emailQueueCount || 0,
+      duplicates,
+      existingAccounts
     });
 
   } catch (error) {

@@ -35,8 +35,11 @@ export async function getPaginatedEnrollmentRequests(
   page: number,
   pageSize: number,
   status: 'pending' | 'approved' | 'rejected',
-  searchQuery: string = ''
-): Promise<{ data: EnrollmentRequest[], count: number, summary: any }> {
+  searchQuery: string = '',
+  sortBy?: string,
+  sortOrder?: 'asc' | 'desc',
+  school?: string
+): Promise<{ data: EnrollmentRequest[], count: number, summary: any, duplicates: string[], existingAccounts: string[], statsBySchool: any, emailQueueCount: number }> {
   await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -49,6 +52,10 @@ export async function getPaginatedEnrollmentRequests(
     pageSize: pageSize.toString()
   });
 
+  if (sortBy) params.append('sortBy', sortBy);
+  if (sortOrder) params.append('sortOrder', sortOrder);
+  if (school) params.append('school', school);
+
   const response = await fetch(`/api/admin/enrollment-requests?${params}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -58,20 +65,35 @@ export async function getPaginatedEnrollmentRequests(
     throw new Error(result.error || "Failed to fetch enrollment requests");
   }
 
-  return { data: result.data, count: result.count, summary: result.summary };
+  return {
+    data: result.data,
+    count: result.count,
+    summary: result.summary,
+    duplicates: result.duplicates || [],
+    existingAccounts: result.existingAccounts || [],
+    statsBySchool: result.statsBySchool || {},
+    emailQueueCount: result.emailQueueCount || 0
+  };
 }
 
 /**
  * @deprecated Use getPaginatedEnrollmentRequests() for paginated queries.
  * Fetches ALL enrollment requests (all statuses) — used by the admin dashboard.
  */
-export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
+export async function getAllEnrollmentRequests(
+  status?: string,
+  searchQuery: string = ''
+): Promise<EnrollmentRequest[]> {
   await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Unauthorized");
 
-  const response = await fetch('/api/admin/enrollment-requests', {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (searchQuery) params.append('searchQuery', searchQuery);
+
+  const response = await fetch(`/api/admin/enrollment-requests?${params}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 

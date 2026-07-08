@@ -13,11 +13,12 @@ import {
   useApproveEnrollment, 
   useRejectEnrollment,
   useBulkApproveEnrollments,
-  useBulkRejectEnrollments
+  useBulkRejectEnrollments,
+  useExportEnrollments
 } from '@/hooks/queries/useEnrollment'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { Check, X, Download, AlertCircle, RefreshCw } from 'lucide-react'
+import { Check, X, Download, AlertCircle, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react'
 
 function ProfileDetails({ data }: { data: any }) {
   return (
@@ -49,10 +50,16 @@ function ProfileDetails({ data }: { data: any }) {
 export default function EnrollmentPage() {
   const session = useSession()
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
+  const [schoolFilter, setSchoolFilter] = useState('')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const pageSize = 20
+
+  const [sort, setSort] = useState<{ by: string, order: 'asc' | 'desc' }>({
+    by: 'created_at',
+    order: 'asc'
+  })
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -63,12 +70,28 @@ export default function EnrollmentPage() {
   }, [search])
 
   const {
-    data: { data: requests = [], count = 0, summary = { pending: 0, approved: 0, rejected: 0 } } = { data: [], count: 0, summary: { pending: 0, approved: 0, rejected: 0 } },
+    data: {
+      data: requests = [],
+      count = 0,
+      summary = { pending: 0, approved: 0, rejected: 0 },
+      duplicates = [],
+      existingAccounts = [],
+      statsBySchool = {},
+      emailQueueCount = 0
+    } = {
+      data: [],
+      count: 0,
+      summary: { pending: 0, approved: 0, rejected: 0 },
+      duplicates: [],
+      existingAccounts: [],
+      statsBySchool: {},
+      emailQueueCount: 0
+    },
     isLoading,
     isFetching,
     dataUpdatedAt,
     refetch
-  } = useEnrollmentRequests(tab, debouncedSearch, page, pageSize)
+  } = useEnrollmentRequests(tab, debouncedSearch, page, pageSize, sort.by, sort.order, schoolFilter)
 
   const [isProcessingEmails, setIsProcessingEmails] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -86,22 +109,21 @@ export default function EnrollmentPage() {
   // Clear selection when tab or page changes
   useEffect(() => {
     setSelectedIds([])
-  }, [tab, page, debouncedSearch])
+  }, [tab, page, debouncedSearch, sort, schoolFilter])
 
-  // Simple stats based on current view
-  const statsBySchool = useMemo(() => {
-    return requests.reduce((acc, req) => {
-      const school = req.school || 'Unknown'
-      if (!acc[school]) acc[school] = { Male: 0, Female: 0, Total: 0 }
-      if (req.gender === 'Male') acc[school].Male++
-      if (req.gender === 'Female') acc[school].Female++
-      acc[school].Total++
-      return acc
-    }, {} as Record<string, { Male: number, Female: number, Total: number }>)
-  }, [requests])
+  const exportMutation = useExportEnrollments()
 
-  const exportCSV = () => {
-    if (requests.length === 0) return toast.error('No records to export in this tab.')
+  const exportCSV = async () => {
+    toast.info(`Preparing full export for ${tab}...`)
+
+    let allData = []
+    try {
+      allData = await exportMutation.mutateAsync({ status: tab, search: debouncedSearch })
+    } catch (err: any) {
+      return toast.error("Failed to fetch full data: " + err.message)
+    }
+
+    if (allData.length === 0) return toast.error('No records to export in this tab.')
 
     // CSV field sanitizer: wraps in quotes and escapes inner quotes if needed
     const sanitize = (value: string | number | null | undefined): string => {
@@ -114,7 +136,7 @@ export default function EnrollmentPage() {
     }
 
     // Sort by school, then gender (Female first, Male second) for organized export
-    const sorted = [...requests].sort((a, b) => {
+    const sorted = [...allData].sort((a, b) => {
       const schoolCompare = (a.school || '').localeCompare(b.school || '')
       if (schoolCompare !== 0) return schoolCompare
       // Female first, Male second within each school
@@ -262,6 +284,19 @@ export default function EnrollmentPage() {
     }
   }
 
+  const handleSort = (field: string) => {
+    setSort(prev => ({
+      by: field,
+      order: prev.by === field && prev.order === 'asc' ? 'desc' : 'asc'
+    }))
+    setPage(1)
+  }
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sort.by !== field) return null
+    return sort.order === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+  }
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
@@ -305,19 +340,53 @@ export default function EnrollmentPage() {
           </Card>
         </div>
 
+        {/* Global Stats by School */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(statsBySchool).map(([school, stats]: [string, any]) => (
+            <Card key={school} className="bg-rotc-card border-rotc-border/50">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-rotc-text">{school}</p>
+                  <p className="text-2xl font-black text-rotc-accent">{stats.Total}</p>
+                </div>
+                <div className="text-right text-xs text-rotc-textMuted space-y-0.5">
+                  <p>Male: <span className="text-rotc-text font-medium">{stats.Male}</span></p>
+                  <p>Female: <span className="text-rotc-text font-medium">{stats.Female}</span></p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
         <Card>
           <CardHeader title="Enrollment Requests">
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              <div className="w-full sm:w-64">
-                <Input
-                  placeholder="Search Name or ID..."
-                  value={search}
+              <div className="flex flex-1 gap-2 w-full sm:w-auto">
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="Search Name or ID..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value)
+                      setPage(1)
+                    }}
+                    className="h-9 pr-8"
+                  />
+                  {isFetching && <RefreshCw className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-rotc-accent" />}
+                </div>
+                <select
+                  value={schoolFilter}
                   onChange={(e) => {
-                    setSearch(e.target.value)
-                    setPage(1) // Reset to page 1 on search
+                    setSchoolFilter(e.target.value)
+                    setPage(1)
                   }}
-                  className="h-9"
-                />
+                  className="h-9 px-3 text-xs font-medium bg-rotc-bg border border-rotc-border rounded-lg text-rotc-text focus:outline-none focus:ring-1 focus:ring-rotc-accent"
+                >
+                  <option value="">All Schools</option>
+                  {Object.keys(statsBySchool).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-rotc-textMuted">
@@ -342,6 +411,7 @@ export default function EnrollmentPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="relative"
                 onClick={async () => {
                   setIsProcessingEmails(true);
                   try {
@@ -367,6 +437,11 @@ export default function EnrollmentPage() {
                 title="Manually trigger email sending"
               >
                 <RefreshCw className="h-4 w-4 mr-2" /> Process Emails
+                {emailQueueCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rotc-danger text-[10px] font-bold text-white ring-2 ring-rotc-card">
+                    {emailQueueCount > 99 ? '99+' : emailQueueCount}
+                  </span>
+                )}
               </Button>
               {tab === 'pending' && selectedIds.length > 0 && (
                 <div className="flex gap-2">
@@ -390,7 +465,12 @@ export default function EnrollmentPage() {
                   </Button>
                 </div>
               )}
-              <Button variant="outline" size="sm" onClick={exportCSV}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportCSV}
+                isLoading={exportMutation.isPending}
+              >
                 <Download className="h-4 w-4 mr-2" /> Export CSV
               </Button>
               <div className="flex border border-rotc-border rounded-lg overflow-hidden">
@@ -429,11 +509,33 @@ export default function EnrollmentPage() {
                         onChange={toggleSelectAll}
                       />
                     </div>,
-                    'ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Actions'
+                    <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
+                    <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
+                    <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
+                    'Role',
+                    'MS Class',
+                    <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
+                    'Actions'
                   ]
                 : tab === 'rejected'
-                  ? ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Reason', 'Processed']
-                  : ['ID Number', 'Name', 'School', 'Role', 'MS Class', 'Submitted', 'Processed', 'Actions']
+                  ? [
+                      <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
+                      <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
+                      <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
+                      'Role', 'MS Class',
+                      <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
+                      'Reason',
+                      <button onClick={() => handleSort('reviewed_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Processed <SortIcon field="reviewed_at" /></button>
+                    ]
+                  : [
+                      <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
+                      <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
+                      <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
+                      'Role', 'MS Class',
+                      <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
+                      <button onClick={() => handleSort('reviewed_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Processed <SortIcon field="reviewed_at" /></button>,
+                      'Actions'
+                    ]
               }
               isLoading={isLoading}
               data={requests}
@@ -452,7 +554,16 @@ export default function EnrollmentPage() {
                       </div>
                     </td>
                   )}
-                  <td className="p-4 text-sm font-medium text-rotc-text">{r.id_number}</td>
+                  <td className="p-4 text-sm font-medium text-rotc-text">
+                    <div className="flex items-center gap-2">
+                      {r.id_number}
+                      {existingAccounts.includes(r.id_number) ? (
+                        <span className="flex h-2 w-2 rounded-full bg-green-500" title="Account already exists" />
+                      ) : duplicates.includes(r.id_number) ? (
+                        <span className="flex h-2 w-2 rounded-full bg-yellow-500 animate-pulse" title="Potential duplicate submission" />
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="p-4 text-sm text-rotc-text">
                     {r.first_name} {r.middle_initial ? r.middle_initial + '.' : ''} {r.last_name}{r.suffix && r.suffix !== 'N/A' ? ' ' + r.suffix : ''}
                   </td>
@@ -528,6 +639,18 @@ export default function EnrollmentPage() {
       <Modal isOpen={!!approveItem} onClose={() => setApproveItem(null)} title="Review Enrollment">
         {approveItem && (
           <div className="space-y-4 mt-4">
+            {existingAccounts.includes(approveItem.id_number) ? (
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex gap-2 items-start text-xs text-green-600 font-medium">
+                <Check className="h-4 w-4 flex-shrink-0" />
+                <p>This user already has an active account. Approving again will re-send credentials but will not create a duplicate user profile.</p>
+              </div>
+            ) : duplicates.includes(approveItem.id_number) ? (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex gap-2 items-start text-xs text-yellow-600">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <p><strong>Warning:</strong> This ID Number has multiple submissions. Please verify which one is correct before approving.</p>
+              </div>
+            ) : null}
+
             <ProfileDetails data={approveItem} />
             
             {tab === 'pending' && (
