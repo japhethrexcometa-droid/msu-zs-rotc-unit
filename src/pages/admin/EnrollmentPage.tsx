@@ -359,10 +359,12 @@ export default function EnrollmentPage() {
         </div>
 
         <Card>
-          <CardHeader title="Enrollment Requests">
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              <div className="flex flex-1 gap-2 w-full sm:w-auto">
-                <div className="relative flex-1">
+          <CardHeader>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full">
+              <h3 className="text-base font-semibold text-rotc-text shrink-0">Enrollment Requests</h3>
+
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <div className="relative flex-1 min-w-[200px]">
                   <Input
                     placeholder="Search Name or ID..."
                     value={search}
@@ -374,19 +376,31 @@ export default function EnrollmentPage() {
                   />
                   {isFetching && <RefreshCw className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-rotc-accent" />}
                 </div>
+
                 <select
                   value={schoolFilter}
                   onChange={(e) => {
                     setSchoolFilter(e.target.value)
                     setPage(1)
                   }}
-                  className="h-9 px-3 text-xs font-medium bg-rotc-bg border border-rotc-border rounded-lg text-rotc-text focus:outline-none focus:ring-1 focus:ring-rotc-accent"
+                  className="h-9 px-3 text-xs font-medium bg-rotc-bg border border-rotc-border rounded-lg text-rotc-text focus:outline-none focus:ring-1 focus:ring-rotc-accent cursor-pointer"
                 >
                   <option value="">All Schools</option>
                   {Object.keys(statsBySchool).map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
+
+                {(search || schoolFilter) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setSearch(''); setSchoolFilter(''); setPage(1); }}
+                    className="h-9 text-xs"
+                  >
+                    Reset
+                  </Button>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-rotc-textMuted">
@@ -423,7 +437,11 @@ export default function EnrollmentPage() {
                     });
                     const result = await res.json();
                     if (res.ok) {
-                      toast.success(`Email queue processed: ${result.sent ?? 0} sent, ${result.failed ?? 0} failed.`);
+                      if ((result.sent ?? 0) === 0 && (result.failed ?? 0) === 0) {
+                        toast.success("Email queue is currently empty.");
+                      } else {
+                        toast.success(`Email queue processed: ${result.sent ?? 0} sent, ${result.failed ?? 0} failed.`);
+                      }
                     } else {
                       toast.error(result.error || "Failed to process emails");
                     }
@@ -540,6 +558,7 @@ export default function EnrollmentPage() {
               isLoading={isLoading}
               data={requests}
               keyExtractor={(r) => r.id}
+              rowClassName={(r) => duplicates.includes(r.id_number) ? 'bg-yellow-500/10' : ''}
               renderRow={(r) => (
                 <>
                   {tab === 'pending' && (

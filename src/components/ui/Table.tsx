@@ -31,6 +31,7 @@ interface RenderRowTableProps<T> {
   keyExtractor: (row: T, index?: number) => string
   renderRow: (row: T, index?: number) => ReactNode
   className?: string
+  rowClassName?: (row: T, index: number) => string
   // discriminator
   columns?: never
   loading?: never
@@ -97,7 +98,10 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
 
             {!isLoading &&
               data.map((row, i) => (
-                <tr key={keyExtractor(row, i)} className="bg-rotc-card hover:bg-rotc-cardHover transition-colors duration-100">
+                <tr
+                  key={keyExtractor(row, i)}
+                  className={`bg-rotc-card hover:bg-rotc-cardHover transition-colors duration-100 ${props.rowClassName?.(row, i) || ''}`}
+                >
                   {renderRow(row, i)}
                 </tr>
               ))}
