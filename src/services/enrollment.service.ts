@@ -36,7 +36,7 @@ export async function getPaginatedEnrollmentRequests(
   pageSize: number,
   status: 'pending' | 'approved' | 'rejected',
   searchQuery: string = ''
-): Promise<{ data: EnrollmentRequest[], count: number }> {
+): Promise<{ data: EnrollmentRequest[], count: number, summary: any }> {
   await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -58,7 +58,7 @@ export async function getPaginatedEnrollmentRequests(
     throw new Error(result.error || "Failed to fetch enrollment requests");
   }
 
-  return { data: result.data, count: result.count };
+  return { data: result.data, count: result.count, summary: result.summary };
 }
 
 /**

@@ -84,10 +84,22 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
+    // 5. Fetch Summary Counts (Total across all pages)
+    const { data: countsData } = await supabaseAdmin
+      .from('enrollment_requests')
+      .select('status');
+
+    const summary = {
+      pending: countsData?.filter(r => r.status === 'pending').length || 0,
+      approved: countsData?.filter(r => r.status === 'approved').length || 0,
+      rejected: countsData?.filter(r => r.status === 'rejected').length || 0
+    };
+
     return res.status(200).json({
       success: true,
       data: data || [],
-      count: count || 0
+      count: count || 0,
+      summary
     });
 
   } catch (error) {

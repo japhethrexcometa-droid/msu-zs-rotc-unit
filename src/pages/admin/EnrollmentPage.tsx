@@ -63,7 +63,7 @@ export default function EnrollmentPage() {
   }, [search])
 
   const {
-    data: { data: requests = [], count = 0 } = { data: [], count: 0 },
+    data: { data: requests = [], count = 0, summary = { pending: 0, approved: 0, rejected: 0 } } = { data: [], count: 0, summary: { pending: 0, approved: 0, rejected: 0 } },
     isLoading,
     isFetching,
     dataUpdatedAt,
@@ -270,31 +270,39 @@ export default function EnrollmentPage() {
 
   const tabs = ['pending', 'approved', 'rejected'] as const
 
+  // Global counts for stats card
+  const globalTotal = summary.pending + summary.approved + summary.rejected
+
   return (
     <AppLayout title="Enrollment Management">
       <div className="space-y-6">
         
-        {/* Dynamic Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(statsBySchool).map(([school, stats]) => (
-            <Card key={school} className="bg-rotc-card">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-rotc-textMuted">{school}</p>
-                  <p className="text-2xl font-bold text-rotc-text">{stats.Total}</p>
-                </div>
-                <div className="text-right text-xs text-rotc-textMuted">
-                  <p>Male: <span className="text-rotc-text font-medium">{stats.Male}</span></p>
-                  <p>Female: <span className="text-rotc-text font-medium">{stats.Female}</span></p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {Object.keys(statsBySchool).length === 0 && !isLoading && (
-            <div className="col-span-full p-4 bg-rotc-bg rounded-xl border border-rotc-border text-center text-rotc-textMuted text-sm">
-              No data for this status.
-            </div>
-          )}
+        {/* Global Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-rotc-card border-rotc-accent/30">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-rotc-textMuted uppercase tracking-wider">Total Enrollment</p>
+              <p className="text-3xl font-bold text-rotc-accent mt-1">{globalTotal}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-rotc-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-rotc-textMuted uppercase tracking-wider">Pending Approval</p>
+              <p className="text-3xl font-bold text-yellow-500 mt-1">{summary.pending}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-rotc-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-rotc-textMuted uppercase tracking-wider">Approved Cadets</p>
+              <p className="text-3xl font-bold text-green-500 mt-1">{summary.approved}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-rotc-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium text-rotc-textMuted uppercase tracking-wider">Rejected Requests</p>
+              <p className="text-3xl font-bold text-rotc-danger mt-1">{summary.rejected}</p>
+            </CardContent>
+          </Card>
         </div>
 
         <Card>
@@ -399,6 +407,11 @@ export default function EnrollmentPage() {
                     }`}
                   >
                     {t}
+                    <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold ${
+                      tab === t ? 'bg-white/20 text-white' : 'bg-rotc-border text-rotc-textMuted'
+                    }`}>
+                      {summary[t as keyof typeof summary]}
+                    </span>
                   </button>
                 ))}
               </div>
