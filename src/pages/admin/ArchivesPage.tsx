@@ -17,31 +17,33 @@ export default function ArchivesPage() {
 
   // Enrollment Archive State
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined)
+  const [selectedFolder, setSelectedFolder] = useState<string | undefined>(undefined)
   const [archivePage, setArchivePage] = useState(1)
   const archivePageSize = 20
 
   const { data: archives, isLoading: loadingArchives } = useEnrollmentArchives({
     searchQuery,
-    academicYear: selectedYear,
+    academicYear: selectedFolder, // Backend still uses academicYear parameter but we treat it as Folder Name
     page: archivePage,
     pageSize: archivePageSize
   })
 
   const importMutation = useImportEnrollmentArchives()
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
-  const [importYear, setImportYear] = useState('')
+  const [folderName, setFolderName] = useState('')
 
   if (!session) return null
 
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !importYear) return
+    if (!file || !folderName) return
 
     const reader = new FileReader()
     reader.onload = async (event) => {
       const text = event.target?.result as string
       const lines = text.split('\n')
+      if (lines.length < 1) return
+
       const headers = lines[0].split(',').map(h => h.trim())
 
       const records = lines.slice(1).filter(l => l.trim()).map(line => {
@@ -55,10 +57,10 @@ export default function ArchivesPage() {
       })
 
       try {
-        await importMutation.mutateAsync({ records, academicYear: importYear })
-        toast.success(`Successfully imported ${records.length} records into ${importYear}`)
+        await importMutation.mutateAsync({ records, academicYear: folderName })
+        toast.success(`Successfully imported ${records.length} records into folder: ${folderName}`)
         setIsImportModalOpen(false)
-        setImportYear('')
+        setFolderName('')
       } catch (err: any) {
         toast.error(err.message)
       }
@@ -70,38 +72,38 @@ export default function ArchivesPage() {
     <AppLayout title="Archives (Historical Enrollment)">
       <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Folder-like Year Selection */}
+          {/* Folder-like Selection */}
           <div className="lg:col-span-1 space-y-4">
             <Card>
               <CardHeader>
                 <h3 className="text-sm font-bold text-rotc-text flex items-center gap-2">
-                  <FolderIcon className="h-4 w-4 text-rotc-accent" /> Academic Years
+                  <FolderIcon className="h-4 w-4 text-rotc-accent" /> Folders
                 </h3>
               </CardHeader>
               <CardContent className="px-2 py-2">
                 <div className="space-y-1">
                   <button
-                    onClick={() => { setSelectedYear(undefined); setArchivePage(1); }}
+                    onClick={() => { setSelectedFolder(undefined); setArchivePage(1); }}
                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      !selectedYear ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
+                      !selectedFolder ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                     }`}
                   >
-                    All Records
+                    All Historical Records
                   </button>
                   {archives?.academicYears?.map((year: string) => (
                     <button
                       key={year}
-                      onClick={() => { setSelectedYear(year); setArchivePage(1); }}
+                      onClick={() => { setSelectedFolder(year); setArchivePage(1); }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                        selectedYear === year ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
+                        selectedFolder === year ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                       }`}
                     >
-                      {year}
-                      <FileIcon className="h-3.5 w-3.5 opacity-40" />
+                      <span className="truncate max-w-[150px]">{year}</span>
+                      <FileIcon className="h-3.5 w-3.5 opacity-40 shrink-0" />
                     </button>
                   ))}
                   {(!archives?.academicYears || archives.academicYears.length === 0) && !loadingArchives && (
-                    <div className="p-4 text-center text-xs text-rotc-textMuted">No archives found</div>
+                    <div className="p-4 text-center text-xs text-rotc-textMuted">No archive folders found</div>
                   )}
                 </div>
                 <div className="mt-4 pt-4 border-t border-rotc-border px-2">
@@ -124,7 +126,7 @@ export default function ArchivesPage() {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
                   <h3 className="text-sm font-bold text-rotc-text">
-                    {selectedYear ? `Records for AY ${selectedYear}` : 'All Historical Records'}
+                    {selectedFolder ? `Folder: ${selectedFolder}` : 'All Historical Records'}
                   </h3>
                   <div className="relative max-w-xs w-full">
                     <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-rotc-textMuted" />
@@ -139,7 +141,7 @@ export default function ArchivesPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <Table
-                  headers={['Name', 'ID Number', 'Gender', 'School', 'Year', 'Status', 'Archived']}
+                  headers={['Name', 'ID Number', 'Gender', 'School', 'Folder', 'Status', 'Archived']}
                   isLoading={loadingArchives}
                   data={archives?.data || []}
                   keyExtractor={(r) => r.id}
@@ -151,7 +153,9 @@ export default function ArchivesPage() {
                       <td className="p-4 text-sm text-rotc-textMuted">{r.id_number}</td>
                       <td className="p-4 text-sm text-rotc-textMuted">{r.gender}</td>
                       <td className="p-4 text-sm text-rotc-textMuted">{r.school}</td>
-                      <td className="p-4 text-sm text-rotc-textMuted">{r.academic_year}</td>
+                      <td className="p-4 text-sm text-rotc-textMuted truncate max-w-[120px]" title={r.academic_year}>
+                        {r.academic_year}
+                      </td>
                       <td className="p-4">
                         <Badge
                           status={r.status === 'approved' ? 'success' : 'danger'}
@@ -186,15 +190,16 @@ export default function ArchivesPage() {
       {/* Import Modal */}
       <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Import Historical Records">
         <div className="space-y-4 mt-4">
-          <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex gap-2 text-xs text-yellow-600">
-            <AlertIcon className="h-4 w-4 flex-shrink-0" />
-            <p>Ensure your CSV headers match: id_number, first_name, last_name, school, gender, date_of_birth, course_year.</p>
+          <div className="p-3 bg-rotc-accent/10 border border-rotc-accent/20 rounded-lg flex gap-2 text-xs text-rotc-accent">
+            <FolderIcon className="h-4 w-4 flex-shrink-0" />
+            <p>Import legacy records from past decades into a specific folder (e.g., <i>AER & ASR 2024-2025</i>) for easy retrieval and CHED reporting.</p>
           </div>
           <Input
-            label="Target Academic Year"
-            placeholder="e.g. 2020-2021"
-            value={importYear}
-            onChange={e => setImportYear(e.target.value)}
+            label="Folder Name"
+            placeholder="e.g. AER & ASR 2024-2025"
+            value={folderName}
+            onChange={e => setFolderName(e.target.value)}
+            required
           />
           <div className="pt-2">
             <label className="block text-xs font-medium text-rotc-textMuted mb-1">Upload CSV File</label>
@@ -202,7 +207,7 @@ export default function ArchivesPage() {
               type="file"
               accept=".csv"
               onChange={handleImportCSV}
-              disabled={!importYear}
+              disabled={!folderName}
               className="w-full text-xs text-rotc-textMuted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-rotc-accent file:text-white hover:file:bg-rotc-accent/80 cursor-pointer disabled:opacity-50"
             />
           </div>

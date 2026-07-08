@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     }
 
     if (!academicYear) {
-      throw new Error("Academic Year is required for historical import.");
+      throw new Error("Folder Name is required for historical import.");
     }
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;

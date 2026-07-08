@@ -772,8 +772,8 @@ export default function EnrollmentPage() {
           </div>
 
           <Input
-            label="Academic Year Grouping"
-            placeholder="e.g. 2023-2024"
+            label="Folder Name"
+            placeholder="e.g. AER & ASR 2024-2025"
             value={academicYear}
             onChange={e => setAcademicYear(e.target.value)}
             required

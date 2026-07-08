@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     }
 
     if (!academicYear) {
-      throw new Error("Academic Year is required for archiving (e.g. '2023-2024').");
+      throw new Error("Folder Name is required for archiving (e.g. 'AER & ASR 2024-2025').");
     }
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;
