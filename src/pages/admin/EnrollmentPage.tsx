@@ -1,4 +1,5 @@
 import { useSession } from '@/hooks/useSession'
+import { supabase } from '@/lib/supabase'
 import AppLayout from '@/components/layout/AppLayout'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import Table from '@/components/ui/Table'

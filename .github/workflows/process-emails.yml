@@ -12,5 +12,5 @@ jobs:
     steps:
       - name: Call Process Emails API
         run: |
-          curl -X POST "${{ secrets.VITE_SUPABASE_URL }}/api/cron/process-emails" \
+          curl -X POST "${{ secrets.APP_URL }}/api/cron/process-emails" \
           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

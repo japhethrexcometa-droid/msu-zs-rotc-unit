@@ -21,7 +21,7 @@ Since Vercel Hobby only supports daily cron jobs, we use a GitHub Action as an e
 ### Setup GitHub Actions Cron:
 1. Go to your GitHub Repository **Settings** > **Secrets and variables** > **Actions**.
 2. Add the following **Repository secrets**:
-   - `VITE_SUPABASE_URL`: Your full production URL (e.g., `https://rotc-app.vercel.app`).
+   - `APP_URL`: Your full production URL (e.g., `https://rotc-app.vercel.app`).
    - `CRON_SECRET`: The same secret used in your Vercel Environment Variables.
 3. The workflow is already configured in `.github/workflows/process-emails.yml`.
 
