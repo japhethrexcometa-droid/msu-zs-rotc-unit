@@ -16,14 +16,13 @@ import {
   Upload as UploadIcon,
   Download as DownloadIcon,
   Trash2 as TrashIcon,
-  FileDown as FileDownIcon,
   Archive as ArchiveIcon,
-  MoreVertical as MoreIcon,
   Edit3 as RenameIcon,
   Database as DatabaseIcon
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord } from '@/services/documents.service'
+import { supabase } from '@/lib/supabase'
 
 export default function ArchivesPage() {
   const session = useSession()
@@ -79,7 +78,7 @@ export default function ArchivesPage() {
     }
   }
 
-  useEffect(() => { loadVault() }, [activeTab, vaultSearch, vaultFolder, vaultPage])
+  useEffect(() => { loadVault() }, [activeTab, vaultSearch, vaultFolder, vaultPage, vaultPageSize])
 
   if (!session) return null
 
@@ -264,14 +263,15 @@ export default function ArchivesPage() {
                         </select>
                       </div>
                     )}
-                  <div className="relative max-w-xs w-full">
-                    <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-rotc-textMuted" />
-                    <Input
-                      placeholder="Search..."
-                      className="pl-9 h-9 text-xs"
-                      value={activeTab === 'records' ? searchQuery : vaultSearch}
-                      onChange={e => activeTab === 'records' ? setSearchQuery(e.target.value) : setVaultSearch(e.target.value)}
-                    />
+                    <div className="relative max-w-xs w-full">
+                      <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-rotc-textMuted" />
+                      <Input
+                        placeholder="Search..."
+                        className="pl-9 h-9 text-xs"
+                        value={activeTab === 'records' ? searchQuery : vaultSearch}
+                        onChange={e => activeTab === 'records' ? setSearchQuery(e.target.value) : setVaultSearch(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -333,12 +333,12 @@ export default function ArchivesPage() {
                         </>
                       )}
                     />
-                    {vaultData.count > 20 && (
+                    {vaultData.count > vaultPageSize && (
                       <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
                         <span className="text-xs text-rotc-textMuted">Showing {vaultData.data.length} of {vaultData.count} entries</span>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" disabled={vaultPage === 1} onClick={() => setVaultPage(p => p - 1)}>Prev</Button>
-                          <Button variant="outline" size="sm" disabled={vaultPage * 20 >= vaultData.count} onClick={() => setVaultPage(p => p + 1)}>Next</Button>
+                          <Button variant="outline" size="sm" disabled={vaultPage * vaultPageSize >= vaultData.count} onClick={() => setVaultPage(p => p + 1)}>Next</Button>
                         </div>
                       </div>
                     )}
