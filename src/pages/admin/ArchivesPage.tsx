@@ -12,17 +12,21 @@ import { toast } from 'sonner'
 import {
   Folder as FolderIcon,
   Search as SearchIcon,
+  ShieldCheck as ShieldCheckIcon,
+  ShieldAlert as ShieldAlertIcon,
   FileText as FileIcon,
   Upload as UploadIcon,
   Download as DownloadIcon,
   Trash2 as TrashIcon,
   Archive as ArchiveIcon,
   Edit3 as RenameIcon,
-  Database as DatabaseIcon
+  Database as DatabaseIcon,
+  RotateCcw as RotateCcwIcon
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord, initStorage } from '@/services/documents.service'
 import { supabase } from '@/lib/supabase'
+import * as XLSX from 'xlsx'
 
 export default function ArchivesPage() {
   const session = useSession()
@@ -33,6 +37,8 @@ export default function ArchivesPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | undefined>(undefined)
   const [archivePage, setArchivePage] = useState(1)
   const archivePageSize = 20
+  const [folderDocs, setFolderDocs] = useState<DocumentRecord[]>([])
+  const [isLoadingFolderDocs, setIsLoadingFolderDocs] = useState(false)
 
   // Vault State
   const [vaultSearch, setVaultSearch] = useState('')
@@ -48,6 +54,8 @@ export default function ArchivesPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadFolder, setUploadFolder] = useState('')
   const [customFilename, setCustomFilename] = useState('')
+  const [storageStatus, setStorageStatus] = useState<'checking' | 'ready' | 'error'>('checking')
+  const [storageError, setStorageError] = useState('')
 
   const { data: archives, isLoading: loadingArchives } = useEnrollmentArchives({
     searchQuery,
@@ -79,11 +87,39 @@ export default function ArchivesPage() {
     }
   }
 
+  const loadFolderDocs = async () => {
+    if (activeTab !== 'records' || !selectedFolder) {
+      setFolderDocs([])
+      return
+    }
+    setIsLoadingFolderDocs(true)
+    try {
+      const result = await getAdminDocuments({ folder: selectedFolder, pageSize: 100 })
+      setFolderDocs(result.data || [])
+    } catch (err: any) {
+      console.error("Failed to load folder documents:", err)
+    } finally {
+      setIsLoadingFolderDocs(false)
+    }
+  }
+
+  const checkStorage = async () => {
+    setStorageStatus('checking')
+    try {
+      await initStorage()
+      setStorageStatus('ready')
+    } catch (err: any) {
+      setStorageStatus('error')
+      setStorageError(err.message)
+    }
+  }
+
   useEffect(() => {
     loadVault()
+    loadFolderDocs()
     // Auto-init storage on first load
-    initStorage().catch(console.error)
-  }, [activeTab, vaultSearch, vaultFolder, vaultPage, vaultPageSize])
+    checkStorage()
+  }, [activeTab, vaultSearch, vaultFolder, vaultPage, vaultPageSize, selectedFolder])
 
   if (!session) return null
 
@@ -148,37 +184,54 @@ export default function ArchivesPage() {
     }
   }
 
-  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !folderName) return
 
     const reader = new FileReader()
     reader.onload = async (event) => {
-      const text = event.target?.result as string
-      const lines = text.split('\n')
-      if (lines.length < 1) return
-
-      const headers = lines[0].split(',').map(h => h.trim())
-      const records = lines.slice(1).filter(l => l.trim()).map(line => {
-        const values = line.split(',')
-        const obj: any = {}
-        headers.forEach((h, i) => {
-          const key = h.toLowerCase().replace(/ /g, '_')
-          obj[key] = values[i]?.trim()
-        })
-        return obj
-      })
-
       try {
+        let records: any[] = []
+
+        if (file.name.endsWith('.csv')) {
+          const text = event.target?.result as string
+          const lines = text.split('\n')
+          if (lines.length < 1) return
+
+          const headers = lines[0].split(',').map(h => h.trim())
+          records = lines.slice(1).filter(l => l.trim()).map(line => {
+            const values = line.split(',')
+            const obj: any = {}
+            headers.forEach((h, i) => {
+              const key = h.toLowerCase().replace(/ /g, '_')
+              obj[key] = values[i]?.trim()
+            })
+            return obj
+          })
+        } else {
+          // Excel Support
+          const data = new Uint8Array(event.target?.result as ArrayBuffer)
+          const workbook = XLSX.read(data, { type: 'array' })
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+          records = XLSX.utils.sheet_to_json(firstSheet)
+        }
+
+        if (records.length === 0) throw new Error("No records found in file")
+
         await importMutation.mutateAsync({ records, academicYear: folderName })
         toast.success(`Successfully imported ${records.length} records into folder: ${folderName}`)
         setIsImportModalOpen(false)
         setFolderName('')
       } catch (err: any) {
-        toast.error(err.message)
+        toast.error("Import failed: " + err.message)
       }
     }
-    reader.readAsText(file)
+
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file)
+    } else {
+      reader.readAsArrayBuffer(file)
+    }
   }
 
   return (
@@ -234,7 +287,33 @@ export default function ArchivesPage() {
                   ))}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-rotc-border px-2 space-y-2">
+                {/* Storage Health Check */}
+                <div className="mt-4 pt-4 border-t border-rotc-border px-2">
+                  <div className={`p-3 rounded-lg flex items-center justify-between mb-4 ${
+                    storageStatus === 'ready' ? 'bg-green-500/10 text-green-500' :
+                    storageStatus === 'checking' ? 'bg-rotc-bg text-rotc-textMuted' : 'bg-rotc-danger/10 text-rotc-danger'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {storageStatus === 'ready' ? <ShieldCheckIcon className="h-4 w-4" /> :
+                       storageStatus === 'checking' ? <RotateCcwIcon className="h-4 w-4 animate-spin" /> :
+                       <ShieldAlertIcon className="h-4 w-4" />}
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Storage {storageStatus}
+                      </span>
+                    </div>
+                    {storageStatus === 'error' && (
+                      <button onClick={checkStorage} className="p-1 hover:bg-rotc-danger/20 rounded transition-colors" title="Retry Repair">
+                        <RotateCcwIcon className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {storageStatus === 'error' && (
+                    <p className="text-[10px] text-rotc-danger mb-4 px-1 italic">
+                      Error: {storageError}. Please ensure the "vault" bucket exists in Supabase Storage.
+                    </p>
+                  )}
+
                   {activeTab === 'records' ? (
                     <>
                       <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setIsImportModalOpen(true)}>
@@ -258,7 +337,53 @@ export default function ArchivesPage() {
           </div>
 
           {/* Main Content Area */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 space-y-6">
+            {/* Folder Documents Quick Access (When a folder is selected) */}
+            {activeTab === 'records' && selectedFolder && (
+              <Card className="bg-rotc-accent/5 border-rotc-accent/20">
+                <CardHeader>
+                  <div className="flex items-center justify-between w-full">
+                    <h3 className="text-sm font-bold text-rotc-accent flex items-center gap-2">
+                      <FileIcon className="h-4 w-4" /> Folder Documents ({folderDocs.length})
+                    </h3>
+                    <Button variant="primary" size="sm" onClick={() => {
+                      setUploadFolder(selectedFolder);
+                      setIsUploadModalOpen(true);
+                    }}>
+                      <UploadIcon className="h-3 w-3 mr-2" /> Upload New Doc
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  {isLoadingFolderDocs ? (
+                    <div className="animate-pulse flex gap-4">
+                      {[1,2,3].map(i => <div key={i} className="h-12 w-32 bg-rotc-border rounded-lg" />)}
+                    </div>
+                  ) : folderDocs.length === 0 ? (
+                    <p className="text-xs text-rotc-textMuted italic">No documents uploaded to this folder yet.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      {folderDocs.map(doc => (
+                        <div key={doc.id} className="group relative bg-rotc-card border border-rotc-border p-3 rounded-xl flex items-center gap-3 hover:border-rotc-accent transition-all cursor-pointer shadow-sm">
+                          <div className="p-2 bg-rotc-accent/10 rounded-lg text-rotc-accent">
+                            <FileIcon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 pr-8">
+                            <p className="text-xs font-bold text-rotc-text truncate max-w-[150px]">{doc.display_name || doc.filename}</p>
+                            <p className="text-[10px] text-rotc-textMuted">{(doc.file_size / 1024).toFixed(1)} KB</p>
+                          </div>
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleDownload(doc)} className="p-1 hover:text-rotc-accent"><DownloadIcon className="h-3 w-3" /></button>
+                            <button onClick={() => handleDelete(doc)} className="p-1 hover:text-rotc-danger"><TrashIcon className="h-3 w-3" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
@@ -326,6 +451,7 @@ export default function ArchivesPage() {
                     <Table
                       headers={['File Name', 'Folder', 'Type', 'Size', 'Date Added', 'Actions']}
                       isLoading={isVaultLoading}
+                      emptyMessage={storageStatus === 'error' ? "Cannot access documents. Please check your Storage Health status in the sidebar." : "No documents available."}
                       data={vaultData?.data || []}
                       keyExtractor={(d) => d.id}
                       renderRow={(d) => (
@@ -367,10 +493,17 @@ export default function ArchivesPage() {
       {/* Modals */}
       <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Import Historical Records">
         <div className="space-y-4 mt-4">
-          <Input label="Folder Name" placeholder="Enter Folder Name" value={folderName} onChange={e => setFolderName(e.target.value)} required />
+          <Input label="Folder Name" placeholder="e.g. AER & ASR 2023-2024" value={folderName} onChange={e => setFolderName(e.target.value)} required />
           <div className="pt-2">
-            <label className="block text-xs font-medium text-rotc-textMuted mb-1">Upload Records (CSV)</label>
-            <input type="file" accept=".csv" onChange={handleImportCSV} disabled={!folderName} className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2" />
+            <label className="block text-xs font-medium text-rotc-textMuted mb-1">Upload Records (CSV or Excel)</label>
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleImportFile}
+              disabled={!folderName}
+              className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2"
+            />
+            <p className="text-[10px] text-rotc-textMuted mt-2">Column headers should match database fields (id_number, last_name, first_name, etc.)</p>
           </div>
           <div className="flex justify-end pt-4"><Button variant="outline" onClick={() => setIsImportModalOpen(false)}>Close</Button></div>
         </div>
