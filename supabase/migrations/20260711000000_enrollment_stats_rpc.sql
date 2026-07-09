@@ -7,6 +7,7 @@ DECLARE
     v_rejected_count BIGINT;
     v_email_queue_count BIGINT;
     v_school_stats JSONB;
+    v_all_schools JSONB;
 BEGIN
     -- Get global status counts in a single pass
     SELECT
@@ -19,8 +20,10 @@ BEGIN
     -- Get pending email queue count
     SELECT count(*) INTO v_email_queue_count FROM email_queue WHERE status = 'pending';
 
-    -- Aggregate stats by school for the specific status
-    -- We use a single query to build the JSON object
+    -- Get a unique list of ALL schools across ALL statuses for the filter
+    SELECT jsonb_agg(DISTINCT school) INTO v_all_schools FROM enrollment_requests WHERE school IS NOT NULL;
+
+    -- Aggregate stats by school for the specific status (for dashboard cards)
     SELECT COALESCE(jsonb_object_agg(school_name, stats), '{}'::jsonb)
     INTO v_school_stats
     FROM (
@@ -43,7 +46,8 @@ BEGIN
             'rejected', v_rejected_count
         ),
         'emailQueueCount', v_email_queue_count,
-        'statsBySchool', COALESCE(v_school_stats, '{}'::jsonb)
+        'statsBySchool', v_school_stats,
+        'allSchools', COALESCE(v_all_schools, '[]'::jsonb)
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

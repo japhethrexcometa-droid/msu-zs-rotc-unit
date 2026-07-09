@@ -55,7 +55,7 @@ export default function EnrollmentPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
-  const pageSize = 20
+  const [pageSize, setPageSize] = useState(20)
 
   const [sort, setSort] = useState<{ by: string, order: 'asc' | 'desc' }>({
     by: 'created_at',
@@ -78,6 +78,7 @@ export default function EnrollmentPage() {
       duplicates = [],
       existingAccounts = [],
       statsBySchool = {},
+      allSchools = [],
       emailQueueCount = 0
     } = {
       data: [],
@@ -86,6 +87,7 @@ export default function EnrollmentPage() {
       duplicates: [],
       existingAccounts: [],
       statsBySchool: {},
+      allSchools: [],
       emailQueueCount: 0
     },
     isLoading,
@@ -380,21 +382,37 @@ export default function EnrollmentPage() {
           ))}
         </div>
 
-        <Card>
+        <Card className="relative overflow-hidden">
+          {/* Performance Loading Bar */}
+          {isFetching && (
+            <div className="absolute top-0 left-0 w-full h-0.5 bg-rotc-accent/20">
+              <div className="h-full bg-rotc-accent animate-progress-fast" style={{ width: '30%' }} />
+            </div>
+          )}
           <CardHeader>
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full">
               <h3 className="text-base font-semibold text-rotc-text shrink-0">Enrollment Requests</h3>
 
               <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <div className="flex items-center gap-2 text-xs text-rotc-textMuted whitespace-nowrap bg-rotc-bg/50 px-2 py-1 rounded-lg border border-rotc-border">
+                  <select
+                    value={pageSize}
+                    onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+                    className="bg-transparent border-none p-0 text-rotc-text focus:ring-0 cursor-pointer font-bold"
+                  >
+                    {[10, 20, 50, 100, 200].map(sz => <option key={sz} value={sz} className="bg-rotc-bg text-rotc-text">{sz}</option>)}
+                  </select>
+                </div>
+
                 <div className="relative flex-1 min-w-[200px]">
                   <Input
-                    placeholder="Search Name or ID..."
+                    placeholder="Search name or ID..."
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value)
                       setPage(1)
                     }}
-                      className={`h-9 pr-8 transition-opacity ${isFetching ? 'opacity-70' : 'opacity-100'}`}
+                    className={`h-9 pr-8 transition-opacity ${isFetching ? 'opacity-70' : 'opacity-100'}`}
                   />
                   {isFetching && <RefreshCw className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-rotc-accent" />}
                 </div>
@@ -408,7 +426,7 @@ export default function EnrollmentPage() {
                   className="h-9 px-3 text-xs font-medium bg-rotc-bg border border-rotc-border rounded-lg text-rotc-text focus:outline-none focus:ring-1 focus:ring-rotc-accent cursor-pointer"
                 >
                   <option value="">All Schools</option>
-                  {Object.keys(statsBySchool).map(s => (
+                  {(allSchools.length > 0 ? allSchools : Object.keys(statsBySchool)).sort().map((s: string) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>

@@ -39,7 +39,7 @@ export async function getPaginatedEnrollmentRequests(
   sortBy?: string,
   sortOrder?: 'asc' | 'desc',
   school?: string
-): Promise<{ data: EnrollmentRequest[], count: number, summary: any, duplicates: string[], existingAccounts: string[], statsBySchool: any, emailQueueCount: number }> {
+): Promise<{ data: EnrollmentRequest[], count: number, summary: any, duplicates: string[], existingAccounts: string[], statsBySchool: any, allSchools: string[], emailQueueCount: number }> {
   await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -72,6 +72,7 @@ export async function getPaginatedEnrollmentRequests(
     duplicates: result.duplicates || [],
     existingAccounts: result.existingAccounts || [],
     statsBySchool: result.statsBySchool || {},
+    allSchools: result.allSchools || [],
     emailQueueCount: result.emailQueueCount || 0
   };
 }

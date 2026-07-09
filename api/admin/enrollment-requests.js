@@ -64,7 +64,8 @@ export default async function handler(req, res) {
     }
 
     if (searchQuery) {
-      query = query.or(`id_number.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`);
+      // Optimized Search using the search_text column
+      query = query.ilike('search_text', `%${searchQuery}%`);
     }
 
     // Ordering
@@ -75,7 +76,6 @@ export default async function handler(req, res) {
     } else if (status === 'approved' || status === 'rejected') {
       query = query.order('reviewed_at', { ascending: false });
     } else {
-      // Default for "fetch all"
       query = query.order('created_at', { ascending: false });
     }
 
@@ -111,14 +111,13 @@ export default async function handler(req, res) {
       existingAccounts = (existingData || []).map(u => u.id_number);
     }
 
-    // 5. Optimized Fetch: Use a single RPC to get all stats
-    // This is much faster than multiple count(*) queries over HTTP
+    // 5. Optimized Metadata Fetch: Use the RPC
     const { data: stats, error: statsError } = await supabaseAdmin.rpc('get_enrollment_stats', {
       p_status: status || 'pending'
     });
 
     if (statsError) {
-      console.error("RPC Stats Error (falling back):", statsError);
+      console.error("RPC Stats Error:", statsError);
     }
 
     return res.status(200).json({
@@ -127,6 +126,7 @@ export default async function handler(req, res) {
       count: count || 0,
       summary: stats?.summary || { pending: 0, approved: 0, rejected: 0 },
       statsBySchool: stats?.statsBySchool || {},
+      allSchools: stats?.allSchools || [],
       emailQueueCount: stats?.emailQueueCount || 0,
       duplicates,
       existingAccounts
