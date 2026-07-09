@@ -298,7 +298,7 @@ export default function ArchivesPage() {
                     />
                     {archives?.count > archivePageSize && (
                       <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
-                        <span className="text-xs text-rotc-textMuted">Showing {archives.data.length} of {archives.count} entries</span>
+                        <span className="text-xs text-rotc-textMuted">Showing {archives?.data?.length || 0} of {archives.count} entries</span>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" disabled={archivePage === 1} onClick={() => setArchivePage(p => p - 1)}>Prev</Button>
                           <Button variant="outline" size="sm" disabled={archivePage * archivePageSize >= archives.count} onClick={() => setArchivePage(p => p + 1)}>Next</Button>
@@ -312,7 +312,7 @@ export default function ArchivesPage() {
                     <Table
                       headers={['File Name', 'Folder', 'Type', 'Size', 'Date Added', 'Actions']}
                       isLoading={isVaultLoading}
-                      data={vaultData.data}
+                      data={vaultData?.data || []}
                       keyExtractor={(d) => d.id}
                       renderRow={(d) => (
                         <>
@@ -335,7 +335,7 @@ export default function ArchivesPage() {
                     />
                     {vaultData.count > vaultPageSize && (
                       <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
-                        <span className="text-xs text-rotc-textMuted">Showing {vaultData.data.length} of {vaultData.count} entries</span>
+                        <span className="text-xs text-rotc-textMuted">Showing {vaultData?.data?.length || 0} of {vaultData.count} entries</span>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" disabled={vaultPage === 1} onClick={() => setVaultPage(p => p - 1)}>Prev</Button>
                           <Button variant="outline" size="sm" disabled={vaultPage * vaultPageSize >= vaultData.count} onClick={() => setVaultPage(p => p + 1)}>Next</Button>

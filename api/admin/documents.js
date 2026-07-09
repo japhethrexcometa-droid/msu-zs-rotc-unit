@@ -47,7 +47,12 @@ export default async function handler(req, res) {
 
       const uniqueFolders = [...new Set((folders || []).map(f => f.folder_name))];
 
-      return res.status(200).json({ success: true, data, count, folders: uniqueFolders });
+      return res.status(200).json({
+        success: true,
+        data: data || [],
+        count: count || 0,
+        folders: uniqueFolders
+      });
     }
 
     if (req.method === 'PATCH') {

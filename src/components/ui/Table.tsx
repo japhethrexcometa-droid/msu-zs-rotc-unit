@@ -55,6 +55,7 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
   // ── Render-row API ──
   if ('headers' in props && props.headers) {
     const { headers, isLoading, keyExtractor, renderRow } = props as RenderRowTableProps<T>
+    const safeData = data || []
 
     return (
       <div className={`overflow-x-auto ${className}`}>
@@ -83,7 +84,7 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
                 </tr>
               ))}
 
-            {!isLoading && data.length === 0 && (
+            {!isLoading && safeData.length === 0 && (
               <tr>
                 <td colSpan={headers.length} className="px-4 py-12 text-center text-rotc-textMuted">
                   <div className="flex flex-col items-center gap-2">
@@ -97,7 +98,7 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
             )}
 
             {!isLoading &&
-              data.map((row, i) => (
+              safeData.map((row, i) => (
                 <tr
                   key={keyExtractor(row, i)}
                   className={`bg-rotc-card hover:bg-rotc-cardHover transition-colors duration-100 ${props.rowClassName?.(row, i) || ''}`}
@@ -113,6 +114,7 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
 
   // ── Column-based API (original) ──
   const { columns, loading = false, onRowClick } = props as ColumnTableProps<T>
+  const safeDataOrig = data || []
 
   return (
     <div className={`overflow-x-auto rounded-xl border border-rotc-border ${className}`}>
@@ -145,7 +147,7 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
               </tr>
             ))}
 
-          {!loading && data.length === 0 && (
+          {!loading && safeDataOrig.length === 0 && (
             <tr>
               <td colSpan={columns.length} className="px-4 py-12 text-center text-rotc-textMuted">
                 <div className="flex flex-col items-center gap-2">
@@ -159,7 +161,7 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
           )}
 
           {!loading &&
-            data.map((row, rowIdx) => (
+            safeDataOrig.map((row, rowIdx) => (
               <tr
                 key={rowIdx}
                 className={[
