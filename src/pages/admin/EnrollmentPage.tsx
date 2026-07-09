@@ -394,7 +394,7 @@ export default function EnrollmentPage() {
                       setSearch(e.target.value)
                       setPage(1)
                     }}
-                    className="h-9 pr-8"
+                      className={`h-9 pr-8 transition-opacity ${isFetching ? 'opacity-70' : 'opacity-100'}`}
                   />
                   {isFetching && <RefreshCw className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-rotc-accent" />}
                 </div>
