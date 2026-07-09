@@ -106,8 +106,13 @@ export default function ArchivesPage() {
   const checkStorage = async () => {
     setStorageStatus('checking')
     try {
-      await initStorage()
-      setStorageStatus('ready')
+      const res = await initStorage()
+      if (res.schemaStale) {
+        setStorageStatus('error')
+        setStorageError(res.message)
+      } else {
+        setStorageStatus('ready')
+      }
     } catch (err: any) {
       setStorageStatus('error')
       setStorageError(err.message)
@@ -223,7 +228,11 @@ export default function ArchivesPage() {
         setIsImportModalOpen(false)
         setFolderName('')
       } catch (err: any) {
-        toast.error("Import failed: " + err.message)
+        if (err.message.includes("not find table")) {
+          toast.error("Import failed: Database schema is still syncing. Please wait 10 seconds and try again.")
+        } else {
+          toast.error("Import failed: " + err.message)
+        }
       }
     }
 

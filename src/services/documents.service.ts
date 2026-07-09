@@ -73,23 +73,30 @@ export async function uploadDocument(file: File, folder: string, isPublic: boole
 
   if (uploadError) throw uploadError
 
-  // 3. Save Metadata to DB
-  const { error: dbError } = await supabase.from('archived_documents').insert({
-    filename: finalFilename,
-    display_name: customName || file.name,
-    original_name: file.name,
-    folder_name: folder,
-    file_size: file.size,
-    mime_type: file.type,
-    storage_path: storagePath,
-    is_public: isPublic,
-    uploaded_by: sessionData.session?.user.id
+  // 3. Save Metadata to DB via Server-side API (to bypass RLS insertion issues)
+  const metaResponse = await fetch('/api/admin/documents', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      filename: finalFilename,
+      display_name: customName || file.name,
+      original_name: file.name,
+      folder_name: folder,
+      file_size: file.size,
+      mime_type: file.type,
+      storage_path: storagePath,
+      is_public: isPublic
+    })
   })
 
-  if (dbError) {
+  const metaResult = await metaResponse.json()
+  if (!metaResponse.ok || !metaResult.success) {
     // Cleanup storage if DB fails
     await supabase.storage.from('vault').remove([storagePath])
-    throw dbError
+    throw new Error(metaResult.error || "Failed to save document metadata")
   }
 
   return { success: true }

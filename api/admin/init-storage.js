@@ -59,7 +59,22 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: "Vault bucket created successfully" });
     }
 
-    return res.status(200).json({ success: true, message: "Vault bucket already exists" });
+    // 3. Schema Health Check
+    // Check if critical tables are visible in the schema cache
+    const checkTables = ['enrollment_archives', 'archived_documents'];
+    for (const table of checkTables) {
+      const { error: schemaError } = await supabaseAdmin.from(table).select('id').limit(1);
+      if (schemaError && schemaError.message.includes("could not find table")) {
+        console.warn(`Schema cache stale for table: ${table}`);
+        return res.status(200).json({
+          success: true,
+          message: `Storage ready, but the '${table}' table is still syncing. Please refresh in 10 seconds.`,
+          schemaStale: true
+        });
+      }
+    }
+
+    return res.status(200).json({ success: true, message: "Storage and Database are healthy" });
 
   } catch (error) {
     console.error("Storage Init Error:", error);

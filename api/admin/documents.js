@@ -30,6 +30,25 @@ export default async function handler(req, res) {
     }
 
     // 2. Handle Actions
+    if (req.method === 'POST') {
+      const { filename, display_name, original_name, folder_name, file_size, mime_type, storage_path, is_public } = req.body;
+
+      const { data, error } = await supabaseAdmin.from('archived_documents').insert({
+        filename,
+        display_name: display_name || original_name,
+        original_name,
+        folder_name: folder_name || 'Uncategorized',
+        file_size,
+        mime_type,
+        storage_path,
+        is_public: !!is_public,
+        uploaded_by: user.id
+      }).select().single();
+
+      if (error) throw error;
+      return res.status(200).json({ success: true, data });
+    }
+
     if (req.method === 'GET') {
       const { search, folder, page = 1, pageSize = 20 } = req.query;
       let query = supabaseAdmin.from('archived_documents').select('*', { count: 'exact' });
