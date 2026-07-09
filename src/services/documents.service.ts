@@ -4,6 +4,7 @@ import { ensureAuthSession } from './enrollment.service'
 export interface DocumentRecord {
   id: string
   filename: string
+  display_name?: string
   original_name: string
   folder_name: string
   file_size: number
@@ -11,6 +12,21 @@ export interface DocumentRecord {
   storage_path: string
   is_public: boolean
   created_at: string
+}
+
+export async function initStorage() {
+  await ensureAuthSession()
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  if (!token) throw new Error("Unauthorized")
+
+  const response = await fetch('/api/admin/init-storage', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error)
+  return result
 }
 
 export async function getAdminDocuments(params: { search?: string, folder?: string, page?: number, pageSize?: number }) {
@@ -33,7 +49,7 @@ export async function getAdminDocuments(params: { search?: string, folder?: stri
   return result
 }
 
-export async function uploadDocument(file: File, folder: string, isPublic: boolean) {
+export async function uploadDocument(file: File, folder: string, isPublic: boolean, customName?: string) {
   await ensureAuthSession()
   const { data: sessionData } = await supabase.auth.getSession()
   const token = sessionData.session?.access_token
@@ -41,8 +57,13 @@ export async function uploadDocument(file: File, folder: string, isPublic: boole
 
   // 1. Prepare Filename: YYYY-MM-DD_filename
   const dateStr = new Date().toISOString().split('T')[0]
-  const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const finalFilename = `${dateStr}_${cleanName}`
+  const cleanName = (customName || file.name).replace(/[^a-zA-Z0-9._-]/g, '_')
+
+  // Ensure extension is preserved if customName is used
+  const extension = file.name.split('.').pop()
+  const baseName = cleanName.endsWith(`.${extension}`) ? cleanName : `${cleanName}.${extension}`
+
+  const finalFilename = `${dateStr}_${baseName}`
   const storagePath = `${folder}/${finalFilename}`
 
   // 2. Upload to Storage (Client-side directly to Supabase for large files)
@@ -55,6 +76,7 @@ export async function uploadDocument(file: File, folder: string, isPublic: boole
   // 3. Save Metadata to DB
   const { error: dbError } = await supabase.from('archived_documents').insert({
     filename: finalFilename,
+    display_name: customName || file.name,
     original_name: file.name,
     folder_name: folder,
     file_size: file.size,

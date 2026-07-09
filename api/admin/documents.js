@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       // We only rename the "display name" in the DB metadata for safety
       const { error } = await supabaseAdmin
         .from('archived_documents')
-        .update({ filename: newFilename, updated_at: new Date().toISOString() })
+        .update({ display_name: newFilename, updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;

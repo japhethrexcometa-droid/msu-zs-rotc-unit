@@ -21,7 +21,7 @@ import {
   Database as DatabaseIcon
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord } from '@/services/documents.service'
+import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord, initStorage } from '@/services/documents.service'
 import { supabase } from '@/lib/supabase'
 
 export default function ArchivesPage() {
@@ -47,6 +47,7 @@ export default function ArchivesPage() {
   const [newDocName, setNewDocName] = useState('')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadFolder, setUploadFolder] = useState('')
+  const [customFilename, setCustomFilename] = useState('')
 
   const { data: archives, isLoading: loadingArchives } = useEnrollmentArchives({
     searchQuery,
@@ -78,7 +79,11 @@ export default function ArchivesPage() {
     }
   }
 
-  useEffect(() => { loadVault() }, [activeTab, vaultSearch, vaultFolder, vaultPage, vaultPageSize])
+  useEffect(() => {
+    loadVault()
+    // Auto-init storage on first load
+    initStorage().catch(console.error)
+  }, [activeTab, vaultSearch, vaultFolder, vaultPage, vaultPageSize])
 
   if (!session) return null
 
@@ -110,11 +115,12 @@ export default function ArchivesPage() {
   const handleUpload = async () => {
     if (!uploadFile || !uploadFolder) return
     try {
-      await uploadDocument(uploadFile, uploadFolder, false)
+      await uploadDocument(uploadFile, uploadFolder, false, customFilename)
       toast.success("Document uploaded successfully")
       setIsUploadModalOpen(false)
       setUploadFile(null)
       setUploadFolder('')
+      setCustomFilename('')
       loadVault()
     } catch (err: any) {
       toast.error(err.message)
@@ -228,11 +234,19 @@ export default function ArchivesPage() {
                   ))}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-rotc-border px-2">
+                <div className="mt-4 pt-4 border-t border-rotc-border px-2 space-y-2">
                   {activeTab === 'records' ? (
-                    <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setIsImportModalOpen(true)}>
-                      <UploadIcon className="h-3 w-3 mr-2" /> Import Legacy CSV
-                    </Button>
+                    <>
+                      <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setIsImportModalOpen(true)}>
+                        <UploadIcon className="h-3 w-3 mr-2" /> Import Legacy CSV
+                      </Button>
+                      <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => {
+                        setUploadFolder(selectedFolder || '');
+                        setIsUploadModalOpen(true);
+                      }}>
+                        <UploadIcon className="h-3 w-3 mr-2" /> Upload Folder Doc
+                      </Button>
+                    </>
                   ) : (
                     <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => setIsUploadModalOpen(true)}>
                       <UploadIcon className="h-3 w-3 mr-2" /> Upload Document
@@ -317,7 +331,7 @@ export default function ArchivesPage() {
                       renderRow={(d) => (
                         <>
                           <td className="p-4 text-sm font-medium text-rotc-text flex items-center gap-2">
-                            <FileIcon className="h-4 w-4 text-rotc-accent" /> {d.filename}
+                            <FileIcon className="h-4 w-4 text-rotc-accent" /> {d.display_name || d.filename}
                           </td>
                           <td className="p-4 text-sm text-rotc-textMuted">{d.folder_name}</td>
                           <td className="p-4 text-sm text-rotc-textMuted uppercase">{d.mime_type?.split('/')[1] || 'FILE'}</td>
@@ -326,7 +340,7 @@ export default function ArchivesPage() {
                           <td className="p-4">
                             <div className="flex items-center gap-1">
                               <button onClick={() => handleDownload(d)} className="p-2 hover:bg-rotc-accent/10 rounded-lg text-rotc-accent transition-colors" title="Download"><DownloadIcon className="h-4 w-4" /></button>
-                              <button onClick={() => { setSelectedDoc(d); setNewDocName(d.filename); setIsRenameModalOpen(true); }} className="p-2 hover:bg-blue-500/10 rounded-lg text-blue-500 transition-colors" title="Rename"><RenameIcon className="h-4 w-4" /></button>
+                              <button onClick={() => { setSelectedDoc(d); setNewDocName(d.display_name || d.filename); setIsRenameModalOpen(true); }} className="p-2 hover:bg-blue-500/10 rounded-lg text-blue-500 transition-colors" title="Rename"><RenameIcon className="h-4 w-4" /></button>
                               <button onClick={() => handleDelete(d)} className="p-2 hover:bg-rotc-danger/10 rounded-lg text-rotc-danger transition-colors" title="Delete"><TrashIcon className="h-4 w-4" /></button>
                             </div>
                           </td>
@@ -364,10 +378,22 @@ export default function ArchivesPage() {
 
       <Modal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} title="Upload to Document Vault">
         <div className="space-y-4 mt-4">
-          <Input label="Folder" placeholder="Enter Folder" value={uploadFolder} onChange={e => setUploadFolder(e.target.value)} required />
+          <Input label="Folder Name" placeholder="e.g. Manuals, Memos, 2024-2025" value={uploadFolder} onChange={e => setUploadFolder(e.target.value)} required />
+          <Input label="Display Name (Optional)" placeholder="Custom filename (leave blank to keep original)" value={customFilename} onChange={e => setCustomFilename(e.target.value)} />
           <div className="pt-2">
-            <label className="block text-xs font-medium text-rotc-textMuted mb-1">Choose File</label>
-            <input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2" />
+            <label className="block text-xs font-medium text-rotc-textMuted mb-1">Choose File (Excel, PDF, PPT, Word)</label>
+            <input
+              type="file"
+              accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv"
+              onChange={e => {
+                const file = e.target.files?.[0] || null;
+                setUploadFile(file);
+                if (file && !uploadFolder && activeTab === 'records' && selectedFolder) {
+                  setUploadFolder(selectedFolder);
+                }
+              }}
+              className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2"
+            />
           </div>
           <div className="flex justify-end pt-4 gap-3">
             <Button variant="outline" onClick={() => setIsUploadModalOpen(false)}>Cancel</Button>

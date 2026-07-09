@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS public.archived_documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   filename TEXT NOT NULL,
+  display_name TEXT,
   original_name TEXT NOT NULL,
   folder_name TEXT NOT NULL DEFAULT 'Uncategorized',
   file_size BIGINT,
