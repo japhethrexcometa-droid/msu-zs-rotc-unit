@@ -501,7 +501,7 @@ export default function EnrollmentPage() {
                   </span>
                 )}
               </Button>
-              {tab === 'pending' && selectedIds.length > 0 && (
+              {tab === 'pending' && (selectedIds?.length ?? 0) > 0 && (
                 <div className="flex gap-2">
                   <Button
                     variant="primary"
@@ -584,7 +584,7 @@ export default function EnrollmentPage() {
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
-                        checked={selectedIds.length === requests.length && requests.length > 0}
+                      checked={selectedIds.length === (requests?.length ?? 0) && (requests?.length ?? 0) > 0}
                         onChange={toggleSelectAll}
                       />
                     </div>,
@@ -685,7 +685,7 @@ export default function EnrollmentPage() {
           {count > pageSize && (
             <div className="px-6 py-4 border-t border-rotc-border flex items-center justify-between bg-rotc-card/30">
               <p className="text-xs text-rotc-textMuted">
-                Showing <span className="text-rotc-text font-medium">{requests.length}</span> of <span className="text-rotc-text font-medium">{count}</span> results
+                Showing <span className="text-rotc-text font-medium">{requests?.length ?? 0}</span> of <span className="text-rotc-text font-medium">{count}</span> results
               </p>
               <div className="flex gap-2">
                 <Button

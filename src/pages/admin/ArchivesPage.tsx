@@ -296,12 +296,12 @@ export default function ArchivesPage() {
                         </>
                       )}
                     />
-                    {archives?.count > archivePageSize && (
+                    {(archives?.count ?? 0) > archivePageSize && (
                       <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
-                        <span className="text-xs text-rotc-textMuted">Showing {archives?.data?.length || 0} of {archives.count} entries</span>
+                        <span className="text-xs text-rotc-textMuted">Showing {archives?.data?.length || 0} of {archives?.count || 0} entries</span>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" disabled={archivePage === 1} onClick={() => setArchivePage(p => p - 1)}>Prev</Button>
-                          <Button variant="outline" size="sm" disabled={archivePage * archivePageSize >= archives.count} onClick={() => setArchivePage(p => p + 1)}>Next</Button>
+                          <Button variant="outline" size="sm" disabled={archivePage * archivePageSize >= (archives?.count ?? 0)} onClick={() => setArchivePage(p => p + 1)}>Next</Button>
                         </div>
                       </div>
                     )}
@@ -333,12 +333,12 @@ export default function ArchivesPage() {
                         </>
                       )}
                     />
-                    {vaultData.count > vaultPageSize && (
+                    {(vaultData?.count ?? 0) > vaultPageSize && (
                       <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
-                        <span className="text-xs text-rotc-textMuted">Showing {vaultData?.data?.length || 0} of {vaultData.count} entries</span>
+                        <span className="text-xs text-rotc-textMuted">Showing {vaultData?.data?.length || 0} of {vaultData?.count || 0} entries</span>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" disabled={vaultPage === 1} onClick={() => setVaultPage(p => p - 1)}>Prev</Button>
-                          <Button variant="outline" size="sm" disabled={vaultPage * vaultPageSize >= vaultData.count} onClick={() => setVaultPage(p => p + 1)}>Next</Button>
+                          <Button variant="outline" size="sm" disabled={vaultPage * vaultPageSize >= (vaultData?.count ?? 0)} onClick={() => setVaultPage(p => p + 1)}>Next</Button>
                         </div>
                       </div>
                     )}
