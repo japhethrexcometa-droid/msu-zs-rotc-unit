@@ -7,23 +7,51 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import { useEnrollmentArchives, useImportEnrollmentArchives } from '@/hooks/queries/useEnrollment'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Folder as FolderIcon, Search as SearchIcon, FileText as FileIcon, Upload as UploadIcon, AlertCircle as AlertIcon } from 'lucide-react'
+import {
+  Folder as FolderIcon,
+  Search as SearchIcon,
+  FileText as FileIcon,
+  Upload as UploadIcon,
+  Download as DownloadIcon,
+  Trash2 as TrashIcon,
+  FileDown as FileDownIcon,
+  Archive as ArchiveIcon,
+  MoreVertical as MoreIcon,
+  Edit3 as RenameIcon,
+  Database as DatabaseIcon
+} from 'lucide-react'
 import { format } from 'date-fns'
+import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord } from '@/services/documents.service'
 
 export default function ArchivesPage() {
   const session = useSession()
+  const [activeTab, setActiveTab] = useState<'records' | 'vault'>('records')
 
-  // Enrollment Archive State
+  // Records State
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFolder, setSelectedFolder] = useState<string | undefined>(undefined)
   const [archivePage, setArchivePage] = useState(1)
   const archivePageSize = 20
 
+  // Vault State
+  const [vaultSearch, setVaultSearch] = useState('')
+  const [vaultFolder, setVaultFolder] = useState<string | undefined>(undefined)
+  const [vaultPage, setVaultPage] = useState(1)
+  const [vaultPageSize, setVaultPageSize] = useState(20)
+  const [vaultData, setVaultData] = useState<{ data: DocumentRecord[], count: number, folders: string[] }>({ data: [], count: 0, folders: [] })
+  const [isVaultLoading, setIsVaultLoading] = useState(false)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false)
+  const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null)
+  const [newDocName, setNewDocName] = useState('')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadFolder, setUploadFolder] = useState('')
+
   const { data: archives, isLoading: loadingArchives } = useEnrollmentArchives({
     searchQuery,
-    academicYear: selectedFolder, // Backend still uses academicYear parameter but we treat it as Folder Name
+    academicYear: selectedFolder,
     page: archivePage,
     pageSize: archivePageSize
   })
@@ -32,7 +60,88 @@ export default function ArchivesPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [folderName, setFolderName] = useState('')
 
+  // Load Vault Data
+  const loadVault = async () => {
+    if (activeTab !== 'vault') return
+    setIsVaultLoading(true)
+    try {
+      const result = await getAdminDocuments({
+        search: vaultSearch,
+        folder: vaultFolder,
+        page: vaultPage,
+        pageSize: vaultPageSize
+      })
+      setVaultData(result)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsVaultLoading(false)
+    }
+  }
+
+  useEffect(() => { loadVault() }, [activeTab, vaultSearch, vaultFolder, vaultPage])
+
   if (!session) return null
+
+  const handleDownload = async (doc: DocumentRecord) => {
+    try {
+      const url = await getDownloadUrl(doc.storage_path)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = doc.filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (err: any) {
+      toast.error("Failed to download: " + err.message)
+    }
+  }
+
+  const handleDelete = async (doc: DocumentRecord) => {
+    if (!confirm(`Are you sure you want to delete "${doc.filename}"?`)) return
+    try {
+      await deleteDocument(doc.id, doc.storage_path)
+      toast.success("Document deleted")
+      loadVault()
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!uploadFile || !uploadFolder) return
+    try {
+      await uploadDocument(uploadFile, uploadFolder, false)
+      toast.success("Document uploaded successfully")
+      setIsUploadModalOpen(false)
+      setUploadFile(null)
+      setUploadFolder('')
+      loadVault()
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleRename = async () => {
+    if (!selectedDoc || !newDocName) return
+    try {
+      const res = await fetch('/api/admin/documents', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: JSON.stringify({ id: selectedDoc.id, newFilename: newDocName })
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      toast.success("Document renamed")
+      setIsRenameModalOpen(false)
+      loadVault()
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
 
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -45,7 +154,6 @@ export default function ArchivesPage() {
       if (lines.length < 1) return
 
       const headers = lines[0].split(',').map(h => h.trim())
-
       const records = lines.slice(1).filter(l => l.trim()).map(line => {
         const values = line.split(',')
         const obj: any = {}
@@ -69,10 +177,26 @@ export default function ArchivesPage() {
   }
 
   return (
-    <AppLayout title="Archives (Historical Enrollment)">
+    <AppLayout title="Archives & Document Vault">
       <div className="space-y-6">
+        {/* Navigation Tabs */}
+        <div className="flex gap-1 bg-rotc-card p-1 rounded-xl border border-rotc-border max-w-fit">
+          <button
+            onClick={() => setActiveTab('records')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'records' ? 'bg-rotc-accent text-white shadow-lg' : 'text-rotc-textMuted hover:bg-rotc-cardHover'}`}
+          >
+            <DatabaseIcon className="h-4 w-4" /> Enrollment Records
+          </button>
+          <button
+            onClick={() => setActiveTab('vault')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'vault' ? 'bg-rotc-accent text-white shadow-lg' : 'text-rotc-textMuted hover:bg-rotc-cardHover'}`}
+          >
+            <ArchiveIcon className="h-4 w-4" /> Document Vault
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Folder-like Selection */}
+          {/* Folders Sidebar */}
           <div className="lg:col-span-1 space-y-4">
             <Card>
               <CardHeader>
@@ -83,103 +207,142 @@ export default function ArchivesPage() {
               <CardContent className="px-2 py-2">
                 <div className="space-y-1">
                   <button
-                    onClick={() => { setSelectedFolder(undefined); setArchivePage(1); }}
+                    onClick={() => { activeTab === 'records' ? setSelectedFolder(undefined) : setVaultFolder(undefined); }}
                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      !selectedFolder ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
+                      (activeTab === 'records' ? !selectedFolder : !vaultFolder) ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                     }`}
                   >
-                    All Historical Records
+                    All {activeTab === 'records' ? 'Historical Records' : 'Documents'}
                   </button>
-                  {archives?.academicYears?.map((year: string) => (
+
+                  {(activeTab === 'records' ? archives?.academicYears : vaultData.folders)?.map((folder: string) => (
                     <button
-                      key={year}
-                      onClick={() => { setSelectedFolder(year); setArchivePage(1); }}
+                      key={folder}
+                      onClick={() => { activeTab === 'records' ? setSelectedFolder(folder) : setVaultFolder(folder); }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                        selectedFolder === year ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
+                        (activeTab === 'records' ? selectedFolder === folder : vaultFolder === folder) ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                       }`}
                     >
-                      <span className="truncate max-w-[150px]">{year}</span>
+                      <span className="truncate max-w-[150px]">{folder}</span>
                       <FileIcon className="h-3.5 w-3.5 opacity-40 shrink-0" />
                     </button>
                   ))}
-                  {(!archives?.academicYears || archives.academicYears.length === 0) && !loadingArchives && (
-                    <div className="p-4 text-center text-xs text-rotc-textMuted">No archive folders found</div>
-                  )}
                 </div>
+
                 <div className="mt-4 pt-4 border-t border-rotc-border px-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => setIsImportModalOpen(true)}
-                  >
-                    <UploadIcon className="h-3 w-3 mr-2" /> Import Legacy CSV
-                  </Button>
+                  {activeTab === 'records' ? (
+                    <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setIsImportModalOpen(true)}>
+                      <UploadIcon className="h-3 w-3 mr-2" /> Import Legacy CSV
+                    </Button>
+                  ) : (
+                    <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => setIsUploadModalOpen(true)}>
+                      <UploadIcon className="h-3 w-3 mr-2" /> Upload Document
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Records Table */}
+          {/* Main Content Area */}
           <div className="lg:col-span-3">
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-                  <h3 className="text-sm font-bold text-rotc-text">
-                    {selectedFolder ? `Folder: ${selectedFolder}` : 'All Historical Records'}
+                  <h3 className="text-sm font-bold text-rotc-text flex items-center gap-2">
+                    {activeTab === 'records' ? (selectedFolder || 'All Records') : (vaultFolder || 'All Documents')}
                   </h3>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {activeTab === 'vault' && (
+                      <div className="flex items-center gap-2 text-xs text-rotc-textMuted whitespace-nowrap">
+                        <select
+                          value={vaultPageSize}
+                          onChange={e => { setVaultPageSize(Number(e.target.value)); setVaultPage(1); }}
+                          className="bg-rotc-bg border border-rotc-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-rotc-accent"
+                        >
+                          {[10, 20, 50, 100].map(sz => <option key={sz} value={sz}>{sz}</option>)}
+                        </select>
+                      </div>
+                    )}
                   <div className="relative max-w-xs w-full">
                     <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-rotc-textMuted" />
                     <Input
-                      placeholder="Search name or ID..."
+                      placeholder="Search..."
                       className="pl-9 h-9 text-xs"
-                      value={searchQuery}
-                      onChange={e => { setSearchQuery(e.target.value); setArchivePage(1); }}
+                      value={activeTab === 'records' ? searchQuery : vaultSearch}
+                      onChange={e => activeTab === 'records' ? setSearchQuery(e.target.value) : setVaultSearch(e.target.value)}
                     />
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <Table
-                  headers={['Name', 'ID Number', 'Gender', 'School', 'Folder', 'Status', 'Archived']}
-                  isLoading={loadingArchives}
-                  data={archives?.data || []}
-                  keyExtractor={(r) => r.id}
-                  renderRow={(r) => (
-                    <>
-                      <td className="p-4 text-sm font-medium text-rotc-text">
-                        {r.first_name} {r.last_name}
-                      </td>
-                      <td className="p-4 text-sm text-rotc-textMuted">{r.id_number}</td>
-                      <td className="p-4 text-sm text-rotc-textMuted">{r.gender}</td>
-                      <td className="p-4 text-sm text-rotc-textMuted">{r.school}</td>
-                      <td className="p-4 text-sm text-rotc-textMuted truncate max-w-[120px]" title={r.academic_year}>
-                        {r.academic_year}
-                      </td>
-                      <td className="p-4">
-                        <Badge
-                          status={r.status === 'approved' ? 'success' : 'danger'}
-                          label={r.status === 'approved' ? 'Approved' : 'Rejected'}
-                        />
-                      </td>
-                      <td className="p-4 text-sm text-rotc-textMuted">
-                        {r.archived_at ? format(new Date(r.archived_at), 'MMM d, yyyy') : '—'}
-                      </td>
-                    </>
-                  )}
-                />
-                {/* Pagination */}
-                {archives?.count > archivePageSize && (
-                  <div className="p-4 flex items-center justify-between border-t border-rotc-border">
-                    <span className="text-xs text-rotc-textMuted">Total: {archives.count}</span>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled={archivePage === 1} onClick={() => setArchivePage(p => p - 1)}>Prev</Button>
-                      <div className="flex items-center px-4 text-xs font-medium text-rotc-text">
-                        Page {archivePage} of {Math.ceil(archives.count / archivePageSize)}
+                {activeTab === 'records' ? (
+                  /* Records Table */
+                  <>
+                    <Table
+                      headers={['Name', 'ID Number', 'Gender', 'School', 'Folder', 'Status', 'Archived']}
+                      isLoading={loadingArchives}
+                      data={archives?.data || []}
+                      keyExtractor={(r) => r.id}
+                      renderRow={(r) => (
+                        <>
+                          <td className="p-4 text-sm font-medium text-rotc-text">{r.first_name} {r.last_name}</td>
+                          <td className="p-4 text-sm text-rotc-textMuted">{r.id_number}</td>
+                          <td className="p-4 text-sm text-rotc-textMuted">{r.gender}</td>
+                          <td className="p-4 text-sm text-rotc-textMuted">{r.school}</td>
+                          <td className="p-4 text-sm text-rotc-textMuted truncate max-w-[120px]" title={r.academic_year}>{r.academic_year}</td>
+                          <td className="p-4"><Badge status={r.status === 'approved' ? 'success' : 'danger'} label={r.status === 'approved' ? 'Approved' : 'Rejected'} /></td>
+                          <td className="p-4 text-sm text-rotc-textMuted">{r.archived_at ? format(new Date(r.archived_at), 'MMM d, yyyy') : '—'}</td>
+                        </>
+                      )}
+                    />
+                    {archives?.count > archivePageSize && (
+                      <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
+                        <span className="text-xs text-rotc-textMuted">Showing {archives.data.length} of {archives.count} entries</span>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" disabled={archivePage === 1} onClick={() => setArchivePage(p => p - 1)}>Prev</Button>
+                          <Button variant="outline" size="sm" disabled={archivePage * archivePageSize >= archives.count} onClick={() => setArchivePage(p => p + 1)}>Next</Button>
+                        </div>
                       </div>
-                      <Button variant="outline" size="sm" disabled={archivePage * archivePageSize >= archives.count} onClick={() => setArchivePage(p => p + 1)}>Next</Button>
-                    </div>
-                  </div>
+                    )}
+                  </>
+                ) : (
+                  /* Vault Table */
+                  <>
+                    <Table
+                      headers={['File Name', 'Folder', 'Type', 'Size', 'Date Added', 'Actions']}
+                      isLoading={isVaultLoading}
+                      data={vaultData.data}
+                      keyExtractor={(d) => d.id}
+                      renderRow={(d) => (
+                        <>
+                          <td className="p-4 text-sm font-medium text-rotc-text flex items-center gap-2">
+                            <FileIcon className="h-4 w-4 text-rotc-accent" /> {d.filename}
+                          </td>
+                          <td className="p-4 text-sm text-rotc-textMuted">{d.folder_name}</td>
+                          <td className="p-4 text-sm text-rotc-textMuted uppercase">{d.mime_type?.split('/')[1] || 'FILE'}</td>
+                          <td className="p-4 text-sm text-rotc-textMuted">{(d.file_size / 1024).toFixed(1)} KB</td>
+                          <td className="p-4 text-sm text-rotc-textMuted">{format(new Date(d.created_at), 'MMM d, yyyy')}</td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleDownload(d)} className="p-2 hover:bg-rotc-accent/10 rounded-lg text-rotc-accent transition-colors" title="Download"><DownloadIcon className="h-4 w-4" /></button>
+                              <button onClick={() => { setSelectedDoc(d); setNewDocName(d.filename); setIsRenameModalOpen(true); }} className="p-2 hover:bg-blue-500/10 rounded-lg text-blue-500 transition-colors" title="Rename"><RenameIcon className="h-4 w-4" /></button>
+                              <button onClick={() => handleDelete(d)} className="p-2 hover:bg-rotc-danger/10 rounded-lg text-rotc-danger transition-colors" title="Delete"><TrashIcon className="h-4 w-4" /></button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    />
+                    {vaultData.count > 20 && (
+                      <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
+                        <span className="text-xs text-rotc-textMuted">Showing {vaultData.data.length} of {vaultData.count} entries</span>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" disabled={vaultPage === 1} onClick={() => setVaultPage(p => p - 1)}>Prev</Button>
+                          <Button variant="outline" size="sm" disabled={vaultPage * 20 >= vaultData.count} onClick={() => setVaultPage(p => p + 1)}>Next</Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -187,29 +350,38 @@ export default function ArchivesPage() {
         </div>
       </div>
 
-      {/* Import Modal */}
+      {/* Modals */}
       <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Import Historical Records">
         <div className="space-y-4 mt-4">
-          <Input
-            label="Folder Name"
-            placeholder="Enter Folder Name"
-            value={folderName}
-            onChange={e => setFolderName(e.target.value)}
-            required
-          />
+          <Input label="Folder Name" placeholder="Enter Folder Name" value={folderName} onChange={e => setFolderName(e.target.value)} required />
           <div className="pt-2">
             <label className="block text-xs font-medium text-rotc-textMuted mb-1">Upload Records (CSV)</label>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleImportCSV}
-              disabled={!folderName}
-              className="w-full text-xs text-rotc-textMuted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-rotc-accent file:text-white hover:file:bg-rotc-accent/80 cursor-pointer disabled:opacity-50"
-            />
-            <p className="mt-2 text-[10px] text-rotc-textMuted italic">Note: For bulk importing, please use CSV format. Ensure column headers match student data fields (first_name, last_name, id_number, etc.).</p>
+            <input type="file" accept=".csv" onChange={handleImportCSV} disabled={!folderName} className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2" />
           </div>
-          <div className="flex justify-end pt-4">
-            <Button variant="outline" onClick={() => setIsImportModalOpen(false)}>Close</Button>
+          <div className="flex justify-end pt-4"><Button variant="outline" onClick={() => setIsImportModalOpen(false)}>Close</Button></div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} title="Upload to Document Vault">
+        <div className="space-y-4 mt-4">
+          <Input label="Folder" placeholder="Enter Folder" value={uploadFolder} onChange={e => setUploadFolder(e.target.value)} required />
+          <div className="pt-2">
+            <label className="block text-xs font-medium text-rotc-textMuted mb-1">Choose File</label>
+            <input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2" />
+          </div>
+          <div className="flex justify-end pt-4 gap-3">
+            <Button variant="outline" onClick={() => setIsUploadModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpload} disabled={!uploadFile || !uploadFolder}>Upload</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isRenameModalOpen} onClose={() => setIsRenameModalOpen(false)} title="Rename Document">
+        <div className="space-y-4 mt-4">
+          <Input label="New Filename" value={newDocName} onChange={e => setNewDocName(e.target.value)} required />
+          <div className="flex justify-end pt-4 gap-3">
+            <Button variant="outline" onClick={() => setIsRenameModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleRename}>Save Rename</Button>
           </div>
         </div>
       </Modal>

@@ -112,8 +112,6 @@ export default async function handler(req, res) {
       .in('id', processedIds);
 
     if (deleteError) {
-      // Note: This is an atomicity issue, but in many RLS environments, we have to do this in two steps.
-      // Ideally this would be a Postgres Function to ensure atomicity.
       console.error("Archive succeeded but deletion failed:", deleteError);
       return res.status(500).json({
         success: false,
@@ -121,10 +119,49 @@ export default async function handler(req, res) {
       });
     }
 
+    // 5. Generate and Store CSV Snapshot in Document Vault
+    try {
+      const csvHeaders = [
+        'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
+        'Gender', 'DOB', 'Course', 'Year/Class', 'Semester', 'Contact', 'Email', 'Status'
+      ];
+
+      const csvRows = archivedRecords.map(r => [
+        r.id_number, r.school, r.last_name, r.first_name, r.middle_initial, r.suffix,
+        r.gender, r.date_of_birth, r.course_year, r.year_class, r.semester,
+        r.contact_number, r.email, r.status
+      ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','));
+
+      const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `${dateStr}_Archive_${academicYear.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+      const storagePath = `Archives/${filename}`;
+
+      // Upload CSV to Vault Storage
+      await supabaseAdmin.storage.from('vault').upload(storagePath, Buffer.from(csvContent), {
+        contentType: 'text/csv',
+        upsert: true
+      });
+
+      // Save Metadata to Archived Documents
+      await supabaseAdmin.from('archived_documents').insert({
+        filename,
+        original_name: filename,
+        folder_name: 'Historical Enrollment (CHED)',
+        file_size: csvContent.length,
+        mime_type: 'text/csv',
+        storage_path: storagePath,
+        uploaded_by: user.id
+      });
+    } catch (csvErr) {
+      console.error("Failed to generate CSV snapshot:", csvErr);
+      // We don't fail the whole request because the primary archival is already done
+    }
+
     return res.status(200).json({
       success: true,
       processed: archivedRecords.length,
-      message: `Successfully archived ${archivedRecords.length} records to academic year ${academicYear}.`
+      message: `Successfully archived ${archivedRecords.length} records to folder ${academicYear} and generated a CSV snapshot in the Document Vault.`
     });
 
   } catch (error) {

@@ -10,7 +10,7 @@ type EnrollmentRequest = any
  * Postgres RLS, which makes is_admin() return FALSE → empty result set.
  * This is the root cause of enrollment data randomly disappearing.
  */
-async function ensureAuthSession(): Promise<void> {
+export async function ensureAuthSession(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return // Not logged in — let the query fail naturally
 
