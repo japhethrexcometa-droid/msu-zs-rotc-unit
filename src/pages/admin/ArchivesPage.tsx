@@ -164,7 +164,11 @@ export default function ArchivesPage() {
       setCustomFilename('')
       loadVault()
     } catch (err: any) {
-      toast.error(err.message)
+      if (err.message.includes("row-level security policy")) {
+        toast.error("Upload failed: Storage permissions are currently restricted. Please try clicking 'Retry Repair' in the sidebar.")
+      } else {
+        toast.error(err.message)
+      }
     }
   }
 

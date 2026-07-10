@@ -12,6 +12,8 @@ export default async function handler(req, res) {
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    console.log(`[InitStorage] Target: ${supabaseUrl?.substring(0, 15)}...`);
     const authHeader = req.headers.authorization;
 
     if (!authHeader) throw new Error("Missing Authorization header");
