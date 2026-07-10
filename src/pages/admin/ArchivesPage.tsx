@@ -37,8 +37,6 @@ export default function ArchivesPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | undefined>(undefined)
   const [archivePage, setArchivePage] = useState(1)
   const archivePageSize = 20
-  const [folderDocs, setFolderDocs] = useState<DocumentRecord[]>([])
-  const [isLoadingFolderDocs, setIsLoadingFolderDocs] = useState(false)
 
   // Vault State
   const [vaultSearch, setVaultSearch] = useState('')
@@ -87,22 +85,6 @@ export default function ArchivesPage() {
     }
   }
 
-  const loadFolderDocs = async () => {
-    if (activeTab !== 'records' || !selectedFolder) {
-      setFolderDocs([])
-      return
-    }
-    setIsLoadingFolderDocs(true)
-    try {
-      const result = await getAdminDocuments({ folder: selectedFolder, pageSize: 100 })
-      setFolderDocs(result.data || [])
-    } catch (err: any) {
-      console.error("Failed to load folder documents:", err)
-    } finally {
-      setIsLoadingFolderDocs(false)
-    }
-  }
-
   const checkStorage = async () => {
     setStorageStatus('checking')
     try {
@@ -121,7 +103,6 @@ export default function ArchivesPage() {
 
   useEffect(() => {
     loadVault()
-    loadFolderDocs()
     // Auto-init storage on first load
     checkStorage()
   }, [activeTab, vaultSearch, vaultFolder, vaultPage, vaultPageSize, selectedFolder])
@@ -332,12 +313,6 @@ export default function ArchivesPage() {
                       <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setIsImportModalOpen(true)}>
                         <UploadIcon className="h-3 w-3 mr-2" /> Import Legacy CSV
                       </Button>
-                      <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => {
-                        setUploadFolder(selectedFolder || '');
-                        setIsUploadModalOpen(true);
-                      }}>
-                        <UploadIcon className="h-3 w-3 mr-2" /> Upload Folder Doc
-                      </Button>
                     </>
                   ) : (
                     <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => setIsUploadModalOpen(true)}>
@@ -351,52 +326,6 @@ export default function ArchivesPage() {
 
           {/* Main Content Area */}
           <div className="lg:col-span-3 space-y-6">
-            {/* Folder Documents Quick Access (When a folder is selected) */}
-            {activeTab === 'records' && selectedFolder && (
-              <Card className="bg-rotc-accent/5 border-rotc-accent/20">
-                <CardHeader>
-                  <div className="flex items-center justify-between w-full">
-                    <h3 className="text-sm font-bold text-rotc-accent flex items-center gap-2">
-                      <FileIcon className="h-4 w-4" /> Folder Documents ({folderDocs.length})
-                    </h3>
-                    <Button variant="primary" size="sm" onClick={() => {
-                      setUploadFolder(selectedFolder);
-                      setIsUploadModalOpen(true);
-                    }}>
-                      <UploadIcon className="h-3 w-3 mr-2" /> Upload New Doc
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  {isLoadingFolderDocs ? (
-                    <div className="animate-pulse flex gap-4">
-                      {[1,2,3].map(i => <div key={i} className="h-12 w-32 bg-rotc-border rounded-lg" />)}
-                    </div>
-                  ) : folderDocs.length === 0 ? (
-                    <p className="text-xs text-rotc-textMuted italic">No documents uploaded to this folder yet.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-3">
-                      {folderDocs.map(doc => (
-                        <div key={doc.id} className="group relative bg-rotc-card border border-rotc-border p-3 rounded-xl flex items-center gap-3 hover:border-rotc-accent transition-all cursor-pointer shadow-sm">
-                          <div className="p-2 bg-rotc-accent/10 rounded-lg text-rotc-accent">
-                            <FileIcon className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0 pr-8">
-                            <p className="text-xs font-bold text-rotc-text truncate max-w-[150px]">{doc.display_name || doc.filename}</p>
-                            <p className="text-[10px] text-rotc-textMuted">{(doc.file_size / 1024).toFixed(1)} KB</p>
-                          </div>
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleDownload(doc)} className="p-1 hover:text-rotc-accent"><DownloadIcon className="h-3 w-3" /></button>
-                            <button onClick={() => handleDelete(doc)} className="p-1 hover:text-rotc-danger"><TrashIcon className="h-3 w-3" /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
@@ -534,9 +463,6 @@ export default function ArchivesPage() {
               onChange={e => {
                 const file = e.target.files?.[0] || null;
                 setUploadFile(file);
-                if (file && !uploadFolder && activeTab === 'records' && selectedFolder) {
-                  setUploadFolder(selectedFolder);
-                }
               }}
               className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2"
             />
