@@ -61,16 +61,24 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: "Vault bucket created successfully" });
     }
 
-    // 3. Schema Health Check
+    // 3. Schema Health Check & Force Reload
     // Check if critical tables are visible in the schema cache
     const checkTables = ['enrollment_archives', 'archived_documents'];
     for (const table of checkTables) {
       const { error: schemaError } = await supabaseAdmin.from(table).select('id').limit(1);
-      if (schemaError && schemaError.message.includes("could not find table")) {
-        console.warn(`Schema cache stale for table: ${table}`);
+
+      if (schemaError && (schemaError.message.includes("could not find table") || schemaError.code === '42P01')) {
+        console.warn(`Schema cache stale or table missing: ${table}`);
+
+        // Attempt to trigger a reload if we detect missing tables
+        await supabaseAdmin.rpc('reload_schema_cache').catch(() => {
+          // Fallback if RPC doesn't exist
+          supabaseAdmin.from('users').select('id').limit(1);
+        });
+
         return res.status(200).json({
           success: true,
-          message: `Storage ready, but the '${table}' table is still syncing. Please refresh in 10 seconds.`,
+          message: `The '${table}' table was not found. Please run the SQL fix from 'supabase/fix_archives_and_vault.sql' in your Supabase SQL Editor.`,
           schemaStale: true
         });
       }

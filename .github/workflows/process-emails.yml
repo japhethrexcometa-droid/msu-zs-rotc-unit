@@ -2,14 +2,20 @@ name: Process Email Queue
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # Every 10 minutes
-  workflow_dispatch: # Allow manual triggering
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
   process-emails:
     runs-on: ubuntu-latest
     steps:
-      - name: Call Process Emails API
+      - name: Trigger Email Processing Endpoint
         run: |
+          # Use curl to call the Vercel API endpoint
+          # Note: Currently the endpoint uses session-based auth.
+          # For a cron job, we might need a bypass secret if it fails due to no Auth header.
+          # However, the process-emails.js logic should ideally allow a CRON_SECRET check.
           curl -X POST "${{ secrets.APP_URL }}/api/cron/process-emails" \
-          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+               -H "Content-Type: application/json"
