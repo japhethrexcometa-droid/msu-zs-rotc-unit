@@ -17,8 +17,6 @@ export default function AttendancePage() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [monthFilter, setMonthFilter] = useState('All')
 
-  if (!session) return null
-
   const records = attendance ?? []
 
   // Extract unique months for the dropdown
@@ -64,6 +62,8 @@ export default function AttendancePage() {
     }))
     exportAttendanceReport(exportData, `My_Attendance_${format(new Date(), 'yyyy-MM-dd')}`)
   }
+
+  if (!session) return null
 
   return (
     <AppLayout title="My Attendance History">

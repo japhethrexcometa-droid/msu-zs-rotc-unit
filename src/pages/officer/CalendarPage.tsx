@@ -17,8 +17,6 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
 
-  if (!session) return null
-
   // Generate calendar grid
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(monthStart)
@@ -43,8 +41,10 @@ export default function CalendarPage() {
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1))
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1))
 
+  if (!session) return null
+
   return (
-    <AppLayout title="Attendance Calendar">
+    <AppLayout title="Training Calendar">
       <Card className="min-h-[600px] flex flex-col">
         <CardHeader>
           <div className="flex items-center justify-between">

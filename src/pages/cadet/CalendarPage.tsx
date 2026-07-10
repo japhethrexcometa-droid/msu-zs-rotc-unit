@@ -20,8 +20,6 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedSession, setSelectedSession] = useState<{ session: Session, status: AttendanceStatus, notes?: string, scanTime?: string } | null>(null)
 
-  if (!session) return null
-
   // Generate calendar grid
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(monthStart)
@@ -82,6 +80,8 @@ export default function CalendarPage() {
       case 'missed': return 'bg-rotc-border'
     }
   }
+
+  if (!session) return null
 
   return (
     <AppLayout title="My Calendar">
