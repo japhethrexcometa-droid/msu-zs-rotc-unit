@@ -6,8 +6,6 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { useEnrollmentArchives, useImportEnrollmentArchives } from '@/hooks/queries/useEnrollment'
-import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   Folder as FolderIcon,
@@ -30,13 +28,6 @@ import * as XLSX from 'xlsx'
 
 export default function ArchivesPage() {
   const session = useSession()
-  const [activeTab, setActiveTab] = useState<'records' | 'vault'>('records')
-
-  // Records State
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFolder, setSelectedFolder] = useState<string | undefined>(undefined)
-  const [archivePage, setArchivePage] = useState(1)
-  const archivePageSize = 20
 
   // Vault State
   const [vaultSearch, setVaultSearch] = useState('')
@@ -55,20 +46,8 @@ export default function ArchivesPage() {
   const [storageStatus, setStorageStatus] = useState<'checking' | 'ready' | 'error'>('checking')
   const [storageError, setStorageError] = useState('')
 
-  const { data: archives, isLoading: loadingArchives } = useEnrollmentArchives({
-    searchQuery,
-    academicYear: selectedFolder,
-    page: archivePage,
-    pageSize: archivePageSize
-  })
-
-  const importMutation = useImportEnrollmentArchives()
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
-  const [folderName, setFolderName] = useState('')
-
   // Load Vault Data
   const loadVault = async () => {
-    if (activeTab !== 'vault') return
     setIsVaultLoading(true)
     try {
       const result = await getAdminDocuments({
@@ -105,7 +84,7 @@ export default function ArchivesPage() {
     loadVault()
     // Auto-init storage on first load
     checkStorage()
-  }, [activeTab, vaultSearch, vaultFolder, vaultPage, vaultPageSize, selectedFolder])
+  }, [vaultSearch, vaultFolder, vaultPage, vaultPageSize])
 
   if (!session) return null
 
@@ -174,78 +153,9 @@ export default function ArchivesPage() {
     }
   }
 
-  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !folderName) return
-
-    const reader = new FileReader()
-    reader.onload = async (event) => {
-      try {
-        let records: any[] = []
-
-        if (file.name.endsWith('.csv')) {
-          const text = event.target?.result as string
-          const lines = text.split('\n')
-          if (lines.length < 1) return
-
-          const headers = lines[0].split(',').map(h => h.trim())
-          records = lines.slice(1).filter(l => l.trim()).map(line => {
-            const values = line.split(',')
-            const obj: any = {}
-            headers.forEach((h, i) => {
-              const key = h.toLowerCase().replace(/ /g, '_')
-              obj[key] = values[i]?.trim()
-            })
-            return obj
-          })
-        } else {
-          // Excel Support
-          const data = new Uint8Array(event.target?.result as ArrayBuffer)
-          const workbook = XLSX.read(data, { type: 'array' })
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-          records = XLSX.utils.sheet_to_json(firstSheet)
-        }
-
-        if (records.length === 0) throw new Error("No records found in file")
-
-        await importMutation.mutateAsync({ records, academicYear: folderName })
-        toast.success(`Successfully imported ${records.length} records into folder: ${folderName}`)
-        setIsImportModalOpen(false)
-        setFolderName('')
-      } catch (err: any) {
-        if (err.message.includes("not find table")) {
-          toast.error("Import failed: Database schema is still syncing. Please wait 10 seconds and try again.")
-        } else {
-          toast.error("Import failed: " + err.message)
-        }
-      }
-    }
-
-    if (file.name.endsWith('.csv')) {
-      reader.readAsText(file)
-    } else {
-      reader.readAsArrayBuffer(file)
-    }
-  }
-
   return (
-    <AppLayout title="Archives & Document Vault">
+    <AppLayout title="Document Vault">
       <div className="space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex gap-1 bg-rotc-card p-1 rounded-xl border border-rotc-border max-w-fit">
-          <button
-            onClick={() => setActiveTab('records')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'records' ? 'bg-rotc-accent text-white shadow-lg' : 'text-rotc-textMuted hover:bg-rotc-cardHover'}`}
-          >
-            <DatabaseIcon className="h-4 w-4" /> Enrollment Records
-          </button>
-          <button
-            onClick={() => setActiveTab('vault')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'vault' ? 'bg-rotc-accent text-white shadow-lg' : 'text-rotc-textMuted hover:bg-rotc-cardHover'}`}
-          >
-            <ArchiveIcon className="h-4 w-4" /> Document Vault
-          </button>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Folders Sidebar */}
@@ -259,20 +169,20 @@ export default function ArchivesPage() {
               <CardContent className="px-2 py-2">
                 <div className="space-y-1">
                   <button
-                    onClick={() => { activeTab === 'records' ? setSelectedFolder(undefined) : setVaultFolder(undefined); }}
+                    onClick={() => { setVaultFolder(undefined); }}
                     className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      (activeTab === 'records' ? !selectedFolder : !vaultFolder) ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
+                      !vaultFolder ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                     }`}
                   >
-                    All {activeTab === 'records' ? 'Historical Records' : 'Documents'}
+                    All Documents
                   </button>
 
-                  {(activeTab === 'records' ? archives?.academicYears : vaultData.folders)?.map((folder: string) => (
+                  {vaultData.folders?.map((folder: string) => (
                     <button
                       key={folder}
-                      onClick={() => { activeTab === 'records' ? setSelectedFolder(folder) : setVaultFolder(folder); }}
+                      onClick={() => { setVaultFolder(folder); }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                        (activeTab === 'records' ? selectedFolder === folder : vaultFolder === folder) ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
+                        vaultFolder === folder ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                       }`}
                     >
                       <span className="truncate max-w-[150px]">{folder}</span>
@@ -308,17 +218,9 @@ export default function ArchivesPage() {
                     </p>
                   )}
 
-                  {activeTab === 'records' ? (
-                    <>
-                      <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setIsImportModalOpen(true)}>
-                        <UploadIcon className="h-3 w-3 mr-2" /> Import Legacy CSV
-                      </Button>
-                    </>
-                  ) : (
-                    <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => setIsUploadModalOpen(true)}>
-                      <UploadIcon className="h-3 w-3 mr-2" /> Upload Document
-                    </Button>
-                  )}
+                  <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => setIsUploadModalOpen(true)}>
+                    <UploadIcon className="h-3 w-3 mr-2" /> Upload Document
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -330,67 +232,32 @@ export default function ArchivesPage() {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
                   <h3 className="text-sm font-bold text-rotc-text flex items-center gap-2">
-                    {activeTab === 'records' ? (selectedFolder || 'All Records') : (vaultFolder || 'All Documents')}
+                    {vaultFolder || 'All Documents'}
                   </h3>
                   <div className="flex items-center gap-3 w-full sm:w-auto">
-                    {activeTab === 'vault' && (
-                      <div className="flex items-center gap-2 text-xs text-rotc-textMuted whitespace-nowrap">
-                        <select
-                          value={vaultPageSize}
-                          onChange={e => { setVaultPageSize(Number(e.target.value)); setVaultPage(1); }}
-                          className="bg-rotc-bg border border-rotc-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-rotc-accent"
-                        >
-                          {[10, 20, 50, 100].map(sz => <option key={sz} value={sz}>{sz}</option>)}
-                        </select>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 text-xs text-rotc-textMuted whitespace-nowrap">
+                      <select
+                        value={vaultPageSize}
+                        onChange={e => { setVaultPageSize(Number(e.target.value)); setVaultPage(1); }}
+                        className="bg-rotc-bg border border-rotc-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-rotc-accent"
+                      >
+                        {[10, 20, 50, 100].map(sz => <option key={sz} value={sz}>{sz}</option>)}
+                      </select>
+                    </div>
                     <div className="relative max-w-xs w-full">
                       <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-rotc-textMuted" />
                       <Input
                         placeholder="Search..."
                         className="pl-9 h-9 text-xs"
-                        value={activeTab === 'records' ? searchQuery : vaultSearch}
-                        onChange={e => activeTab === 'records' ? setSearchQuery(e.target.value) : setVaultSearch(e.target.value)}
+                        value={vaultSearch}
+                        onChange={e => setVaultSearch(e.target.value)}
                       />
                     </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {activeTab === 'records' ? (
-                  /* Records Table */
-                  <>
-                    <Table
-                      headers={['Name', 'ID Number', 'Gender', 'School', 'Folder', 'Status', 'Archived']}
-                      isLoading={loadingArchives}
-                      data={archives?.data || []}
-                      keyExtractor={(r) => r.id}
-                      renderRow={(r) => (
-                        <>
-                          <td className="p-4 text-sm font-medium text-rotc-text">{r.first_name} {r.last_name}</td>
-                          <td className="p-4 text-sm text-rotc-textMuted">{r.id_number}</td>
-                          <td className="p-4 text-sm text-rotc-textMuted">{r.gender}</td>
-                          <td className="p-4 text-sm text-rotc-textMuted">{r.school}</td>
-                          <td className="p-4 text-sm text-rotc-textMuted truncate max-w-[120px]" title={r.academic_year}>{r.academic_year}</td>
-                          <td className="p-4"><Badge status={r.status === 'approved' ? 'success' : 'danger'} label={r.status === 'approved' ? 'Approved' : 'Rejected'} /></td>
-                          <td className="p-4 text-sm text-rotc-textMuted">{r.archived_at ? format(new Date(r.archived_at), 'MMM d, yyyy') : '—'}</td>
-                        </>
-                      )}
-                    />
-                    {(archives?.count ?? 0) > archivePageSize && (
-                      <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
-                        <span className="text-xs text-rotc-textMuted">Showing {archives?.data?.length || 0} of {archives?.count || 0} entries</span>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" disabled={archivePage === 1} onClick={() => setArchivePage(p => p - 1)}>Prev</Button>
-                          <Button variant="outline" size="sm" disabled={archivePage * archivePageSize >= (archives?.count ?? 0)} onClick={() => setArchivePage(p => p + 1)}>Next</Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  /* Vault Table */
-                  <>
-                    <Table
+                <Table
                       headers={['File Name', 'Folder', 'Type', 'Size', 'Date Added', 'Actions']}
                       isLoading={isVaultLoading}
                       emptyMessage={storageStatus === 'error' ? "Cannot access documents. Please check your Storage Health status in the sidebar." : "No documents available."}
@@ -424,8 +291,6 @@ export default function ArchivesPage() {
                         </div>
                       </div>
                     )}
-                  </>
-                )}
               </CardContent>
             </Card>
           </div>
@@ -433,24 +298,6 @@ export default function ArchivesPage() {
       </div>
 
       {/* Modals */}
-      <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Import Historical Records">
-        <div className="space-y-4 mt-4">
-          <Input label="Folder Name" placeholder="e.g. AER & ASR 2023-2024" value={folderName} onChange={e => setFolderName(e.target.value)} required />
-          <div className="pt-2">
-            <label className="block text-xs font-medium text-rotc-textMuted mb-1">Upload Records (CSV or Excel)</label>
-            <input
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleImportFile}
-              disabled={!folderName}
-              className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2"
-            />
-            <p className="text-[10px] text-rotc-textMuted mt-2">Column headers should match database fields (id_number, last_name, first_name, etc.)</p>
-          </div>
-          <div className="flex justify-end pt-4"><Button variant="outline" onClick={() => setIsImportModalOpen(false)}>Close</Button></div>
-        </div>
-      </Modal>
-
       <Modal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} title="Upload to Document Vault">
         <div className="space-y-4 mt-4">
           <Input label="Folder Name" placeholder="e.g. Manuals, Memos, 2024-2025" value={uploadFolder} onChange={e => setUploadFolder(e.target.value)} required />
