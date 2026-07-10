@@ -150,7 +150,7 @@ export function useBulkApproveEnrollments() {
 export function useArchiveEnrollments() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean }) =>
+    mutationFn: (payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean, status?: string }) =>
       archiveEnrollments(payload),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })

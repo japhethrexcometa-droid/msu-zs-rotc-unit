@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { requestIds, academicYear, archiveAllProcessed } = req.body;
+    const { requestIds, academicYear, archiveAllProcessed, status } = req.body;
 
     if (!archiveAllProcessed && (!Array.isArray(requestIds) || requestIds.length === 0)) {
       throw new Error("No request IDs provided.");
@@ -48,7 +48,11 @@ export default async function handler(req, res) {
       .select('*');
 
     if (archiveAllProcessed) {
-      query = query.neq('status', 'pending');
+      if (status) {
+        query = query.eq('status', status);
+      } else {
+        query = query.neq('status', 'pending');
+      }
     } else {
       query = query.in('id', requestIds);
     }

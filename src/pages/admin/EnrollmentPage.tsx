@@ -290,7 +290,8 @@ export default function EnrollmentPage() {
       const result = await archiveMutation.mutateAsync({
         requestIds: allProcessed ? undefined : selectedIds,
         academicYear,
-        archiveAllProcessed: allProcessed
+        archiveAllProcessed: allProcessed,
+        status: allProcessed ? tab : undefined
       })
       toast.success(result.message)
       setSelectedIds([])

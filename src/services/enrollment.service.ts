@@ -152,7 +152,7 @@ export async function bulkRejectEnrollments(requestIds: string[], reason: string
   return result;
 }
 
-export async function archiveEnrollments(payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean }): Promise<any> {
+export async function archiveEnrollments(payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean, status?: string }): Promise<any> {
   await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
