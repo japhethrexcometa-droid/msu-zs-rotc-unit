@@ -218,7 +218,10 @@ export default function ArchivesPage() {
                     </p>
                   )}
 
-                  <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => setIsUploadModalOpen(true)}>
+                  <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => {
+                    setUploadFolder(vaultFolder || '');
+                    setIsUploadModalOpen(true);
+                  }}>
                     <UploadIcon className="h-3 w-3 mr-2" /> Upload Document
                   </Button>
                 </div>
