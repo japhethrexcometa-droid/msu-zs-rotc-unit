@@ -102,18 +102,56 @@ export async function uploadDocument(file: File, folder: string, isPublic: boole
   return { success: true }
 }
 
-export async function deleteDocument(id: string, path: string) {
+export async function deleteDocument(id: string, path: string, isFolder = false, folderName?: string) {
   await ensureAuthSession()
   const { data: sessionData } = await supabase.auth.getSession()
   const token = sessionData.session?.access_token
   if (!token) throw new Error("Unauthorized")
 
-  const response = await fetch(`/api/admin/documents?id=${id}&path=${encodeURIComponent(path)}`, {
+  const params = new URLSearchParams()
+  if (id) params.append('id', id)
+  if (path) params.append('path', path)
+  if (isFolder) params.append('is_folder', 'true')
+  if (folderName) params.append('folder_name', folderName)
+
+  const response = await fetch(`/api/admin/documents?${params}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
   })
   const result = await response.json()
   if (!response.ok) throw new Error(result.error)
+  return result
+}
+
+export async function createFolder(folderPath: string, displayFolderName: string) {
+  await ensureAuthSession()
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  if (!token) throw new Error("Unauthorized")
+
+  const response = await fetch('/api/admin/documents', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      filename: '.keep',
+      original_name: '.keep',
+      display_name: displayFolderName,
+      folder_name: folderPath,
+      file_size: 0,
+      mime_type: 'application/vnd.rotc.folder',
+      storage_path: `${folderPath}/.keep`,
+      is_public: false
+    })
+  })
+
+  const result = await response.json()
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to create folder record")
+  }
+
   return result
 }
 

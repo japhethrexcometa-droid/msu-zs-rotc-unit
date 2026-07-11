@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.archived_documents (
   storage_path TEXT NOT NULL,
   is_public BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
-  created_by UUID REFERENCES public.users(id)
+  uploaded_by UUID REFERENCES public.users(id)
 );
 
 -- 3. Enable RLS

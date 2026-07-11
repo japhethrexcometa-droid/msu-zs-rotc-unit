@@ -53,8 +53,13 @@ export default async function handler(req, res) {
       const { search, folder, page = 1, pageSize = 20 } = req.query;
       let query = supabaseAdmin.from('archived_documents').select('*', { count: 'exact' });
 
-      if (folder) query = query.eq('folder_name', folder);
-      if (search) query = query.ilike('filename', `%${search}%`);
+      if (search) {
+        query = query.or(`display_name.ilike.%${search}%,filename.ilike.%${search}%`);
+      } else if (folder !== undefined) {
+        query = query.eq('folder_name', folder);
+      } else {
+        query = query.eq('folder_name', '');
+      }
 
       const from = (parseInt(page) - 1) * parseInt(pageSize);
       const to = from + parseInt(pageSize) - 1;
@@ -89,7 +94,39 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      const { id, path } = req.query;
+      const { id, path, is_folder, folder_name } = req.query;
+
+      if (is_folder === 'true' && folder_name) {
+        // Recursive folder and children deletion
+        // 1. Fetch all matching documents in the folder and its subfolders
+        const { data: docs, error: fetchError } = await supabaseAdmin
+          .from('archived_documents')
+          .select('id, storage_path')
+          .or(`folder_name.eq.${folder_name},folder_name.ilike.${folder_name}/%`);
+
+        if (fetchError) throw fetchError;
+
+        if (docs && docs.length > 0) {
+          const paths = docs.map(d => d.storage_path).filter(p => !!p);
+
+          if (paths.length > 0) {
+            const { error: storageError } = await supabaseAdmin.storage.from('vault').remove(paths);
+            if (storageError) console.warn("Storage cleanup warning:", storageError);
+          }
+
+          const ids = docs.map(d => d.id);
+          const { error: dbError } = await supabaseAdmin.from('archived_documents').delete().in('id', ids);
+          if (dbError) throw dbError;
+        }
+
+        // Also delete the folder record itself (by id)
+        if (id) {
+          await supabaseAdmin.from('archived_documents').delete().eq('id', id);
+        }
+
+        return res.status(200).json({ success: true, message: "Folder and all nested files deleted successfully" });
+      }
+
       if (!id || !path) throw new Error("Missing ID or path");
 
       // Delete from storage first
