@@ -18,6 +18,10 @@ export default async function handler(req, res) {
 
     if (!authHeader) throw new Error("Missing Authorization header");
 
+    if (!supabaseServiceKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing/not configured in your Vercel environment variables.");
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const supabaseUser = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '', {
       global: { headers: { Authorization: authHeader } }
@@ -25,16 +29,26 @@ export default async function handler(req, res) {
 
     // 1. Authenticate Admin
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-    if (authError || !user) throw new Error("Unauthorized");
+    if (authError || !user) throw new Error("Unauthorized: Invalid session or JWT token.");
 
-    const { data: userData } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
-    if (!userData || userData.role !== 'admin') {
-      throw new Error("Forbidden: Only administrators can access this system.");
+    console.log(`[InitStorage] Authenticated user ID: ${user.id}`);
+    const { data: userData, error: userFetchError } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
+
+    if (userFetchError) {
+      throw new Error(`Database error fetching user role: ${userFetchError.message}`);
+    }
+    if (!userData) {
+      throw new Error(`Forbidden: User ID ${user.id} does not exist in the public.users database table.`);
+    }
+    if (userData.role !== 'admin') {
+      throw new Error(`Forbidden: Your current role is '${userData.role}', but only 'admin' role has access to the Document Vault.`);
     }
 
     // 2. Check and Create 'vault' bucket
     const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
-    if (listError) throw listError;
+    if (listError) {
+      throw new Error(`Storage listBuckets failed: ${listError.message}. This usually indicates your SUPABASE_SERVICE_ROLE_KEY is misconfigured or lacks privilege.`);
+    }
 
     const vaultExists = buckets.find(b => b.id === 'vault');
 
