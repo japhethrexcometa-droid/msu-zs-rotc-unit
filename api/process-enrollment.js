@@ -46,6 +46,11 @@ function determineRole(requestData) {
 }
 
 export default async function handler(req, res) {
+  // SMTP diagnostic logging
+  console.log('[SMTP-CHECK] SMTP_EMAIL set:', !!process.env.SMTP_EMAIL);
+  console.log('[SMTP-CHECK] SMTP_PASSWORD set:', !!process.env.SMTP_PASSWORD);
+  console.log('[SMTP-CHECK] CRON_SECRET set:', !!process.env.CRON_SECRET);
+
   // 1. Setup CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -114,34 +119,45 @@ export default async function handler(req, res) {
 
       if (updateError) throw new Error("Failed to update request: " + updateError.message);
 
-      // Send rejection email (non-blocking)
+      // Queue rejection email (same pattern as approval)
       try {
-        if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
-          const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com', port: 465, secure: true,
-            auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASSWORD }
-          });
-          await transporter.sendMail({
-            from: `"MSU ZS ROTC Unit" <${process.env.SMTP_EMAIL}>`,
-            to: email,
-            subject: "MSU ZS ROTC - Enrollment Update",
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #1a472a;">MSU ZS ROTC Enrollment Update</h2>
-                <p>Dear ${firstName},</p>
-                <p>We regret to inform you that your enrollment request has been <strong>rejected</strong>.</p>
-                <div style="background: #fff3f3; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;">
-                  <p style="margin: 0;"><strong>Reason:</strong> ${rejectionReason}</p>
-                </div>
-                <p>If you believe this was a mistake, please contact the ROTC office for assistance.</p>
-                <br/>
-                <p>Best regards,<br/>MSU ZS ROTC Administration</p>
-              </div>
-            `
-          });
-        }
+        const htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1a472a;">MSU ZS ROTC Enrollment Update</h2>
+            <p>Dear ${firstName},</p>
+            <p>We regret to inform you that your enrollment request has been <strong>rejected</strong>.</p>
+            <div style="background: #fff3f3; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;">
+              <p style="margin: 0;"><strong>Reason:</strong> ${rejectionReason}</p>
+            </div>
+            <p>If you believe this was a mistake, please contact the ROTC office for assistance.</p>
+            <br/>
+            <p>Best regards,<br/>MSU ZS ROTC Administration</p>
+          </div>
+        `;
+
+        await supabaseAdmin.from('email_queue').insert({
+          recipient: email,
+          subject: "MSU ZS ROTC - Enrollment Update",
+          html_body: htmlContent,
+          status: 'pending'
+        });
       } catch (emailError) {
-        console.error("Non-blocking rejection email error:", emailError);
+        console.error("Failed to queue rejection email:", emailError);
+      }
+
+      // Auto-trigger email processing (non-blocking)
+      try {
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.headers.host || 'localhost:3000';
+        fetch(`${protocol}://${host}/api/cron/process-emails`, {
+          method: 'POST',
+          headers: { 'Authorization': authHeader }
+        })
+        .then(res => res.json())
+        .then(result => console.log('[EMAIL] Auto-triggered queue processing after rejection:', result))
+        .catch(err => console.error('[EMAIL] Auto-trigger fetch promise failed after rejection:', err.message));
+      } catch (emailTriggerErr) {
+        console.error('[EMAIL] Auto-trigger failed after rejection (will retry via cron):', emailTriggerErr.message);
       }
 
       return res.status(200).json({ success: true, message: "Enrollment rejected." });
@@ -276,6 +292,21 @@ export default async function handler(req, res) {
       });
     } catch (emailError) {
       console.error("Failed to queue email:", emailError);
+    }
+
+    // Auto-trigger email processing (non-blocking)
+    try {
+      const protocol = req.headers['x-forwarded-proto'] || 'http';
+      const host = req.headers.host || 'localhost:3000';
+      fetch(`${protocol}://${host}/api/cron/process-emails`, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader }
+      })
+      .then(res => res.json())
+      .then(result => console.log('[EMAIL] Auto-triggered queue processing after approval:', result))
+      .catch(err => console.error('[EMAIL] Auto-trigger fetch promise failed after approval:', err.message));
+    } catch (emailTriggerErr) {
+      console.error('[EMAIL] Auto-trigger failed after approval (will retry via cron):', emailTriggerErr.message);
     }
 
     return res.status(200).json({ success: true, message: "Enrollment processed." });

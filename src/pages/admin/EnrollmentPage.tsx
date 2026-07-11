@@ -49,6 +49,44 @@ export default function EnrollmentPage() {
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
   
   const { data: allRequests = [], isLoading, isFetching, dataUpdatedAt, refetch } = useEnrollmentRequests()
+
+  if (isLoading) {
+    return (
+      <AppLayout title="Enrollment Management">
+        <div className="space-y-6">
+          {/* Skeleton stats cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="bg-rotc-card animate-pulse">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <div className="h-3.5 bg-rotc-border rounded w-28 mb-2" />
+                    <div className="h-8 bg-rotc-border rounded w-16" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-rotc-border rounded w-16" />
+                    <div className="h-3 bg-rotc-border rounded w-20" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {/* Skeleton table */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="h-4 bg-rotc-border rounded w-48 mb-6 animate-pulse" />
+              <div className="space-y-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-12 bg-rotc-border/30 rounded animate-pulse" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
+
   const approveMutation = useApproveEnrollment()
   const rejectMutation = useRejectEnrollment()
 
@@ -239,7 +277,23 @@ export default function EnrollmentPage() {
               </CardContent>
             </Card>
           ))}
-          {Object.keys(statsBySchool).length === 0 && !isLoading && (
+          {Object.keys(statsBySchool).length === 0 && (isLoading || isFetching) && (
+            [...Array(3)].map((_, i) => (
+              <Card key={i} className="bg-rotc-card animate-pulse">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <div className="h-3.5 bg-rotc-border rounded w-28 mb-2" />
+                    <div className="h-8 bg-rotc-border rounded w-16" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-rotc-border rounded w-16" />
+                    <div className="h-3 bg-rotc-border rounded w-20" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+          {Object.keys(statsBySchool).length === 0 && !isLoading && !isFetching && (
             <div className="col-span-full p-4 bg-rotc-bg rounded-xl border border-rotc-border text-center text-rotc-textMuted text-sm">
               No data for this status.
             </div>
