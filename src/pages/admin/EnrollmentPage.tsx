@@ -1,6 +1,7 @@
 import { useSession } from '@/hooks/useSession'
 import AppLayout from '@/components/layout/AppLayout'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { supabase } from '@/lib/supabase'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
