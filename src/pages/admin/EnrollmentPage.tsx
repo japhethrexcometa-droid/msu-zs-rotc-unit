@@ -63,17 +63,35 @@ export default function EnrollmentPage() {
   const handleRetryEmails = async () => {
     setIsRetryingEmails(true)
     try {
-      const res = await fetch('/api/admin/retry-emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        }
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || "Failed to retry emails")
+      const { data, error } = await supabase.rpc('retry_failed_emails')
+      if (error) throw error
+      if (data && !data.success) {
+        throw new Error(data.error || "Failed to retry emails")
+      }
 
-      toast.success(`Successfully retried ${result.count} failed email(s)!`)
+      const count = data?.retried_count ?? 0
+      toast.success(data?.message || `Successfully retried ${count} failed email(s)!`)
+
+      if (count > 0) {
+        // Trigger queue processing in background securely
+        const sessionToken = (await supabase.auth.getSession()).data.session?.access_token
+        if (sessionToken) {
+          fetch('/api/cron/process-emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${sessionToken}`
+            }
+          })
+          .then(res => res.json())
+          .then(result => {
+            console.log('[EMAIL] Auto-triggered queue processing after retry:', result)
+            if (result.success && result.sent > 0) {
+              toast.info(`Sent ${result.sent} email(s) immediately.`)
+            }
+          })
+          .catch(err => console.error('[EMAIL] Auto-trigger fetch failed after retry:', err.message))
+        }
+      }
     } catch (err: any) {
       toast.error(err.message)
     } finally {

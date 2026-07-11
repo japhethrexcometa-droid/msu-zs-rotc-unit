@@ -4,6 +4,17 @@
 
 @layer base {
   * { -webkit-tap-highlight-color: transparent; }
+
+  /* Autofill fix */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active,
+  input:autofill {
+    -webkit-box-shadow: 0 0 0 30px #2d5a3d inset !important;
+    -webkit-text-fill-color: #e8f5e9 !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
   
   html {
     background-color: #1a3a2a;
