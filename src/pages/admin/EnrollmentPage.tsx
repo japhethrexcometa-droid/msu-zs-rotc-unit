@@ -50,6 +50,67 @@ export default function EnrollmentPage() {
   
   const { data: allRequests = [], isLoading, isFetching, dataUpdatedAt, refetch } = useEnrollmentRequests()
 
+  const approveMutation = useApproveEnrollment()
+  const rejectMutation = useRejectEnrollment()
+
+  const [approveItem, setApproveItem] = useState<any | null>(null)
+  const [rejectItem, setRejectItem] = useState<any | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+
+  const [isRetryingEmails, setIsRetryingEmails] = useState(false)
+
+  const handleRetryEmails = async () => {
+    setIsRetryingEmails(true)
+    try {
+      const res = await fetch('/api/admin/retry-emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        }
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || "Failed to retry emails")
+
+      toast.success(`Successfully retried ${result.count} failed email(s)!`)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsRetryingEmails(false)
+    }
+  }
+
+  const currentRequests = useMemo(() => {
+    return allRequests.filter(r => r.status === tab).sort((a, b) => {
+      if (tab === 'pending') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      // Approved/Rejected: newest processed first
+      const aDate = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0
+      const bDate = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0
+      return bDate - aDate
+    })
+  }, [allRequests, tab])
+
+  // Count per tab for badges
+  const tabCounts = useMemo(() => ({
+    pending: allRequests.filter(r => r.status === 'pending').length,
+    approved: allRequests.filter(r => r.status === 'approved').length,
+    rejected: allRequests.filter(r => r.status === 'rejected').length,
+  }), [allRequests])
+
+  // Dynamic stats
+  const statsBySchool = useMemo(() => {
+    return currentRequests.reduce((acc, req) => {
+      const school = req.school || 'Unknown'
+      if (!acc[school]) acc[school] = { Male: 0, Female: 0, Total: 0 }
+      if (req.gender === 'Male') acc[school].Male++
+      if (req.gender === 'Female') acc[school].Female++
+      acc[school].Total++
+      return acc
+    }, {} as Record<string, { Male: number, Female: number, Total: number }>)
+  }, [currentRequests])
+
   if (isLoading) {
     return (
       <AppLayout title="Enrollment Management">
@@ -86,44 +147,6 @@ export default function EnrollmentPage() {
       </AppLayout>
     );
   }
-
-  const approveMutation = useApproveEnrollment()
-  const rejectMutation = useRejectEnrollment()
-
-  const [approveItem, setApproveItem] = useState<any | null>(null)
-  const [rejectItem, setRejectItem] = useState<any | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
-
-  const currentRequests = useMemo(() => {
-    return allRequests.filter(r => r.status === tab).sort((a, b) => {
-      if (tab === 'pending') {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      }
-      // Approved/Rejected: newest processed first
-      const aDate = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0
-      const bDate = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0
-      return bDate - aDate
-    })
-  }, [allRequests, tab])
-
-  // Count per tab for badges
-  const tabCounts = useMemo(() => ({
-    pending: allRequests.filter(r => r.status === 'pending').length,
-    approved: allRequests.filter(r => r.status === 'approved').length,
-    rejected: allRequests.filter(r => r.status === 'rejected').length,
-  }), [allRequests])
-
-  // Dynamic stats
-  const statsBySchool = useMemo(() => {
-    return currentRequests.reduce((acc, req) => {
-      const school = req.school || 'Unknown'
-      if (!acc[school]) acc[school] = { Male: 0, Female: 0, Total: 0 }
-      if (req.gender === 'Male') acc[school].Male++
-      if (req.gender === 'Female') acc[school].Female++
-      acc[school].Total++
-      return acc
-    }, {} as Record<string, { Male: number, Female: number, Total: number }>)
-  }, [currentRequests])
 
   const exportCSV = () => {
     if (currentRequests.length === 0) return toast.error('No records to export in this tab.')
@@ -325,6 +348,15 @@ export default function EnrollmentPage() {
               </div>
               <Button variant="outline" size="sm" onClick={exportCSV}>
                 <Download className="h-4 w-4 mr-2" /> Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRetryEmails}
+                isLoading={isRetryingEmails}
+                className="border-yellow-600/30 text-yellow-600 hover:bg-yellow-600/10"
+              >
+                <RefreshCw className="h-4.5 w-4.5 mr-2 text-yellow-600" /> Retry Failed Emails
               </Button>
               <div className="flex border border-rotc-border rounded-lg overflow-hidden">
                 {tabs.map(t => (
