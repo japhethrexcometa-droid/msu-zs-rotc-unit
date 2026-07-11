@@ -98,6 +98,11 @@ export default function ArchivesPage() {
   }, [currentPath, vaultSearch, vaultPage, vaultPageSize])
 
   useEffect(() => {
+    setVaultSearch('')
+    setVaultPage(1)
+  }, [currentPath])
+
+  useEffect(() => {
     // Auto-init storage on first load
     checkStorage()
   }, [])
@@ -380,15 +385,21 @@ export default function ArchivesPage() {
                 const isFolder = d.mime_type === 'application/vnd.rotc.folder'
                 return (
                   <>
-                    <td className="p-4 text-sm font-medium text-rotc-text">
+                    <td
+                      className={`p-4 text-sm font-medium ${isFolder ? 'cursor-pointer hover:bg-rotc-accent/5' : ''}`}
+                      onClick={() => {
+                        if (isFolder) {
+                          const target = d.folder_name ? `${d.folder_name}/${d.display_name}` : (d.display_name || '');
+                          setCurrentPath(target);
+                          setVaultPage(1);
+                        }
+                      }}
+                    >
                       {isFolder ? (
-                        <button
-                          onClick={() => { setCurrentPath(currentPath ? `${currentPath}/${d.display_name}` : d.display_name || ''); setVaultPage(1); }}
-                          className="flex items-center gap-2.5 text-rotc-accent hover:underline font-semibold text-left"
-                        >
+                        <div className="flex items-center gap-2.5 text-rotc-accent hover:underline font-semibold">
                           <FolderIcon className="h-5 w-5 shrink-0 text-rotc-accent" />
                           <span>{d.display_name}</span>
-                        </button>
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2.5 text-rotc-text">
                           <FileIcon className="h-5 w-5 shrink-0 opacity-60" />

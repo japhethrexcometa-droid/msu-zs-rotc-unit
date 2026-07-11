@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         filename,
         display_name: display_name || original_name,
         original_name,
-        folder_name: folder_name || 'Uncategorized',
+        folder_name: (folder_name !== undefined && folder_name !== null) ? folder_name : 'Uncategorized',
         file_size,
         mime_type,
         storage_path,
@@ -53,12 +53,11 @@ export default async function handler(req, res) {
       const { search, folder, page = 1, pageSize = 20 } = req.query;
       let query = supabaseAdmin.from('archived_documents').select('*', { count: 'exact' });
 
+      const targetFolder = folder !== undefined ? folder : '';
+      query = query.eq('folder_name', targetFolder);
+
       if (search) {
         query = query.or(`display_name.ilike.%${search}%,filename.ilike.%${search}%`);
-      } else if (folder !== undefined) {
-        query = query.eq('folder_name', folder);
-      } else {
-        query = query.eq('folder_name', '');
       }
 
       const from = (parseInt(page) - 1) * parseInt(pageSize);
