@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { 
   useEnrollmentRequests, 
   useApproveEnrollment, 
@@ -408,6 +408,7 @@ export default function EnrollmentPage() {
 
         {/* Global Stats by School */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<<<<<<< HEAD
           {isLoading || (isFetching && Object.keys(statsBySchool || {}).length === 0) ? (
             // Display 3 beautifully styled skeleton cards matching the actual cards layout
             Array.from({ length: 3 }).map((_, i) => (
@@ -444,6 +445,22 @@ export default function EnrollmentPage() {
               No data for this status.
             </div>
           )}
+=======
+          {Object.entries(statsBySchool).map(([school, stats]: [string, any]) => (
+            <Card key={school} className="bg-rotc-card border-rotc-border/50">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-rotc-text">{school}</p>
+                  <p className="text-2xl font-black text-rotc-accent">{stats.Total}</p>
+                </div>
+                <div className="text-right text-xs text-rotc-textMuted space-y-0.5">
+                  <p>Male: <span className="text-rotc-text font-medium">{stats.Male}</span></p>
+                  <p>Female: <span className="text-rotc-text font-medium">{stats.Female}</span></p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+>>>>>>> origin/jules-12230746260725005903-95acd806
         </div>
 
         <Card className="relative overflow-hidden">
