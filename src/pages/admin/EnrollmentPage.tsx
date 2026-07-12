@@ -97,6 +97,47 @@ export default function EnrollmentPage() {
   } = useEnrollmentRequests(tab, debouncedSearch, page, pageSize, sort.by, sort.order, schoolFilter)
 
   const [isProcessingEmails, setIsProcessingEmails] = useState(false)
+  const [isRetryingEmails, setIsRetryingEmails] = useState(false)
+
+  const handleRetryEmails = async () => {
+    setIsRetryingEmails(true)
+    try {
+      const { data, error } = await supabase.rpc('retry_failed_emails')
+      if (error) throw error
+
+      const count = Number(data ?? 0)
+      if (count === 0) {
+        toast.success("No failed emails to retry.")
+      } else {
+        toast.success(`Successfully retried ${count} failed email(s)!`)
+
+        // Auto-trigger queue processing in background securely
+        const { data: sessionData } = await supabase.auth.getSession()
+        const sessionToken = sessionData.session?.access_token
+        if (sessionToken) {
+          fetch('/api/cron/process-emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${sessionToken}`
+            }
+          })
+          .then(res => res.json())
+          .then(result => {
+            console.log('[EMAIL] Auto-triggered queue processing after retry:', result)
+            if (result.success && result.sent > 0) {
+              toast.info(`Sent ${result.sent} email(s) immediately.`)
+            }
+          })
+          .catch(err => console.error('[EMAIL] Auto-trigger fetch failed after retry:', err.message))
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to retry emails")
+    } finally {
+      setIsRetryingEmails(false)
+    }
+  }
+
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const approveMutation = useApproveEnrollment()
@@ -485,6 +526,16 @@ export default function EnrollmentPage() {
                   <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
                 </button>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRetryEmails}
+                isLoading={isRetryingEmails}
+                className="border-yellow-600/30 text-yellow-600 hover:bg-yellow-600/10"
+                title="Retry failed email dispatches"
+              >
+                <RefreshCw className="h-4 w-4 mr-2 text-yellow-600" /> Retry Failed Emails
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

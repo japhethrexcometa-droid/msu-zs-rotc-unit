@@ -75,7 +75,26 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
-      const { id, newFilename } = req.body;
+      const { id, newFilename, old_name, new_name, oldFolderName, newFolderName, oldName, newName } = req.body;
+
+      // 1. Handle folder rename request
+      const actualOldFolderName = old_name || oldFolderName || oldName;
+      const actualNewFolderName = new_name || newFolderName || newName;
+
+      if (actualOldFolderName && actualNewFolderName) {
+        const { error } = await supabaseAdmin
+          .from('archived_documents')
+          .update({
+            folder_name: actualNewFolderName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('folder_name', actualOldFolderName);
+
+        if (error) throw error;
+        return res.status(200).json({ success: true, message: "Folder and all its documents renamed successfully" });
+      }
+
+      // 2. Handle single document display name rename request
       if (!id || !newFilename) throw new Error("Missing ID or new filename");
 
       // We only rename the "display name" in the DB metadata for safety

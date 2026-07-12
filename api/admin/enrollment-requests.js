@@ -126,7 +126,7 @@ export default async function handler(req, res) {
 
     if (statsError) {
       console.error("RPC Stats Error (falling back to manual queries):", statsError.message);
-      
+
       const [{ count: p }, { count: a }, { count: r }] = await Promise.all([
         supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'approved'),

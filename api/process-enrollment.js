@@ -147,8 +147,8 @@ export default async function handler(req, res) {
 
       // Auto-trigger email processor (Fix 4: send immediately, don't wait for cron)
       try {
-        const baseUrl = process.env.VERCEL_URL 
-          ? `https://${process.env.VERCEL_URL}` 
+        const baseUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
           : 'http://localhost:3000';
         const triggerRes = await fetch(`${baseUrl}/api/cron/process-emails`, {
           method: 'POST',
@@ -297,8 +297,8 @@ export default async function handler(req, res) {
 
     // Auto-trigger email processor (Fix 4: send immediately, don't wait for cron)
     try {
-      const baseUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}` 
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
         : 'http://localhost:3000';
       const triggerRes = await fetch(`${baseUrl}/api/cron/process-emails`, {
         method: 'POST',
