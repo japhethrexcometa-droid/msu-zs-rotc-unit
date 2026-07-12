@@ -53,7 +53,13 @@ export default async function handler(req, res) {
       const { search, folder, page = 1, pageSize = 20 } = req.query;
       let query = supabaseAdmin.from('archived_documents').select('*', { count: 'exact' });
 
-      if (folder) query = query.eq('folder_name', folder);
+      if (folder) {
+        query = query.eq('folder_name', folder);
+      } else {
+        // Fix Bug 1: When folder is empty (Root), only fetch root items, not ALL items
+        query = query.in('folder_name', ['Root', 'Uncategorized', '']);
+      }
+      
       if (search) query = query.ilike('filename', `%${search}%`);
 
       const from = (parseInt(page) - 1) * parseInt(pageSize);
@@ -81,8 +87,9 @@ export default async function handler(req, res) {
       const actualOldFolderName = old_name || oldFolderName || oldName;
       const actualNewFolderName = new_name || newFolderName || newName;
 
-      if (actualOldFolderName && actualNewFolderName) {
-        const { error } = await supabaseAdmin
+      if (actualOldFolderName && actualNewFolderName && id) {
+        // Update all children's folder_name
+        const { error: childrenError } = await supabaseAdmin
           .from('archived_documents')
           .update({
             folder_name: actualNewFolderName,
@@ -90,7 +97,22 @@ export default async function handler(req, res) {
           })
           .eq('folder_name', actualOldFolderName);
 
-        if (error) throw error;
+        if (childrenError) throw childrenError;
+
+        // Fix Bug 2: Update the actual folder record itself so its name changes in the UI
+        const { error: selfError } = await supabaseAdmin
+          .from('archived_documents')
+          .update({
+            display_name: newFilename,
+            filename: newFilename,
+            original_name: newFilename,
+            storage_path: actualNewFolderName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id);
+
+        if (selfError) throw selfError;
+
         return res.status(200).json({ success: true, message: "Folder and all its documents renamed successfully" });
       }
 
