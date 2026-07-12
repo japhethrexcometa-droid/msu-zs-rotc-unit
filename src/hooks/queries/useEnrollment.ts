@@ -1,19 +1,26 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
+  getPaginatedEnrollmentRequests,
   getAllEnrollmentRequests, 
   approveEnrollment, 
-  rejectEnrollment 
+  rejectEnrollment,
+  bulkApproveEnrollments,
+  bulkRejectEnrollments,
+  archiveEnrollments,
+  getEnrollmentArchives,
+  importEnrollmentArchives
 } from '@/services/enrollment.service'
 
 export const ENROLLMENT_KEYS = {
   all: ['enrollment'] as const,
-  requests: () => [...ENROLLMENT_KEYS.all, 'requests'] as const,
+  requests: (status?: string, search?: string, page?: number, sort?: any, school?: string) =>
+    [...ENROLLMENT_KEYS.all, 'requests', { status, search, page, sort, school }] as const,
 }
 
 /**
- * Fetches all enrollment requests with:
+ * Fetches enrollment requests with search and pagination support.
  * - refetchInterval: 15s polling → ensures data always appears even without Realtime
  * - Supabase Realtime subscription → instant updates when publication is configured
  * - refetchOnWindowFocus → picks up changes when admin returns to tab
@@ -22,7 +29,15 @@ export const ENROLLMENT_KEYS = {
  * The auth session is refreshed before every query (in enrollment.service.ts)
  * to prevent RLS is_admin() from returning false due to stale JWT tokens.
  */
-export function useEnrollmentRequests() {
+export function useEnrollmentRequests(
+  status: 'pending' | 'approved' | 'rejected',
+  searchQuery: string = '',
+  page: number = 1,
+  pageSize: number = 20,
+  sortBy?: string,
+  sortOrder?: 'asc' | 'desc',
+  school?: string
+) {
   const queryClient = useQueryClient()
 
   // Realtime subscription — works if enrollment_requests is in supabase_realtime publication
@@ -49,15 +64,13 @@ export function useEnrollmentRequests() {
   }, [queryClient])
 
   return useQuery({
-    queryKey: ENROLLMENT_KEYS.requests(),
-    queryFn: () => getAllEnrollmentRequests(),
+    queryKey: ENROLLMENT_KEYS.requests(status, searchQuery, page, { sortBy, sortOrder }, school),
+    queryFn: () => getPaginatedEnrollmentRequests(page, pageSize, status, searchQuery, sortBy, sortOrder, school),
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    // Poll every 5 seconds — fast enough for live enrollment intake
-    // When thousands of enrollees submit, admin sees new entries within 5s
-    refetchInterval: 5_000,
-    placeholderData: keepPreviousData,
+    // Poll every 10 seconds (increased from 5s to be more server-friendly with pagination)
+    refetchInterval: 10_000,
   })
 }
 
@@ -100,8 +113,66 @@ export function useApproveEnrollment() {
     onSettled: () => {
       // Delay re-fetch to let DB write fully propagate
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
+        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
       }, 500)
+    },
+  })
+}
+
+export function useExportEnrollments() {
+  return useMutation({
+    mutationFn: ({ status, search }: { status: string, search: string }) =>
+      getAllEnrollmentRequests(status, search),
+  })
+}
+
+export function useBulkRejectEnrollments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ requestIds, reason }: { requestIds: string[], reason: string }) =>
+      bulkRejectEnrollments(requestIds, reason),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
+    },
+  })
+}
+
+export function useBulkApproveEnrollments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (requestIds: string[]) => bulkApproveEnrollments(requestIds),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
+    },
+  })
+}
+
+export function useArchiveEnrollments() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean, status?: string }) =>
+      archiveEnrollments(payload),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
+    },
+  })
+}
+
+export function useEnrollmentArchives(params: { searchQuery?: string, academicYear?: string, page?: number, pageSize?: number }) {
+  return useQuery({
+    queryKey: ['enrollment-archives', params],
+    queryFn: () => getEnrollmentArchives(params),
+    staleTime: 60_000,
+  })
+}
+
+export function useImportEnrollmentArchives() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { records: any[], academicYear: string }) =>
+      importEnrollmentArchives(payload),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment-archives'] })
     },
   })
 }
@@ -148,7 +219,7 @@ export function useRejectEnrollment() {
 
     onSettled: () => {
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
+        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
       }, 500)
     },
   })

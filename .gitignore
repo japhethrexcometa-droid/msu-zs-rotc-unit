@@ -27,5 +27,3 @@ dist-ssr
 scratch/
 test-email.js
 *.mjs
-.vercel
-.env*

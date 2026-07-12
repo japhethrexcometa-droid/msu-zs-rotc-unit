@@ -135,10 +135,10 @@ export default function EnrollPage() {
   const isStep2Valid = () => {
     const errors: string[] = [];
     if (!formData.contact_number.trim()) errors.push("Contact Number is required");
-    else if (!isValidPhone(formData.contact_number)) errors.push("Contact Number must be a valid PH mobile (e.g. 09123456789, +639123456789)");
+    else if (!isValidPhone(formData.contact_number)) errors.push("Contact Number must be a valid PH mobile number");
     if (!formData.home_address.trim()) errors.push("Home Address is required");
     if (!formData.email.trim()) errors.push("Email is required");
-    else if (!isValidEmail(formData.email)) errors.push("Email must be valid (e.g. name@gmail.com)");
+    else if (!isValidEmail(formData.email)) errors.push("Please provide a valid email address");
     if (!formData.religion.trim()) errors.push("Religion is required");
     if (!formData.blood_type || formData.blood_type === 'Unknown') errors.push("Blood Type must be selected");
     if (!formData.height_feet.trim()) errors.push("Height is required");
@@ -312,7 +312,7 @@ export default function EnrollPage() {
                   name="rotc_entry_token"
                   label="Access Code"
                   type="password"
-                  placeholder="e.g. A7B9X2"
+                  placeholder="Enter access code"
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                   autoComplete="new-password"
@@ -409,12 +409,12 @@ export default function EnrollPage() {
             <div className="space-y-5 animate-fade-in">
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2">Personal Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {renderInputField({ label: "Student ID Number", field: "id_number", placeholder: "e.g. 1008352" })}
-                {renderInputField({ label: "School", field: "school", placeholder: "e.g. MSU Buug" })}
-                {renderInputField({ label: "First Name", field: "first_name", placeholder: "Juan" })}
-                {renderInputField({ label: "Last Name", field: "last_name", placeholder: "Dela Cruz" })}
-                {renderInputField({ label: "Middle Initial", field: "middle_initial", placeholder: "A", required: false })}
-                {renderInputField({ label: "Suffix", field: "suffix", placeholder: "Jr, III, N/A", required: false })}
+                {renderInputField({ label: "Student ID Number", field: "id_number", placeholder: "Enter ID number" })}
+                {renderInputField({ label: "School", field: "school", placeholder: "Enter school name" })}
+                {renderInputField({ label: "First Name", field: "first_name", placeholder: "First Name" })}
+                {renderInputField({ label: "Last Name", field: "last_name", placeholder: "Last Name" })}
+                {renderInputField({ label: "Middle Initial", field: "middle_initial", placeholder: "M.I.", required: false })}
+                {renderInputField({ label: "Suffix", field: "suffix", placeholder: "Suffix (Optional)", required: false })}
                 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Gender *</label>
@@ -428,7 +428,7 @@ export default function EnrollPage() {
                 </div>
                 
                 {renderInputField({ label: "Date of Birth", field: "date_of_birth", type: "date" })}
-                {renderInputField({ label: "Course (e.g. BSIT)", field: "course_year", placeholder: "e.g. BSIT" })}
+                {renderInputField({ label: "Course", field: "course_year", placeholder: "Enter course" })}
                 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Academic Year *</label>
@@ -485,8 +485,8 @@ export default function EnrollPage() {
                 <div className="sm:col-span-2">
                   {renderInputField({ label: "Home Address", field: "home_address", placeholder: "Poblacion, Buug, ZSP" })}
                 </div>
-                {renderInputField({ label: "Religion", field: "religion", placeholder: "e.g. Roman Catholic" })}
-                {renderInputField({ label: "Height (Feet)", field: "height_feet", placeholder: "e.g. 5'7\" or 5.7" })}
+                {renderInputField({ label: "Religion", field: "religion", placeholder: "Enter religion" })}
+                {renderInputField({ label: "Height (Feet)", field: "height_feet", placeholder: "Enter height" })}
                 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">Blood Type *</label>

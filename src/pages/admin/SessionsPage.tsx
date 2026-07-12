@@ -92,9 +92,9 @@ export default function SessionsPage() {
 
       <Modal isOpen={isCreating} onClose={() => setIsCreating(false)} title="Create Session">
         <form onSubmit={handleCreate} className="space-y-4 mt-4">
-          <Input label="Title" name="title" placeholder="e.g. Morning Muster" required />
+          <Input label="Title" name="title" placeholder="Enter session title" required />
           <Input label="Date" name="session_date" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
-          <Input label="Location" name="location" placeholder="e.g. Parade Grounds" />
+          <Input label="Location" name="location" placeholder="Enter location" />
           <Input label="Started By" value={session.full_name} disabled readOnly />
           
           <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">

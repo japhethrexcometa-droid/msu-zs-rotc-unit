@@ -27,7 +27,8 @@ export default {
       animation: {
         'fade-in': 'fadeIn 0.2s ease-in-out',
         'slide-in': 'slideIn 0.3s ease-out',
-        'pulse-soft': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+        'pulse-soft': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'progress-fast': 'progress 1s ease-in-out infinite'
       },
       keyframes: {
         fadeIn: {
@@ -37,6 +38,11 @@ export default {
         slideIn: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(0)' }
+        },
+        progress: {
+          '0%': { transform: 'translateX(-100%)', width: '30%' },
+          '50%': { width: '100%' },
+          '100%': { transform: 'translateX(100%)', width: '30%' }
         }
       }
     }

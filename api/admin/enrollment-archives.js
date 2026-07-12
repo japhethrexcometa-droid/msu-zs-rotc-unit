@@ -30,8 +30,8 @@ export default async function handler(req, res) {
     if (authError || !user) throw new Error("Unauthorized");
 
     const { data: userData } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
-    if (!userData || userData.role !== 'admin') {
-      throw new Error("Forbidden: Only administrators can access this system.");
+    if (!userData || (userData.role !== 'admin' && userData.role !== 'officer')) {
+      throw new Error("Forbidden");
     }
 
     // 1. Get List of Academic Years (the "folders")

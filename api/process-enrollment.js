@@ -46,7 +46,7 @@ function determineRole(requestData) {
 }
 
 export default async function handler(req, res) {
-  // SMTP diagnostic logging
+  // SMTP Diagnostic Logging (Fix 7)
   console.log('[SMTP-CHECK] SMTP_EMAIL set:', !!process.env.SMTP_EMAIL);
   console.log('[SMTP-CHECK] SMTP_PASSWORD set:', !!process.env.SMTP_PASSWORD);
   console.log('[SMTP-CHECK] CRON_SECRET set:', !!process.env.CRON_SECRET);
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;
     // VERY IMPORTANT: Ensure Vercel has SUPABASE_SERVICE_ROLE_KEY set (NOT VITE_...)
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
@@ -119,9 +119,9 @@ export default async function handler(req, res) {
 
       if (updateError) throw new Error("Failed to update request: " + updateError.message);
 
-      // Queue rejection email (same pattern as approval)
+      // Queue rejection email (Fix 5: same pattern as approval)
       try {
-        const htmlContent = `
+        const rejectionHtml = `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #1a472a;">MSU ZS ROTC Enrollment Update</h2>
             <p>Dear ${firstName},</p>
@@ -134,30 +134,30 @@ export default async function handler(req, res) {
             <p>Best regards,<br/>MSU ZS ROTC Administration</p>
           </div>
         `;
-
         await supabaseAdmin.from('email_queue').insert({
           recipient: email,
           subject: "MSU ZS ROTC - Enrollment Update",
-          html_body: htmlContent,
+          html_body: rejectionHtml,
           status: 'pending'
         });
+        console.log('[EMAIL] Rejection email queued for:', email);
       } catch (emailError) {
         console.error("Failed to queue rejection email:", emailError);
       }
 
-      // Auto-trigger email processing (non-blocking)
+      // Auto-trigger email processor (Fix 4: send immediately, don't wait for cron)
       try {
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const host = req.headers.host || 'localhost:3000';
-        fetch(`${protocol}://${host}/api/cron/process-emails`, {
+        const baseUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'http://localhost:3000';
+        const triggerRes = await fetch(`${baseUrl}/api/cron/process-emails`, {
           method: 'POST',
           headers: { 'Authorization': authHeader }
-        })
-        .then(res => res.json())
-        .then(result => console.log('[EMAIL] Auto-triggered queue processing after rejection:', result))
-        .catch(err => console.error('[EMAIL] Auto-trigger fetch promise failed after rejection:', err.message));
-      } catch (emailTriggerErr) {
-        console.error('[EMAIL] Auto-trigger failed after rejection (will retry via cron):', emailTriggerErr.message);
+        });
+        const triggerResult = await triggerRes.json();
+        console.log('[EMAIL] Auto-triggered queue after rejection:', triggerResult);
+      } catch (triggerErr) {
+        console.error('[EMAIL] Auto-trigger failed (will retry via cron):', triggerErr.message);
       }
 
       return res.status(200).json({ success: true, message: "Enrollment rejected." });
@@ -290,23 +290,24 @@ export default async function handler(req, res) {
         html_body: htmlContent,
         status: 'pending'
       });
+      console.log('[EMAIL] Approval email queued for:', email);
     } catch (emailError) {
       console.error("Failed to queue email:", emailError);
     }
 
-    // Auto-trigger email processing (non-blocking)
+    // Auto-trigger email processor (Fix 4: send immediately, don't wait for cron)
     try {
-      const protocol = req.headers['x-forwarded-proto'] || 'http';
-      const host = req.headers.host || 'localhost:3000';
-      fetch(`${protocol}://${host}/api/cron/process-emails`, {
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+      const triggerRes = await fetch(`${baseUrl}/api/cron/process-emails`, {
         method: 'POST',
         headers: { 'Authorization': authHeader }
-      })
-      .then(res => res.json())
-      .then(result => console.log('[EMAIL] Auto-triggered queue processing after approval:', result))
-      .catch(err => console.error('[EMAIL] Auto-trigger fetch promise failed after approval:', err.message));
-    } catch (emailTriggerErr) {
-      console.error('[EMAIL] Auto-trigger failed after approval (will retry via cron):', emailTriggerErr.message);
+      });
+      const triggerResult = await triggerRes.json();
+      console.log('[EMAIL] Auto-triggered queue after approval:', triggerResult);
+    } catch (triggerErr) {
+      console.error('[EMAIL] Auto-trigger failed (will retry via cron):', triggerErr.message);
     }
 
     return res.status(200).json({ success: true, message: "Enrollment processed." });

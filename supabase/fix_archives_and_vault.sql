@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.archived_documents (
   storage_path TEXT NOT NULL,
   is_public BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
-  uploaded_by UUID REFERENCES public.users(id)
+  created_by UUID REFERENCES public.users(id)
 );
 
 -- 3. Enable RLS
@@ -75,20 +75,20 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public;
 -- Archives Policies
 DROP POLICY IF EXISTS "archives_select_staff" ON public.enrollment_archives;
 CREATE POLICY "archives_select_staff" ON public.enrollment_archives
-  FOR SELECT TO authenticated USING (public.is_admin());
+  FOR SELECT TO authenticated USING (public.is_staff());
 
 DROP POLICY IF EXISTS "archives_all_admin" ON public.enrollment_archives;
 CREATE POLICY "archives_all_admin" ON public.enrollment_archives
-  FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+  FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
 
 -- Documents Policies
 DROP POLICY IF EXISTS "docs_select_staff" ON public.archived_documents;
 CREATE POLICY "docs_select_staff" ON public.archived_documents
-  FOR SELECT TO authenticated USING (public.is_admin());
+  FOR SELECT TO authenticated USING (public.is_staff());
 
 DROP POLICY IF EXISTS "docs_all_staff" ON public.archived_documents;
 CREATE POLICY "docs_all_staff" ON public.archived_documents
-  FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+  FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
 
 -- 5. Fix Storage Policies for 'vault' bucket
 -- Ensure bucket exists
@@ -99,23 +99,23 @@ WHERE NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'vault');
 DROP POLICY IF EXISTS "vault_staff_insert" ON storage.objects;
 CREATE POLICY "vault_staff_insert" ON storage.objects
   FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'vault' AND public.is_admin());
+  WITH CHECK (bucket_id = 'vault' AND public.is_staff());
 
 DROP POLICY IF EXISTS "vault_staff_select" ON storage.objects;
 CREATE POLICY "vault_staff_select" ON storage.objects
   FOR SELECT TO authenticated
-  USING (bucket_id = 'vault' AND public.is_admin());
+  USING (bucket_id = 'vault' AND public.is_staff());
 
 DROP POLICY IF EXISTS "vault_staff_update" ON storage.objects;
 CREATE POLICY "vault_staff_update" ON storage.objects
   FOR UPDATE TO authenticated
-  USING (bucket_id = 'vault' AND public.is_admin())
-  WITH CHECK (bucket_id = 'vault' AND public.is_admin());
+  USING (bucket_id = 'vault' AND public.is_staff())
+  WITH CHECK (bucket_id = 'vault' AND public.is_staff());
 
 DROP POLICY IF EXISTS "vault_staff_delete" ON storage.objects;
 CREATE POLICY "vault_staff_delete" ON storage.objects
   FOR DELETE TO authenticated
-  USING (bucket_id = 'vault' AND public.is_admin());
+  USING (bucket_id = 'vault' AND public.is_staff());
 
 -- 6. Reload Schema
 NOTIFY pgrst, 'reload schema';

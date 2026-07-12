@@ -4,17 +4,6 @@
 
 @layer base {
   * { -webkit-tap-highlight-color: transparent; }
-
-  /* Autofill fix */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  input:-webkit-autofill:active,
-  input:autofill {
-    -webkit-box-shadow: 0 0 0 30px #2d5a3d inset !important;
-    -webkit-text-fill-color: #e8f5e9 !important;
-    transition: background-color 5000s ease-in-out 0s;
-  }
   
   html {
     background-color: #1a3a2a;
@@ -40,6 +29,18 @@
   }
   ::-webkit-scrollbar-thumb:hover { background: #4caf50; }
   
+  /* Override browser autofill — keep dark green theme */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active,
+  input:autofill {
+    -webkit-box-shadow: 0 0 0 30px #2d5a3d inset !important;
+    -webkit-text-fill-color: #e8f5e9 !important;
+    transition: background-color 5000s ease-in-out 0s;
+    caret-color: #e8f5e9;
+  }
+
   /* Safe area for PWA standalone mode */
   .safe-top    { padding-top: env(safe-area-inset-top); }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }

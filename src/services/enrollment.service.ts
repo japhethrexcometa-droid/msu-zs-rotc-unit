@@ -35,52 +35,191 @@ export async function getPaginatedEnrollmentRequests(
   page: number,
   pageSize: number,
   status: 'pending' | 'approved' | 'rejected',
-  searchQuery: string = ''
-): Promise<{ data: EnrollmentRequest[], count: number }> {
-  await ensureAuthSession()
+  searchQuery: string = '',
+  sortBy?: string,
+  sortOrder?: 'asc' | 'desc',
+  school?: string
+): Promise<{ data: EnrollmentRequest[], count: number, summary: any, duplicates: string[], existingAccounts: string[], statsBySchool: any, allSchools: string[], emailQueueCount: number }> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
 
-  let query = supabase
-    .from('enrollment_requests')
-    .select('*', { count: 'exact' })
-    .eq('status', status)
+  const params = new URLSearchParams({
+    status,
+    searchQuery,
+    page: page.toString(),
+    pageSize: pageSize.toString()
+  });
 
-  if (searchQuery) {
-    // Search by name or ID number
-    query = query.or(`id_number.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+  if (sortBy) params.append('sortBy', sortBy);
+  if (sortOrder) params.append('sortOrder', sortOrder);
+  if (school) params.append('school', school);
+
+  const response = await fetch(`/api/admin/enrollment-requests?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to fetch enrollment requests");
   }
 
-  // Order based on status
-  if (status === 'pending') {
-    query = query.order('created_at', { ascending: true })
-  } else {
-    query = query.order('reviewed_at', { ascending: false })
-  }
-
-  // Pagination
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-  query = query.range(from, to)
-
-  const { data, error, count } = await query
-
-  if (error) throw error
-  return { data: data ?? [], count: count ?? 0 }
+  return {
+    data: result.data,
+    count: result.count,
+    summary: result.summary,
+    duplicates: result.duplicates || [],
+    existingAccounts: result.existingAccounts || [],
+    statsBySchool: result.statsBySchool || {},
+    allSchools: result.allSchools || [],
+    emailQueueCount: result.emailQueueCount || 0
+  };
 }
 
 /**
  * @deprecated Use getPaginatedEnrollmentRequests() for paginated queries.
  * Fetches ALL enrollment requests (all statuses) — used by the admin dashboard.
  */
-export async function getAllEnrollmentRequests(): Promise<EnrollmentRequest[]> {
-  await ensureAuthSession()
+export async function getAllEnrollmentRequests(
+  status?: string,
+  searchQuery: string = ''
+): Promise<EnrollmentRequest[]> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
 
-  const { data, error } = await supabase
-    .from('enrollment_requests')
-    .select('*')
-    .order('created_at', { ascending: false })
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (searchQuery) params.append('searchQuery', searchQuery);
 
-  if (error) throw error
-  return data ?? []
+  const response = await fetch(`/api/admin/enrollment-requests?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to fetch enrollment requests");
+  }
+
+  return result.data;
+}
+
+export async function bulkApproveEnrollments(requestIds: string[]): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/bulk-approve', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ requestIds })
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to process bulk approval");
+  }
+
+  return result;
+}
+
+export async function bulkRejectEnrollments(requestIds: string[], reason: string): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/bulk-reject', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ requestIds, reason })
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to process bulk rejection");
+  }
+
+  return result;
+}
+
+export async function archiveEnrollments(payload: { requestIds?: string[], academicYear: string, archiveAllProcessed?: boolean, status?: string }): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/archive-enrollment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to archive records");
+  }
+
+  return result;
+}
+
+export async function getEnrollmentArchives(params: { searchQuery?: string, academicYear?: string, page?: number, pageSize?: number }): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const urlParams = new URLSearchParams();
+  if (params.searchQuery) urlParams.append('searchQuery', params.searchQuery);
+  if (params.academicYear) urlParams.append('academicYear', params.academicYear);
+  if (params.page) urlParams.append('page', params.page.toString());
+  if (params.pageSize) urlParams.append('pageSize', params.pageSize.toString());
+
+  const response = await fetch(`/api/admin/enrollment-archives?${urlParams}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to fetch archives");
+  }
+
+  return result;
+}
+
+export async function importEnrollmentArchives(payload: { records: any[], academicYear: string }): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch('/api/admin/import-archives', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to import archives");
+  }
+
+  return result;
 }
 
 export async function approveEnrollment(
@@ -88,6 +227,7 @@ export async function approveEnrollment(
   reviewerId: string
 ): Promise<void> {
   // Fetch the current user session so we can attach the JWT manually
+  await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("You must be logged in to approve requests.");
@@ -122,6 +262,7 @@ export async function rejectEnrollment(
   reason: string
 ): Promise<void> {
   // Use the same Vercel serverless API as approveEnrollment
+  await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("You must be logged in to reject requests.");

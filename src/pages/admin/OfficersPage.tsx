@@ -6,9 +6,9 @@ import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
-import { useAllOfficers, useUpdateUser, useDeactivateUser, useResetUserPassword } from '@/hooks/queries/useUsers'
+import { useAllOfficers, useUpdateUser, useDeactivateUser, useReactivateUser, useResetUserPassword } from '@/hooks/queries/useUsers'
 import { useState, useMemo } from 'react'
-import { Search, Edit, UserX, Key } from 'lucide-react'
+import { Search, Edit, UserX, Key, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
 
@@ -19,11 +19,13 @@ export default function OfficersPage() {
   const { data: officers, isLoading } = useAllOfficers()
   const updateMutation = useUpdateUser()
   const deactivateMutation = useDeactivateUser()
+  const reactivateMutation = useReactivateUser()
 
   const [search, setSearch] = useState('')
   const [platoonFilter, setPlatoonFilter] = useState('All')
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deactivateId, setDeactivateId] = useState<string | null>(null)
+  const [reactivateId, setReactivateId] = useState<string | null>(null)
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
   const [newPassword, setNewPassword] = useState('')
 
@@ -69,6 +71,17 @@ export default function OfficersPage() {
       await deactivateMutation.mutateAsync(deactivateId)
       toast.success('Officer deactivated')
       setDeactivateId(null)
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleReactivate = async () => {
+    if (!reactivateId) return
+    try {
+      await reactivateMutation.mutateAsync(reactivateId)
+      toast.success('Officer reactivated')
+      setReactivateId(null)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -138,9 +151,15 @@ export default function OfficersPage() {
                   <button onClick={() => { setResetPasswordUser(o); setNewPassword(''); }} className="p-1.5 text-rotc-textMuted hover:text-rotc-accent rounded-md hover:bg-rotc-cardHover transition-colors" title="Reset Password">
                     <Key className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setDeactivateId(o.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-danger rounded-md hover:bg-rotc-cardHover transition-colors" title="Deactivate">
-                    <UserX className="h-4 w-4" />
-                  </button>
+                  {o.is_active ? (
+                    <button onClick={() => setDeactivateId(o.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-danger rounded-md hover:bg-rotc-cardHover transition-colors" title="Deactivate">
+                      <UserX className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => setReactivateId(o.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-accent rounded-md hover:bg-rotc-cardHover transition-colors" title="Reactivate">
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                  )}
                 </td>
               </>
             )}
@@ -161,7 +180,7 @@ export default function OfficersPage() {
                 {platoons.filter(p => p !== 'All').map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-            <Input label="Designation" name="designation" defaultValue={editUser.designation || ''} placeholder="e.g. Platoon Leader" />
+            <Input label="Designation" name="designation" defaultValue={editUser.designation || ''} placeholder="Enter designation" />
             <Input label="Photo URL (Optional)" name="photo_url" defaultValue={editUser.photo_url || ''} />
             <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">
               <Button type="button" variant="outline" onClick={() => setEditUser(null)}>Cancel</Button>
@@ -180,6 +199,15 @@ export default function OfficersPage() {
         </div>
       </Modal>
 
+      {/* Reactivate Modal */}
+      <Modal isOpen={!!reactivateId} onClose={() => setReactivateId(null)} title="Confirm Reactivation">
+        <p className="text-sm text-rotc-text mt-4">Are you sure you want to reactivate this officer? They will regain access to the system.</p>
+        <div className="flex justify-end gap-3 pt-6">
+          <Button variant="outline" onClick={() => setReactivateId(null)}>Cancel</Button>
+          <Button variant="primary" onClick={handleReactivate} isLoading={reactivateMutation.isPending}>Reactivate</Button>
+        </div>
+      </Modal>
+
       {/* Reset Password Modal */}
       <Modal isOpen={!!resetPasswordUser} onClose={() => setResetPasswordUser(null)} title="Reset Password">
         {resetPasswordUser && (
@@ -193,7 +221,7 @@ export default function OfficersPage() {
               type="text" 
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="e.g. tes123"
+              placeholder="Enter password"
               required 
             />
             <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">
