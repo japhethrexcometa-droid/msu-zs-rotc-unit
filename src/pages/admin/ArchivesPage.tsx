@@ -100,11 +100,6 @@ export default function ArchivesPage() {
   }, [currentPath, vaultSearch, vaultPage, vaultPageSize])
 
   useEffect(() => {
-    setVaultSearch('')
-    setVaultPage(1)
-  }, [currentPath])
-
-  useEffect(() => {
     checkStorage()
   }, [])
 
@@ -359,7 +354,7 @@ export default function ArchivesPage() {
     return (
       <div className="flex items-center gap-1.5 text-sm text-rotc-textMuted bg-rotc-bg/40 px-3 py-1.5 rounded-lg border border-rotc-border/40">
         <button
-          onClick={() => { setCurrentPath(''); setVaultPage(1); }}
+          onClick={() => { setCurrentPath(''); setVaultPage(1); setVaultSearch(''); }}
           className="hover:text-rotc-accent transition-colors font-medium flex items-center gap-1 hover:underline"
         >
           <HomeIcon className="h-4 w-4" />
@@ -375,7 +370,7 @@ export default function ArchivesPage() {
                 <span className="text-rotc-text font-bold max-w-[150px] truncate">{part}</span>
               ) : (
                 <button
-                  onClick={() => { setCurrentPath(folderPath); setVaultPage(1); }}
+                  onClick={() => { setCurrentPath(folderPath); setVaultPage(1); setVaultSearch(''); }}
                   className="hover:text-rotc-accent transition-colors font-medium hover:underline max-w-[120px] truncate"
                 >
                   {part}
@@ -488,6 +483,7 @@ export default function ArchivesPage() {
                           const target = d.folder_name ? `${d.folder_name}/${d.display_name}` : (d.display_name || '');
                           setCurrentPath(target);
                           setVaultPage(1);
+                          setVaultSearch('');
                         }
                       }}
                     >
