@@ -102,19 +102,56 @@ export async function uploadDocument(file: File, folder: string, isPublic: boole
   return { success: true }
 }
 
-export async function deleteDocument(id: string, path: string) {
+export async function deleteDocument(id: string, path: string, isFolder: boolean = false, folderFullPath: string = '') {
   await ensureAuthSession()
   const { data: sessionData } = await supabase.auth.getSession()
   const token = sessionData.session?.access_token
   if (!token) throw new Error("Unauthorized")
 
-  const response = await fetch(`/api/admin/documents?id=${id}&path=${encodeURIComponent(path)}`, {
+  const urlParams = new URLSearchParams()
+  urlParams.append('id', id)
+  urlParams.append('path', path)
+  if (isFolder) urlParams.append('isFolder', 'true')
+  if (folderFullPath) urlParams.append('folderFullPath', folderFullPath)
+
+  const response = await fetch(`/api/admin/documents?${urlParams}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
   })
   const result = await response.json()
   if (!response.ok) throw new Error(result.error)
   return result
+}
+
+export async function createFolder(folderName: string, parentFolder: string) {
+  await ensureAuthSession()
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  if (!token) throw new Error("Unauthorized")
+
+  const response = await fetch('/api/admin/documents', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      filename: folderName,
+      display_name: folderName,
+      original_name: folderName,
+      folder_name: parentFolder || 'Root',
+      file_size: 0,
+      mime_type: 'application/vnd.rotc.folder',
+      storage_path: parentFolder ? `${parentFolder}/${folderName}` : folderName,
+      is_public: false
+    })
+  })
+
+  const result = await response.json()
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to create folder")
+  }
+  return { success: true, data: result.data }
 }
 
 export async function getPublicDocuments(params: { search?: string, folder?: string }) {

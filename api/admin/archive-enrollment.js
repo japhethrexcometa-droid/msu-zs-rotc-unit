@@ -139,7 +139,7 @@ export default async function handler(req, res) {
       const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
       const dateStr = new Date().toISOString().split('T')[0];
       const filename = `${dateStr}_Archive_${academicYear.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
-      const storagePath = `Archives/${filename}`;
+      const storagePath = `${academicYear}/${filename}`;
 
       // Upload CSV to Vault Storage
       await supabaseAdmin.storage.from('vault').upload(storagePath, Buffer.from(csvContent), {
@@ -151,7 +151,7 @@ export default async function handler(req, res) {
       await supabaseAdmin.from('archived_documents').insert({
         filename,
         original_name: filename,
-        folder_name: 'Historical Enrollment (CHED)',
+        folder_name: academicYear,
         file_size: csvContent.length,
         mime_type: 'text/csv',
         storage_path: storagePath,

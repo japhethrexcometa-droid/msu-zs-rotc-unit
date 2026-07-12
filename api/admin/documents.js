@@ -108,12 +108,45 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      const { id, path } = req.query;
-      if (!id || !path) throw new Error("Missing ID or path");
+      const { id, path, isFolder, folderFullPath } = req.query;
+      if (!id) throw new Error("Missing ID");
 
-      // Delete from storage first
-      const { error: storageError } = await supabaseAdmin.storage.from('vault').remove([path]);
-      if (storageError) throw storageError;
+      // Recursive folder deletion
+      if (isFolder === 'true' && folderFullPath) {
+        // 1. Find all documents inside this folder
+        const { data: childDocs, error: childErr } = await supabaseAdmin
+          .from('archived_documents')
+          .select('id, storage_path, mime_type')
+          .eq('folder_name', folderFullPath);
+
+        if (childErr) throw childErr;
+
+        // 2. Delete all child files from storage (skip virtual folders)
+        if (childDocs && childDocs.length > 0) {
+          const storagePaths = childDocs
+            .filter(d => d.mime_type !== 'application/vnd.rotc.folder' && d.storage_path)
+            .map(d => d.storage_path);
+
+          if (storagePaths.length > 0) {
+            await supabaseAdmin.storage.from('vault').remove(storagePaths);
+          }
+
+          // 3. Delete all child metadata from DB
+          const childIds = childDocs.map(d => d.id);
+          await supabaseAdmin.from('archived_documents').delete().in('id', childIds);
+        }
+
+        // 4. Delete the folder entry itself
+        await supabaseAdmin.from('archived_documents').delete().eq('id', id);
+
+        return res.status(200).json({ success: true, message: "Folder and contents deleted successfully" });
+      }
+
+      // Single file deletion
+      if (path) {
+        const { error: storageError } = await supabaseAdmin.storage.from('vault').remove([path]);
+        if (storageError) throw storageError;
+      }
 
       // Delete metadata
       const { error: dbError } = await supabaseAdmin.from('archived_documents').delete().eq('id', id);

@@ -3,47 +3,61 @@ import { useSession } from '@/hooks/useSession'
 import AppLayout from '@/components/layout/AppLayout'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import Table from '@/components/ui/Table'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import { toast } from 'sonner'
 import {
   Folder as FolderIcon,
+  FolderPlus as FolderPlusIcon,
   Search as SearchIcon,
-  ShieldCheck as ShieldCheckIcon,
   ShieldAlert as ShieldAlertIcon,
   FileText as FileIcon,
   Upload as UploadIcon,
   Download as DownloadIcon,
   Trash2 as TrashIcon,
-  Archive as ArchiveIcon,
   Edit3 as RenameIcon,
-  Database as DatabaseIcon,
-  RotateCcw as RotateCcwIcon
+  RotateCcw as RotateCcwIcon,
+  ChevronRight as ChevronRightIcon,
+  Home as HomeIcon,
+  Database as DatabaseIcon
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord, initStorage } from '@/services/documents.service'
+import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord, initStorage, createFolder } from '@/services/documents.service'
 import { supabase } from '@/lib/supabase'
-import * as XLSX from 'xlsx'
 
 export default function ArchivesPage() {
   const session = useSession()
 
-  // Vault State
+  // Google Drive Style State
+  const [currentPath, setCurrentPath] = useState<string>('')
   const [vaultSearch, setVaultSearch] = useState('')
-  const [vaultFolder, setVaultFolder] = useState<string | undefined>(undefined)
   const [vaultPage, setVaultPage] = useState(1)
-  const [vaultPageSize, setVaultPageSize] = useState(20)
+  const [vaultPageSize, setVaultPageSize] = useState(50)
   const [vaultData, setVaultData] = useState<{ data: DocumentRecord[], count: number, folders: string[] }>({ data: [], count: 0, folders: [] })
   const [isVaultLoading, setIsVaultLoading] = useState(false)
+
+  // Modals
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false)
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false)
   const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null)
   const [newDocName, setNewDocName] = useState('')
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
-  const [uploadFolder, setUploadFolder] = useState('')
-  const [customFilename, setCustomFilename] = useState('')
+
+  // Bulk upload states
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+
+  // Create Folder states
+  const [newFolderName, setNewFolderName] = useState('')
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+
+  // Downloading All status
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false)
+
+  // Compiled CSV download status
+  const [isCompilingCSV, setIsCompilingCSV] = useState(false)
+
   const [storageStatus, setStorageStatus] = useState<'checking' | 'ready' | 'error'>('checking')
   const [storageError, setStorageError] = useState('')
 
@@ -53,7 +67,7 @@ export default function ArchivesPage() {
     try {
       const result = await getAdminDocuments({
         search: vaultSearch,
-        folder: vaultFolder,
+        folder: currentPath,
         page: vaultPage,
         pageSize: vaultPageSize
       })
@@ -83,9 +97,16 @@ export default function ArchivesPage() {
 
   useEffect(() => {
     loadVault()
-    // Auto-init storage on first load
+  }, [currentPath, vaultSearch, vaultPage, vaultPageSize])
+
+  useEffect(() => {
+    setVaultSearch('')
+    setVaultPage(1)
+  }, [currentPath])
+
+  useEffect(() => {
     checkStorage()
-  }, [vaultSearch, vaultFolder, vaultPage, vaultPageSize])
+  }, [])
 
   if (!session) return null
 
@@ -103,11 +124,121 @@ export default function ArchivesPage() {
     }
   }
 
-  const handleDelete = async (doc: DocumentRecord) => {
-    if (!confirm(`Are you sure you want to delete "${doc.filename}"?`)) return
+  const handleDownloadAll = async () => {
+    const filesToDownload = (vaultData.data || []).filter(
+      d => d.mime_type !== 'application/vnd.rotc.folder' && d.filename !== 'empty_folder_placeholder.keep' && !d.filename.endsWith('_empty_folder_placeholder.keep')
+    )
+
+    if (filesToDownload.length === 0) {
+      toast.error("No files in this folder to download.")
+      return
+    }
+
+    setIsDownloadingAll(true)
+    toast.info(`Preparing download for ${filesToDownload.length} file(s)...`)
+
     try {
-      await deleteDocument(doc.id, doc.storage_path)
-      toast.success("Document deleted")
+      for (let i = 0; i < filesToDownload.length; i++) {
+        const doc = filesToDownload[i]
+        try {
+          const url = await getDownloadUrl(doc.storage_path)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = doc.filename
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          await new Promise(resolve => setTimeout(resolve, 600))
+        } catch (err) {
+          console.error(`Failed to download ${doc.filename}:`, err)
+        }
+      }
+      toast.success("Download tasks started successfully")
+    } catch (err: any) {
+      toast.error("Download failed: " + err.message)
+    } finally {
+      setIsDownloadingAll(false)
+    }
+  }
+
+  // NEW FEATURE: Download Compiled Historical CSV from enrollment_archives
+  const handleDownloadCompiledCSV = async () => {
+    setIsCompilingCSV(true)
+    toast.info("Compiling all historical enrollment records...")
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error("Unauthorized")
+
+      // Fetch ALL enrollment archives without pagination
+      const response = await fetch('/api/admin/enrollment-archives?pageSize=100000', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || "Failed to fetch archives")
+
+      const records = result.data || []
+      if (records.length === 0) {
+        toast.error("No archived enrollment records found.")
+        setIsCompilingCSV(false)
+        return
+      }
+
+      // Build CSV
+      const csvHeaders = [
+        'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
+        'Gender', 'DOB', 'Course/Year', 'Year/Class', 'Semester', 'Academic Year',
+        'Contact', 'Email', 'Status', 'Role', 'Platoon',
+        'Rejection Reason', 'Reviewed At', 'Archived Date'
+      ]
+
+      const csvRows = records.map((r: any) => [
+        r.id_number, r.school, r.last_name, r.first_name, r.middle_initial, r.suffix,
+        r.gender, r.date_of_birth, r.course_year, r.year_class, r.semester, r.academic_year,
+        r.contact_number, r.email, r.status, r.role, r.platoon,
+        r.rejection_reason, r.reviewed_at, r.created_at
+      ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','))
+
+      const csvContent = [csvHeaders.join(','), ...csvRows].join('\n')
+
+      // Trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const dateStr = new Date().toISOString().split('T')[0]
+      link.href = url
+      link.download = `${dateStr}_Compiled_All_Enrollment_Archives.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success(`Successfully compiled ${records.length} records into CSV!`)
+    } catch (err: any) {
+      toast.error("Failed to compile CSV: " + err.message)
+    } finally {
+      setIsCompilingCSV(false)
+    }
+  }
+
+  const handleDelete = async (doc: DocumentRecord) => {
+    const isFolder = doc.mime_type === 'application/vnd.rotc.folder'
+    const msg = isFolder
+      ? `Are you sure you want to delete folder "${doc.display_name}" and ALL its nested contents permanently? This cannot be undone.`
+      : `Are you sure you want to delete file "${doc.display_name || doc.filename}"?`
+
+    if (!confirm(msg)) return
+
+    try {
+      if (isFolder) {
+        const folderFullPath = currentPath ? `${currentPath}/${doc.display_name}` : doc.display_name || ''
+        await deleteDocument(doc.id, doc.storage_path, true, folderFullPath)
+        toast.success(`Folder "${doc.display_name}" and its files deleted`)
+      } else {
+        await deleteDocument(doc.id, doc.storage_path, false)
+        toast.success("Document deleted")
+      }
       loadVault()
     } catch (err: any) {
       toast.error(err.message)
@@ -115,38 +246,92 @@ export default function ArchivesPage() {
   }
 
   const handleUpload = async () => {
-    if (!uploadFile || !uploadFolder) return
+    if (uploadFiles.length === 0) return
+    setIsUploading(true)
+    let successCount = 0
+    let failCount = 0
+
+    for (const file of uploadFiles) {
+      try {
+        await uploadDocument(file, currentPath, false, file.name)
+        successCount++
+      } catch (err: any) {
+        console.error(`Failed to upload ${file.name}:`, err)
+        failCount++
+      }
+    }
+
+    setIsUploading(false)
+    if (successCount > 0) {
+      toast.success(`Successfully uploaded ${successCount} document(s)`)
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to upload ${failCount} document(s)`)
+    }
+
+    setIsUploadModalOpen(false)
+    setUploadFiles([])
+    loadVault()
+  }
+
+  const handleCreateFolder = async () => {
+    const trimmed = newFolderName.trim().replace(/[\/\\]+$/, '')
+    if (!trimmed) return
+
+    setIsCreatingFolder(true)
     try {
-      await uploadDocument(uploadFile, uploadFolder, false, customFilename)
-      toast.success("Document uploaded successfully")
-      setIsUploadModalOpen(false)
-      setUploadFile(null)
-      setUploadFolder('')
-      setCustomFilename('')
+      await createFolder(trimmed, currentPath)
+      toast.success(`Folder "${trimmed}" created successfully`)
+      setIsCreateFolderModalOpen(false)
+      setNewFolderName('')
       loadVault()
     } catch (err: any) {
-      if (err.message.includes("row-level security policy")) {
-        toast.error("Upload failed: Storage permissions are currently restricted. Please try clicking 'Retry Repair' in the sidebar.")
-      } else {
-        toast.error(err.message)
-      }
+      toast.error("Failed to create folder: " + err.message)
+    } finally {
+      setIsCreatingFolder(false)
     }
   }
 
   const handleRename = async () => {
     if (!selectedDoc || !newDocName) return
     try {
-      const res = await fetch('/api/admin/documents', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
-        body: JSON.stringify({ id: selectedDoc.id, newFilename: newDocName })
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      toast.success("Document renamed")
+      const isFolder = selectedDoc.mime_type === 'application/vnd.rotc.folder'
+
+      if (isFolder) {
+        // Rename folder: update all documents in this folder to the new folder name
+        const oldFolderPath = currentPath ? `${currentPath}/${selectedDoc.display_name}` : selectedDoc.display_name
+        const newFolderPath = currentPath ? `${currentPath}/${newDocName}` : newDocName
+
+        const res = await fetch('/api/admin/documents', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          },
+          body: JSON.stringify({
+            id: selectedDoc.id,
+            newFilename: newDocName,
+            oldFolderName: oldFolderPath,
+            newFolderName: newFolderPath
+          })
+        })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error)
+      } else {
+        // Rename file display name
+        const res = await fetch('/api/admin/documents', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          },
+          body: JSON.stringify({ id: selectedDoc.id, newFilename: newDocName })
+        })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error)
+      }
+
+      toast.success("Renamed successfully")
       setIsRenameModalOpen(false)
       loadVault()
     } catch (err: any) {
@@ -154,183 +339,291 @@ export default function ArchivesPage() {
     }
   }
 
+  // Filter out any virtual .keep placeholders
+  const displayedItems = (vaultData?.data || []).filter(
+    d => d.filename !== '.keep' || d.mime_type === 'application/vnd.rotc.folder'
+  )
+
+  // Sort: folders first, then files alphabetically
+  const sortedItems = [...displayedItems].sort((a, b) => {
+    const isFolderA = a.mime_type === 'application/vnd.rotc.folder'
+    const isFolderB = b.mime_type === 'application/vnd.rotc.folder'
+    if (isFolderA && !isFolderB) return -1
+    if (!isFolderA && isFolderB) return 1
+    return (a.display_name || a.filename).localeCompare(b.display_name || b.filename)
+  })
+
+  // Breadcrumbs Generator
+  const renderBreadcrumbs = () => {
+    const parts = currentPath ? currentPath.split('/') : []
+    return (
+      <div className="flex items-center gap-1.5 text-sm text-rotc-textMuted bg-rotc-bg/40 px-3 py-1.5 rounded-lg border border-rotc-border/40">
+        <button
+          onClick={() => { setCurrentPath(''); setVaultPage(1); }}
+          className="hover:text-rotc-accent transition-colors font-medium flex items-center gap-1 hover:underline"
+        >
+          <HomeIcon className="h-4 w-4" />
+          <span>Home</span>
+        </button>
+        {parts.map((part, index) => {
+          const folderPath = parts.slice(0, index + 1).join('/')
+          const isLast = index === parts.length - 1
+          return (
+            <div key={folderPath} className="flex items-center gap-1.5">
+              <ChevronRightIcon className="h-3.5 w-3.5 opacity-60" />
+              {isLast ? (
+                <span className="text-rotc-text font-bold max-w-[150px] truncate">{part}</span>
+              ) : (
+                <button
+                  onClick={() => { setCurrentPath(folderPath); setVaultPage(1); }}
+                  className="hover:text-rotc-accent transition-colors font-medium hover:underline max-w-[120px] truncate"
+                >
+                  {part}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <AppLayout title="Document Vault">
       <div className="space-y-6">
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Folders Sidebar */}
-          <div className="lg:col-span-1 space-y-4">
-            <Card>
-              <CardHeader>
-                <h3 className="text-sm font-bold text-rotc-text flex items-center gap-2">
-                  <FolderIcon className="h-4 w-4 text-rotc-accent" /> Folders
-                </h3>
-              </CardHeader>
-              <CardContent className="px-2 py-2">
-                <div className="space-y-1">
-                  <button
-                    onClick={() => { setVaultFolder(undefined); }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      !vaultFolder ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
-                    }`}
-                  >
-                    All Documents
-                  </button>
+        {/* Top Control Bar with breadcrumbs and primary actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {renderBreadcrumbs()}
 
-                  {vaultData.folders?.map((folder: string) => (
-                    <button
-                      key={folder}
-                      onClick={() => { setVaultFolder(folder); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                        vaultFolder === folder ? 'bg-rotc-accent/10 text-rotc-accent font-medium' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
-                      }`}
-                    >
-                      <span className="truncate max-w-[150px]">{folder}</span>
-                      <FileIcon className="h-3.5 w-3.5 opacity-40 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-
-                {/* Storage Health Check */}
-                <div className="mt-4 pt-4 border-t border-rotc-border px-2">
-                  <div className={`p-3 rounded-lg flex items-center justify-between mb-4 ${
-                    storageStatus === 'ready' ? 'bg-green-500/10 text-green-500' :
-                    storageStatus === 'checking' ? 'bg-rotc-bg text-rotc-textMuted' : 'bg-rotc-danger/10 text-rotc-danger'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      {storageStatus === 'ready' ? <ShieldCheckIcon className="h-4 w-4" /> :
-                       storageStatus === 'checking' ? <RotateCcwIcon className="h-4 w-4 animate-spin" /> :
-                       <ShieldAlertIcon className="h-4 w-4" />}
-                      <span className="text-[10px] font-bold uppercase tracking-wider">
-                        Storage {storageStatus}
-                      </span>
-                    </div>
-                    {storageStatus === 'error' && (
-                      <button onClick={checkStorage} className="p-1 hover:bg-rotc-danger/20 rounded transition-colors" title="Retry Repair">
-                        <RotateCcwIcon className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-
-                  {storageStatus === 'error' && (
-                    <p className="text-[10px] text-rotc-danger mb-4 px-1 italic">
-                      Error: {storageError}. Please ensure the "vault" bucket exists in Supabase Storage.
-                    </p>
-                  )}
-
-                  <Button variant="primary" size="sm" className="w-full text-xs" onClick={() => {
-                    setUploadFolder(vaultFolder || '');
-                    setIsUploadModalOpen(true);
-                  }}>
-                    <UploadIcon className="h-3 w-3 mr-2" /> Upload Document
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Content Area */}
-          <div className="lg:col-span-3 space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-                  <h3 className="text-sm font-bold text-rotc-text flex items-center gap-2">
-                    {vaultFolder || 'All Documents'}
-                  </h3>
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="flex items-center gap-2 text-xs text-rotc-textMuted whitespace-nowrap">
-                      <select
-                        value={vaultPageSize}
-                        onChange={e => { setVaultPageSize(Number(e.target.value)); setVaultPage(1); }}
-                        className="bg-rotc-bg border border-rotc-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-rotc-accent"
-                      >
-                        {[10, 20, 50, 100].map(sz => <option key={sz} value={sz}>{sz}</option>)}
-                      </select>
-                    </div>
-                    <div className="relative max-w-xs w-full">
-                      <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-rotc-textMuted" />
-                      <Input
-                        placeholder="Search..."
-                        className="pl-9 h-9 text-xs"
-                        value={vaultSearch}
-                        onChange={e => setVaultSearch(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table
-                      headers={['File Name', 'Folder', 'Type', 'Size', 'Date Added', 'Actions']}
-                      isLoading={isVaultLoading}
-                      emptyMessage={storageStatus === 'error' ? "Cannot access documents. Please check your Storage Health status in the sidebar." : "No documents available."}
-                      data={vaultData?.data || []}
-                      keyExtractor={(d) => d.id}
-                      renderRow={(d) => (
-                        <>
-                          <td className="p-4 text-sm font-medium text-rotc-text flex items-center gap-2">
-                            <FileIcon className="h-4 w-4 text-rotc-accent" /> {d.display_name || d.filename}
-                          </td>
-                          <td className="p-4 text-sm text-rotc-textMuted">{d.folder_name}</td>
-                          <td className="p-4 text-sm text-rotc-textMuted uppercase">{d.mime_type?.split('/')[1] || 'FILE'}</td>
-                          <td className="p-4 text-sm text-rotc-textMuted">{(d.file_size / 1024).toFixed(1)} KB</td>
-                          <td className="p-4 text-sm text-rotc-textMuted">{format(new Date(d.created_at), 'MMM d, yyyy')}</td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => handleDownload(d)} className="p-2 hover:bg-rotc-accent/10 rounded-lg text-rotc-accent transition-colors" title="Download"><DownloadIcon className="h-4 w-4" /></button>
-                              <button onClick={() => { setSelectedDoc(d); setNewDocName(d.display_name || d.filename); setIsRenameModalOpen(true); }} className="p-2 hover:bg-blue-500/10 rounded-lg text-blue-500 transition-colors" title="Rename"><RenameIcon className="h-4 w-4" /></button>
-                              <button onClick={() => handleDelete(d)} className="p-2 hover:bg-rotc-danger/10 rounded-lg text-rotc-danger transition-colors" title="Delete"><TrashIcon className="h-4 w-4" /></button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    />
-                    {(vaultData?.count ?? 0) > vaultPageSize && (
-                      <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
-                        <span className="text-xs text-rotc-textMuted">Showing {vaultData?.data?.length || 0} of {vaultData?.count || 0} entries</span>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" disabled={vaultPage === 1} onClick={() => setVaultPage(p => p - 1)}>Prev</Button>
-                          <Button variant="outline" size="sm" disabled={vaultPage * vaultPageSize >= (vaultData?.count ?? 0)} onClick={() => setVaultPage(p => p + 1)}>Next</Button>
-                        </div>
-                      </div>
-                    )}
-              </CardContent>
-            </Card>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="primary" size="sm" onClick={() => setIsUploadModalOpen(true)}>
+              <UploadIcon className="h-4 w-4 mr-1.5" /> Upload File
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsCreateFolderModalOpen(true)} className="border-rotc-accent/30 text-rotc-accent hover:bg-rotc-accent/10">
+              <FolderPlusIcon className="h-4 w-4 mr-1.5" /> Create Folder
+            </Button>
+            {currentPath && sortedItems.filter(d => d.mime_type !== 'application/vnd.rotc.folder').length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadAll}
+                isLoading={isDownloadingAll}
+                className="border-blue-500/30 text-blue-500 hover:bg-blue-500/10"
+              >
+                <DownloadIcon className="h-4 w-4 mr-1.5" /> Download Folder
+              </Button>
+            )}
+            {/* NEW: Compiled Historical CSV Export */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadCompiledCSV}
+              isLoading={isCompilingCSV}
+              className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+            >
+              <DatabaseIcon className="h-4 w-4 mr-1.5" /> Export All Enrollees CSV
+            </Button>
           </div>
         </div>
+
+        {/* Storage Health Alert */}
+        {storageStatus === 'error' && (
+          <div className="p-4 rounded-lg bg-rotc-danger/10 border border-rotc-danger/30 text-rotc-danger flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <ShieldAlertIcon className="h-5 w-5" />
+              <span>Storage Error: {storageError}. Run manual recovery SQL or verify storage configuration.</span>
+            </div>
+            <button onClick={checkStorage} className="flex items-center gap-1.5 text-xs bg-rotc-danger/20 hover:bg-rotc-danger/30 px-2.5 py-1.5 rounded transition-colors">
+              <RotateCcwIcon className="h-3.5 w-3.5" /> Retry Repair
+            </button>
+          </div>
+        )}
+
+        {/* Main Explorer View */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+              <h3 className="text-sm font-bold text-rotc-text flex items-center gap-2">
+                📂 {currentPath ? currentPath.split('/').pop() : 'Root Folder'}
+              </h3>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="flex items-center gap-2 text-xs text-rotc-textMuted whitespace-nowrap">
+                  <select
+                    value={vaultPageSize}
+                    onChange={e => { setVaultPageSize(Number(e.target.value)); setVaultPage(1); }}
+                    className="bg-rotc-bg border border-rotc-border rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-rotc-accent"
+                  >
+                    {[20, 50, 100].map(sz => <option key={sz} value={sz}>{sz} per page</option>)}
+                  </select>
+                </div>
+                <div className="relative max-w-xs w-full">
+                  <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-rotc-textMuted" />
+                  <Input
+                    placeholder="Search in this folder..."
+                    className="pl-9 h-9 text-xs"
+                    value={vaultSearch}
+                    onChange={e => setVaultSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table
+              headers={['Name', 'Type', 'Size', 'Date Added', 'Actions']}
+              isLoading={isVaultLoading}
+              emptyMessage={storageStatus === 'error' ? "Storage error occurred. Please check the sidebar status." : "This folder is empty. Click Upload File or Create Folder to add content."}
+              data={sortedItems}
+              keyExtractor={(d) => d.id}
+              renderRow={(d) => {
+                const isFolder = d.mime_type === 'application/vnd.rotc.folder'
+                return (
+                  <>
+                    <td
+                      className={`p-4 text-sm font-medium ${isFolder ? 'cursor-pointer hover:bg-rotc-accent/5' : ''}`}
+                      onClick={() => {
+                        if (isFolder) {
+                          const target = d.folder_name ? `${d.folder_name}/${d.display_name}` : (d.display_name || '');
+                          setCurrentPath(target);
+                          setVaultPage(1);
+                        }
+                      }}
+                    >
+                      {isFolder ? (
+                        <div className="flex items-center gap-2.5 text-rotc-accent hover:underline font-semibold">
+                          <FolderIcon className="h-5 w-5 shrink-0 text-rotc-accent" />
+                          <span>{d.display_name}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2.5 text-rotc-text">
+                          <FileIcon className="h-5 w-5 shrink-0 opacity-60" />
+                          <span>{d.display_name || d.filename}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4 text-sm text-rotc-textMuted uppercase">
+                      {isFolder ? 'Folder' : d.mime_type?.split('/')[1] || 'File'}
+                    </td>
+                    <td className="p-4 text-sm text-rotc-textMuted">
+                      {isFolder ? '—' : `${(d.file_size / 1024).toFixed(1)} KB`}
+                    </td>
+                    <td className="p-4 text-sm text-rotc-textMuted">
+                      {format(new Date(d.created_at), 'MMM d, yyyy')}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-1.5">
+                        {!isFolder && (
+                          <button
+                            onClick={() => handleDownload(d)}
+                            className="p-1.5 hover:bg-rotc-accent/10 rounded-lg text-rotc-accent transition-colors"
+                            title="Download"
+                          >
+                            <DownloadIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setSelectedDoc(d); setNewDocName(d.display_name || d.filename); setIsRenameModalOpen(true); }}
+                          className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-500 transition-colors"
+                          title="Rename"
+                        >
+                          <RenameIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(d)}
+                          className="p-1.5 hover:bg-rotc-danger/10 rounded-lg text-rotc-danger transition-colors"
+                          title="Delete"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                )
+              }}
+            />
+            {(vaultData?.count ?? 0) > vaultPageSize && (
+              <div className="p-4 flex items-center justify-between border-t border-rotc-border bg-rotc-bg/30">
+                <span className="text-xs text-rotc-textMuted">Showing {sortedItems.length} of {vaultData?.count || 0} entries</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={vaultPage === 1} onClick={() => setVaultPage(p => p - 1)}>Prev</Button>
+                  <Button variant="outline" size="sm" disabled={vaultPage * vaultPageSize >= (vaultData?.count ?? 0)} onClick={() => setVaultPage(p => p + 1)}>Next</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Modals */}
-      <Modal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} title="Upload to Document Vault">
+      {/* Upload Modal */}
+      <Modal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} title="Upload files to Document Vault">
         <div className="space-y-4 mt-4">
-          <Input label="Folder Name" placeholder="e.g. Manuals, Memos, 2024-2025" value={uploadFolder} onChange={e => setUploadFolder(e.target.value)} required />
-          <Input label="Display Name (Optional)" placeholder="Custom filename (leave blank to keep original)" value={customFilename} onChange={e => setCustomFilename(e.target.value)} />
+          <div className="p-3 bg-rotc-bg/60 border border-rotc-border/60 rounded-lg text-xs text-rotc-textMuted">
+            Uploading files to folder: <span className="text-rotc-text font-bold">{currentPath || 'Root Folder'}</span>
+          </div>
           <div className="pt-2">
-            <label className="block text-xs font-medium text-rotc-textMuted mb-1">Choose File (Excel, PDF, PPT, Word)</label>
+            <label className="block text-xs font-medium text-rotc-textMuted mb-2">Choose Files (Excel, PDF, Word, CSV, PPT)</label>
             <input
               type="file"
+              multiple
               accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv"
               onChange={e => {
-                const file = e.target.files?.[0] || null;
-                setUploadFile(file);
+                const files = e.target.files ? Array.from(e.target.files) : []
+                setUploadFiles(files)
               }}
               className="w-full text-xs file:bg-rotc-accent file:text-white file:border-0 file:rounded-lg file:px-4 file:py-2"
             />
           </div>
+
+          {uploadFiles.length > 0 && (
+            <div className="bg-rotc-bg/40 border border-rotc-border rounded-lg p-3 max-h-40 overflow-y-auto space-y-1.5">
+              <span className="text-xs font-semibold text-rotc-text block mb-1">Selected Files ({uploadFiles.length})</span>
+              {uploadFiles.map((file, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs text-rotc-textMuted bg-rotc-bg/65 p-1.5 rounded border border-rotc-border/40">
+                  <span className="truncate max-w-[250px]">{file.name}</span>
+                  <span>{(file.size / 1024).toFixed(1)} KB</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex justify-end pt-4 gap-3">
             <Button variant="outline" onClick={() => setIsUploadModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpload} disabled={!uploadFile || !uploadFolder}>Upload</Button>
+            <Button onClick={handleUpload} isLoading={isUploading} disabled={uploadFiles.length === 0}>Upload</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={isRenameModalOpen} onClose={() => setIsRenameModalOpen(false)} title="Rename Document">
+      {/* Rename Modal */}
+      <Modal isOpen={isRenameModalOpen} onClose={() => setIsRenameModalOpen(false)} title="Rename Item">
         <div className="space-y-4 mt-4">
-          <Input label="New Filename" value={newDocName} onChange={e => setNewDocName(e.target.value)} required />
+          <Input label="Name" value={newDocName} onChange={e => setNewDocName(e.target.value)} required />
           <div className="flex justify-end pt-4 gap-3">
             <Button variant="outline" onClick={() => setIsRenameModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleRename}>Save Rename</Button>
+            <Button onClick={handleRename}>Save Name</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Create Folder Modal */}
+      <Modal isOpen={isCreateFolderModalOpen} onClose={() => setIsCreateFolderModalOpen(false)} title="Create Folder">
+        <div className="space-y-4 mt-4">
+          <div className="p-3 bg-rotc-bg/60 border border-rotc-border/60 rounded-lg text-xs text-rotc-textMuted">
+            Creating folder in parent path: <span className="text-rotc-text font-bold">{currentPath || 'Root Folder'}</span>
+          </div>
+          <Input
+            label="Folder Name"
+            placeholder="e.g. 2026-2027, graduation_memos"
+            value={newFolderName}
+            onChange={e => setNewFolderName(e.target.value)}
+            required
+          />
+          <div className="flex justify-end pt-4 gap-3">
+            <Button variant="outline" onClick={() => setIsCreateFolderModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateFolder} isLoading={isCreatingFolder} disabled={!newFolderName.trim()}>
+              Create Folder
+            </Button>
           </div>
         </div>
       </Modal>
