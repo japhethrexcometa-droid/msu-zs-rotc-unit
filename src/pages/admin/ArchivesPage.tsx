@@ -227,7 +227,8 @@ export default function ArchivesPage() {
 
     try {
       if (isFolder) {
-        const folderFullPath = currentPath ? `${currentPath}/${doc.display_name}` : doc.display_name || ''
+        // Use doc's actual database folder_name rather than currentPath
+        const folderFullPath = doc.folder_name ? `${doc.folder_name}/${doc.display_name}` : (doc.display_name || '')
         await deleteDocument(doc.id, doc.storage_path, true, folderFullPath)
         toast.success(`Folder "${doc.display_name}" and its files deleted`)
       } else {
@@ -294,8 +295,9 @@ export default function ArchivesPage() {
 
       if (isFolder) {
         // Rename folder: update all documents in this folder to the new folder name
-        const oldFolderPath = currentPath ? `${currentPath}/${selectedDoc.display_name}` : selectedDoc.display_name
-        const newFolderPath = currentPath ? `${currentPath}/${newDocName}` : newDocName
+        // Use the selectedDoc's actual database folder_name rather than currentPath
+        const oldFolderPath = selectedDoc.folder_name ? `${selectedDoc.folder_name}/${selectedDoc.display_name}` : (selectedDoc.display_name || '')
+        const newFolderPath = selectedDoc.folder_name ? `${selectedDoc.folder_name}/${newDocName}` : newDocName
 
         const res = await fetch('/api/admin/documents', {
           method: 'PATCH',
