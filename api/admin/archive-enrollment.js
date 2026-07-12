@@ -127,16 +127,52 @@ export default async function handler(req, res) {
     try {
       const csvHeaders = [
         'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
-        'Gender', 'DOB', 'Course', 'Year/Class', 'Semester', 'Contact', 'Email', 'Status'
-      ];
+        'Gender', 'DOB', 'Course & Year', 'Contact No.', 'Home Address', 'Religion',
+        'Blood Type', 'Height', 'Beneficiary', 'Relationship', 'Email Add',
+        'Emergency Contact Name', 'Relationship', 'Contact Number', 'Status', 'Semester', 'MS Class', 'Role', 'Archived Date'
+      ]
 
-      const csvRows = archivedRecords.map(r => [
-        r.id_number, r.school, r.last_name, r.first_name, r.middle_initial, r.suffix,
-        r.gender, r.date_of_birth, r.course_year, r.year_class, r.semester,
-        r.contact_number, r.email, r.status
-      ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','));
+      let grandTotalMale = 0;
+      let grandTotalFemale = 0;
+      const schoolStats = {};
 
-      const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
+      const csvRows = archivedRecords.map(r => {
+        const gender = (r.gender || '').toUpperCase();
+        const school = r.school || 'Unknown';
+        
+        if (!schoolStats[school]) schoolStats[school] = { male: 0, female: 0 };
+        
+        if (gender === 'MALE' || gender === 'M') {
+          schoolStats[school].male++;
+          grandTotalMale++;
+        } else if (gender === 'FEMALE' || gender === 'F') {
+          schoolStats[school].female++;
+          grandTotalFemale++;
+        }
+
+        const msClass = r.ms_title && r.ms_subject ? `${r.ms_title} (${r.ms_subject})` : (r.ms_title || r.ms_subject || '');
+
+        return [
+          r.id_number, r.school, r.last_name, r.first_name, r.middle_initial, r.suffix,
+          r.gender, r.date_of_birth, r.course_year, r.contact_number, r.home_address, r.religion,
+          r.blood_type, r.height_feet, r.beneficiary_name, r.beneficiary_relationship, r.email,
+          r.emergency_name, r.emergency_relationship, r.emergency_contact, r.status, r.semester, 
+          msClass, r.role, r.original_created_at
+        ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')
+      });
+
+      const footerRows = ['', '']; // Empty rows for padding
+      
+      Object.entries(schoolStats).forEach(([school, stats]) => {
+        const total = stats.male + stats.female;
+        footerRows.push(`"${school} Total: Male=${stats.male} Female=${stats.female} =${total}"`);
+      });
+
+      const grandTotal = grandTotalMale + grandTotalFemale;
+      const dateStrDetailed = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+      footerRows.push(`"GRAND TOTAL: ${grandTotal} (Male=${grandTotalMale} Female=${grandTotalFemale}) - Exported ${dateStrDetailed}"`);
+
+      const csvContent = [csvHeaders.join(','), ...csvRows, ...footerRows].join('\n');
       const dateStr = new Date().toISOString().split('T')[0];
       const filename = `${dateStr}_Archive_${academicYear.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
       const storagePath = `${academicYear}/${filename}`;
