@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   useEnrollmentRequests, 
   useApproveEnrollment, 
@@ -367,20 +367,42 @@ export default function EnrollmentPage() {
 
         {/* Global Stats by School */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(statsBySchool).map(([school, stats]: [string, any]) => (
-            <Card key={school} className="bg-rotc-card border-rotc-border/50">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-rotc-text">{school}</p>
-                  <p className="text-2xl font-black text-rotc-accent">{stats.Total}</p>
-                </div>
-                <div className="text-right text-xs text-rotc-textMuted space-y-0.5">
-                  <p>Male: <span className="text-rotc-text font-medium">{stats.Male}</span></p>
-                  <p>Female: <span className="text-rotc-text font-medium">{stats.Female}</span></p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {isLoading || (isFetching && Object.keys(statsBySchool || {}).length === 0) ? (
+            // Display 3 beautifully styled skeleton cards matching the actual cards layout
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={`skeleton-${i}`} className="bg-rotc-card border-rotc-border/50 animate-pulse">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-2 w-1/2">
+                    <div className="h-4 bg-rotc-border rounded w-3/4"></div>
+                    <div className="h-8 bg-rotc-border rounded w-1/2"></div>
+                  </div>
+                  <div className="space-y-1.5 w-1/4 flex flex-col items-end">
+                    <div className="h-3 bg-rotc-border rounded w-full"></div>
+                    <div className="h-3 bg-rotc-border rounded w-5/6"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : Object.keys(statsBySchool || {}).length > 0 ? (
+            Object.entries(statsBySchool).map(([school, stats]: [string, any]) => (
+              <Card key={school} className="bg-rotc-card border-rotc-border/50">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-rotc-text">{school}</p>
+                    <p className="text-2xl font-black text-rotc-accent">{stats.Total}</p>
+                  </div>
+                  <div className="text-right text-xs text-rotc-textMuted space-y-0.5">
+                    <p>Male: <span className="text-rotc-text font-medium">{stats.Male}</span></p>
+                    <p>Female: <span className="text-rotc-text font-medium">{stats.Female}</span></p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full py-6 text-center text-sm text-rotc-textMuted bg-rotc-card/30 rounded-xl border border-dashed border-rotc-border">
+              No data for this status.
+            </div>
+          )}
         </div>
 
         <Card className="relative overflow-hidden">
