@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -71,6 +71,7 @@ export function useEnrollmentRequests(
     refetchOnMount: 'always',
     // Poll every 10 seconds (increased from 5s to be more server-friendly with pagination)
     refetchInterval: 10_000,
+    placeholderData: keepPreviousData,
   })
 }
 

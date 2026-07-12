@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   useEnrollmentRequests, 
   useApproveEnrollment, 
@@ -97,6 +97,47 @@ export default function EnrollmentPage() {
   } = useEnrollmentRequests(tab, debouncedSearch, page, pageSize, sort.by, sort.order, schoolFilter)
 
   const [isProcessingEmails, setIsProcessingEmails] = useState(false)
+  const [isRetryingEmails, setIsRetryingEmails] = useState(false)
+
+  const handleRetryEmails = async () => {
+    setIsRetryingEmails(true)
+    try {
+      const { data, error } = await supabase.rpc('retry_failed_emails')
+      if (error) throw error
+
+      const count = Number(data ?? 0)
+      if (count === 0) {
+        toast.success("No failed emails to retry.")
+      } else {
+        toast.success(`Successfully retried ${count} failed email(s)!`)
+
+        // Auto-trigger queue processing in background securely
+        const { data: sessionData } = await supabase.auth.getSession()
+        const sessionToken = sessionData.session?.access_token
+        if (sessionToken) {
+          fetch('/api/cron/process-emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${sessionToken}`
+            }
+          })
+          .then(res => res.json())
+          .then(result => {
+            console.log('[EMAIL] Auto-triggered queue processing after retry:', result)
+            if (result.success && result.sent > 0) {
+              toast.info(`Sent ${result.sent} email(s) immediately.`)
+            }
+          })
+          .catch(err => console.error('[EMAIL] Auto-trigger fetch failed after retry:', err.message))
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to retry emails")
+    } finally {
+      setIsRetryingEmails(false)
+    }
+  }
+
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const approveMutation = useApproveEnrollment()
@@ -367,20 +408,42 @@ export default function EnrollmentPage() {
 
         {/* Global Stats by School */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(statsBySchool).map(([school, stats]: [string, any]) => (
-            <Card key={school} className="bg-rotc-card border-rotc-border/50">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-rotc-text">{school}</p>
-                  <p className="text-2xl font-black text-rotc-accent">{stats.Total}</p>
-                </div>
-                <div className="text-right text-xs text-rotc-textMuted space-y-0.5">
-                  <p>Male: <span className="text-rotc-text font-medium">{stats.Male}</span></p>
-                  <p>Female: <span className="text-rotc-text font-medium">{stats.Female}</span></p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {isLoading || (isFetching && Object.keys(statsBySchool || {}).length === 0) ? (
+            // Display 3 beautifully styled skeleton cards matching the actual cards layout
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={`skeleton-${i}`} className="bg-rotc-card border-rotc-border/50 animate-pulse">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-2 w-1/2">
+                    <div className="h-4 bg-rotc-border rounded w-3/4"></div>
+                    <div className="h-8 bg-rotc-border rounded w-1/2"></div>
+                  </div>
+                  <div className="space-y-1.5 w-1/4 flex flex-col items-end">
+                    <div className="h-3 bg-rotc-border rounded w-full"></div>
+                    <div className="h-3 bg-rotc-border rounded w-5/6"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : Object.keys(statsBySchool || {}).length > 0 ? (
+            Object.entries(statsBySchool).map(([school, stats]: [string, any]) => (
+              <Card key={school} className="bg-rotc-card border-rotc-border/50">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-rotc-text">{school}</p>
+                    <p className="text-2xl font-black text-rotc-accent">{stats.Total}</p>
+                  </div>
+                  <div className="text-right text-xs text-rotc-textMuted space-y-0.5">
+                    <p>Male: <span className="text-rotc-text font-medium">{stats.Male}</span></p>
+                    <p>Female: <span className="text-rotc-text font-medium">{stats.Female}</span></p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full py-6 text-center text-sm text-rotc-textMuted bg-rotc-card/30 rounded-xl border border-dashed border-rotc-border">
+              No data for this status.
+            </div>
+          )}
         </div>
 
         <Card className="relative overflow-hidden">
@@ -463,6 +526,16 @@ export default function EnrollmentPage() {
                   <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
                 </button>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRetryEmails}
+                isLoading={isRetryingEmails}
+                className="border-yellow-600/30 text-yellow-600 hover:bg-yellow-600/10"
+                title="Retry failed email dispatches"
+              >
+                <RefreshCw className="h-4 w-4 mr-2 text-yellow-600" /> Retry Failed Emails
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
