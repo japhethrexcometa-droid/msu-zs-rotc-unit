@@ -8,7 +8,7 @@
   "crons": [
     {
       "path": "/api/cron/process-emails",
-      "schedule": "0 0 * * *"
+      "schedule": "*/5 * * * *"
     }
   ],
   "headers": [
