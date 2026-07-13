@@ -64,12 +64,24 @@ export async function updateUser(id: string, updates: UserUpdate): Promise<User>
 }
 
 export async function hardDeleteUsers(userIds: string[]): Promise<{ deleted: number; message: string }> {
-  const { data, error } = await supabase.rpc('hard_delete_users', {
-    user_ids: userIds
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  if (!token) throw new Error('Not authenticated')
+
+  const response = await fetch('/api/admin/hard-delete-users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ userIds })
   })
 
-  if (error) throw error
-  return data as { deleted: number; message: string }
+  const result = await response.json()
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || 'Failed to delete users')
+  }
+  return { deleted: result.deleted, message: result.message }
 }
 
 export async function getArchivedUsers(): Promise<User[]> {
