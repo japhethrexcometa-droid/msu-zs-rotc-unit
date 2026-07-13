@@ -226,3 +226,15 @@ export function useRejectEnrollment() {
   })
 }
 
+export function useDeleteEnrollmentRequests() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (requestIds: string[]) => {
+      const { error } = await supabase.from('enrollment_requests').delete().in('id', requestIds)
+      if (error) throw error
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
+    },
+  })
+}

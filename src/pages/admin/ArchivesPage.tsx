@@ -220,7 +220,24 @@ export default function ArchivesPage() {
         'Emergency Contact Name', 'Relationship', 'Contact Number', 'Status', 'Semester', 'MS Class', 'Role', 'Archived Date'
       ]
 
+      let grandTotalMale = 0;
+      let grandTotalFemale = 0;
+      const schoolStats: Record<string, { male: number, female: number }> = {};
+
       const csvRows = records.map((r: any) => {
+        const gender = (r.gender || '').toUpperCase();
+        const school = r.school || 'Unknown';
+        
+        if (!schoolStats[school]) schoolStats[school] = { male: 0, female: 0 };
+        
+        if (gender === 'MALE' || gender === 'M') {
+          schoolStats[school].male++;
+          grandTotalMale++;
+        } else if (gender === 'FEMALE' || gender === 'F') {
+          schoolStats[school].female++;
+          grandTotalFemale++;
+        }
+
         const msClass = r.ms_title && r.ms_subject ? `${r.ms_title} (${r.ms_subject})` : (r.ms_title || r.ms_subject || '');
 
         return [
@@ -231,11 +248,22 @@ export default function ArchivesPage() {
           r.blood_type, r.height_feet, r.beneficiary_name, r.beneficiary_relationship, r.email,
           r.emergency_name, r.emergency_relationship, r.emergency_contact, r.status, r.semester, 
           msClass, r.role, 
-          r.created_at ? format(new Date(r.created_at), 'MMMM d, yyyy') : ''
+          r.reviewed_at ? format(new Date(r.reviewed_at), 'MMMM d, yyyy') : ''
         ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')
       });
 
-      const csvContent = '\uFEFF' + [csvHeaders.join(','), ...csvRows].join('\n')
+      const footerRows = ['', '']; // Empty rows for padding
+      
+      Object.entries(schoolStats).forEach(([school, stats]) => {
+        const total = stats.male + stats.female;
+        footerRows.push(`"${school} Total: Male=${stats.male} Female=${stats.female} =${total}"`);
+      });
+
+      const grandTotal = grandTotalMale + grandTotalFemale;
+      const dateStrDetailed = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+      footerRows.push(`"GRAND TOTAL: ${grandTotal} (Male=${grandTotalMale} Female=${grandTotalFemale}) - Exported ${dateStrDetailed}"`);
+
+      const csvContent = '\uFEFF' + [csvHeaders.join(','), ...csvRows, ...footerRows].join('\n')
 
       // Trigger download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -671,21 +699,35 @@ export default function ArchivesPage() {
           <p className="text-sm text-rotc-text">Select the Academic Year you want to export. This list is automatically populated from your existing records.</p>
           
           <div className="space-y-1">
-            <label className="text-sm font-medium text-rotc-textMuted">Academic Year</label>
+            <label className="text-sm font-medium text-rotc-textMuted">Academic Year / File Name</label>
             {isFetchingYears ? (
               <div className="text-sm text-rotc-textMuted py-2">Loading available years...</div>
-            ) : availableAcademicYears.length > 0 ? (
-              <select 
-                value={selectedAcademicYear} 
-                onChange={e => setSelectedAcademicYear(e.target.value)} 
-                className="w-full px-3 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent"
-              >
-                {availableAcademicYears.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
             ) : (
-              <div className="text-sm text-rotc-danger py-2">No archived records found in the database.</div>
+              <div className="relative">
+                <input 
+                  type="text"
+                  list="academic-years-list"
+                  value={selectedAcademicYear} 
+                  onChange={e => setSelectedAcademicYear(e.target.value)}
+                  placeholder="e.g. 2026-2027 or custom name"
+                  className="w-full pl-3 pr-8 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent"
+                />
+                <datalist id="academic-years-list">
+                  {availableAcademicYears.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </datalist>
+                {selectedAcademicYear && (
+                  <button 
+                    type="button" 
+                    onClick={() => setSelectedAcademicYear('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-rotc-textMuted hover:text-rotc-danger"
+                    title="Clear"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             )}
           </div>
           

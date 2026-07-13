@@ -49,7 +49,7 @@ BEGIN
 
   -- 5. Delete from scan_audit_logs if table exists
   BEGIN
-    EXECUTE 'DELETE FROM public.scan_audit_logs WHERE scanned_user_id = ANY($1) OR scanned_by_user_id = ANY($1)' USING user_ids;
+    EXECUTE 'DELETE FROM public.scan_audit_logs WHERE cadet_id = ANY($1) OR scanned_by = ANY($1)' USING user_ids;
   EXCEPTION WHEN undefined_table THEN
     NULL;
   END;
@@ -77,5 +77,10 @@ $$;
 
 -- Grant execute to authenticated users (RPC checks admin internally)
 GRANT EXECUTE ON FUNCTION public.hard_delete_users(UUID[]) TO authenticated;
+
+-- Allow admins to delete rejected enrollment requests directly
+DROP POLICY IF EXISTS "enrollment_delete_admin" ON public.enrollment_requests;
+CREATE POLICY "enrollment_delete_admin" ON public.enrollment_requests
+  FOR DELETE TO authenticated USING (public.is_admin());
 
 NOTIFY pgrst, 'reload schema';

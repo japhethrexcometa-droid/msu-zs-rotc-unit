@@ -15,7 +15,8 @@ import {
   useBulkApproveEnrollments,
   useBulkRejectEnrollments,
   useExportEnrollments,
-  useArchiveEnrollments
+  useArchiveEnrollments,
+  useDeleteEnrollmentRequests
 } from '@/hooks/queries/useEnrollment'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -144,11 +145,14 @@ export default function EnrollmentPage() {
   const rejectMutation = useRejectEnrollment()
   const bulkApproveMutation = useBulkApproveEnrollments()
   const bulkRejectMutation = useBulkRejectEnrollments()
+  const deleteRequestsMutation = useDeleteEnrollmentRequests()
+  const exportMutation = useExportEnrollments()
   const archiveMutation = useArchiveEnrollments()
 
   const [approveItem, setApproveItem] = useState<any | null>(null)
   const [rejectItem, setRejectItem] = useState<any | null>(null)
   const [isBulkRejectModalOpen, setIsBulkRejectModalOpen] = useState(false)
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false)
   const [academicYear, setAcademicYear] = useState(format(new Date(), 'yyyy') + '-' + (parseInt(format(new Date(), 'yyyy')) + 1))
   const [rejectReason, setRejectReason] = useState('')
@@ -157,8 +161,6 @@ export default function EnrollmentPage() {
   useEffect(() => {
     setSelectedIds([])
   }, [tab, page, debouncedSearch, sort, schoolFilter])
-
-  const exportMutation = useExportEnrollments()
 
   const exportCSV = async () => {
     toast.info(`Preparing full export for ${tab}...`)
@@ -320,6 +322,18 @@ export default function EnrollmentPage() {
       setIsBulkRejectModalOpen(false)
     } catch (err: any) {
       toast.error(err.message)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      await deleteRequestsMutation.mutateAsync(selectedIds)
+      toast.success(`${selectedIds.length} requests permanently deleted`)
+      setSelectedIds([])
+      setIsBulkDeleteModalOpen(false)
+    } catch (err: any) {
+      toast.error("Failed to delete requests: " + err.message)
     }
   }
 
@@ -618,6 +632,15 @@ export default function EnrollmentPage() {
                   </Button>
                 </div>
               )}
+              {tab === 'rejected' && selectedIds.length > 0 && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setIsBulkDeleteModalOpen(true)}
+                >
+                  Delete Selected ({selectedIds.length})
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -879,6 +902,18 @@ export default function EnrollmentPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Bulk Delete Modal for Rejected Tab */}
+      <Modal isOpen={isBulkDeleteModalOpen} onClose={() => setIsBulkDeleteModalOpen(false)} title="Delete Rejected Requests">
+        <div className="space-y-4 mt-4">
+          <p className="text-sm text-rotc-text">Are you sure you want to permanently delete {selectedIds.length} rejected request(s)? This will free up their ID numbers so they can re-enroll.</p>
+          <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">
+            <Button type="button" variant="outline" onClick={() => setIsBulkDeleteModalOpen(false)}>Cancel</Button>
+            <Button variant="danger" onClick={handleBulkDelete} isLoading={deleteRequestsMutation.isPending}>Delete Permanently</Button>
+          </div>
+        </div>
+      </Modal>
+
 
       {/* Bulk Reject Modal */}
       <Modal isOpen={isBulkRejectModalOpen} onClose={() => { setIsBulkRejectModalOpen(false); setRejectReason(''); }} title={`Reject ${selectedIds.length} Enrollments`}>
