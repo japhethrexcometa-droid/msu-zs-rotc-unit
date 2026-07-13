@@ -675,43 +675,61 @@ export default function EnrollmentPage() {
           </CardHeader>
           <CardContent className="p-0">
             <Table
-              headers={tab !== 'archived' // reusing archived tab name logic elsewhere if needed
-                ? [
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
-                      checked={selectedIds.length === (requests?.length ?? 0) && (requests?.length ?? 0) > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </div>,
-                    <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
-                    <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
-                    <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
-                    'Role',
-                    'MS Class',
-                    <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
-                    'Actions'
-                  ]
-                : tab === 'rejected'
+              headers={
+                tab === 'pending'
                   ? [
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                        checked={selectedIds.length === (requests?.length ?? 0) && (requests?.length ?? 0) > 0}
+                          onChange={toggleSelectAll}
+                        />
+                      </div>,
                       <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
                       <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
                       <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
-                      'Role', 'MS Class',
+                      'Role',
+                      'MS Class',
                       <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
-                      'Reason',
-                      <button onClick={() => handleSort('reviewed_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Processed <SortIcon field="reviewed_at" /></button>
-                    ]
-                  : [
-                      <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
-                      <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
-                      <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
-                      'Role', 'MS Class',
-                      <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
-                      <button onClick={() => handleSort('reviewed_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Processed <SortIcon field="reviewed_at" /></button>,
                       'Actions'
                     ]
+                  : tab === 'rejected'
+                    ? [
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                          checked={selectedIds.length === (requests?.length ?? 0) && (requests?.length ?? 0) > 0}
+                            onChange={toggleSelectAll}
+                          />
+                        </div>,
+                        <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
+                        <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
+                        <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
+                        'Role', 'MS Class',
+                        <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
+                        'Reason',
+                        <button onClick={() => handleSort('reviewed_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Processed <SortIcon field="reviewed_at" /></button>,
+                        'Actions'
+                      ]
+                    : [
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                          checked={selectedIds.length === (requests?.length ?? 0) && (requests?.length ?? 0) > 0}
+                            onChange={toggleSelectAll}
+                          />
+                        </div>,
+                        <button onClick={() => handleSort('id_number')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">ID Number <SortIcon field="id_number" /></button>,
+                        <button onClick={() => handleSort('last_name')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Name <SortIcon field="last_name" /></button>,
+                        <button onClick={() => handleSort('school')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">School <SortIcon field="school" /></button>,
+                        'Role', 'MS Class',
+                        <button onClick={() => handleSort('created_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Submitted <SortIcon field="created_at" /></button>,
+                        <button onClick={() => handleSort('reviewed_at')} className="flex items-center gap-1 hover:text-rotc-text transition-colors">Processed <SortIcon field="reviewed_at" /></button>,
+                        'Actions'
+                      ]
               }
               isLoading={isLoading}
               data={requests}
@@ -761,6 +779,18 @@ export default function EnrollmentPage() {
                       </td>
                       <td className="p-4 text-sm text-rotc-textMuted">
                         {r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : '—'}
+                      </td>
+                      <td className="p-4">
+                        <Button 
+                          variant="danger" 
+                          size="sm" 
+                          onClick={() => {
+                            setSelectedIds([r.id])
+                            setIsBulkDeleteModalOpen(true)
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </td>
                     </>
                   ) : (
