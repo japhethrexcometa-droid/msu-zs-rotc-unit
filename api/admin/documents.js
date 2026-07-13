@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -175,6 +175,47 @@ export default async function handler(req, res) {
       if (dbError) throw dbError;
 
       return res.status(200).json({ success: true, message: "Document deleted successfully" });
+    }
+
+    // === PUT: Init Storage (merged from init-storage.js) ===
+    if (req.method === 'PUT') {
+      const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
+      if (listError) throw listError;
+
+      const vaultExists = buckets.find(b => b.id === 'vault');
+
+      if (!vaultExists) {
+        const { error: createError } = await supabaseAdmin.storage.createBucket('vault', {
+          public: false,
+          fileSizeLimit: 52428800,
+          allowedMimeTypes: [
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.ms-powerpoint',
+            'text/csv'
+          ]
+        });
+        if (createError) throw createError;
+        return res.status(200).json({ success: true, message: "Vault bucket created successfully" });
+      }
+
+      const checkTables = ['enrollment_archives', 'archived_documents'];
+      for (const table of checkTables) {
+        const { error: schemaError } = await supabaseAdmin.from(table).select('id').limit(1);
+        if (schemaError && (schemaError.message.includes("could not find table") || schemaError.code === '42P01')) {
+          return res.status(200).json({
+            success: true,
+            message: `The '${table}' table was not found. Please run the SQL fix.`,
+            schemaStale: true
+          });
+        }
+      }
+
+      return res.status(200).json({ success: true, message: "Storage and Database are healthy" });
     }
 
     throw new Error("Method not allowed");

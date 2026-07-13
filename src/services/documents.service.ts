@@ -20,8 +20,8 @@ export async function initStorage() {
   const token = sessionData.session?.access_token
   if (!token) throw new Error("Unauthorized")
 
-  const response = await fetch('/api/admin/init-storage', {
-    method: 'POST',
+  const response = await fetch('/api/admin/documents', {
+    method: 'PUT',
     headers: { 'Authorization': `Bearer ${token}` }
   })
   const result = await response.json()
