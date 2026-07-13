@@ -29,7 +29,7 @@ function ProfileDetails({ data }: { data: any }) {
         <span className="text-rotc-textMuted">School:</span><span className="text-rotc-text font-medium">{data.school}</span>
         <span className="text-rotc-textMuted">Name:</span><span className="text-rotc-text font-medium">{data.first_name} {data.middle_initial} {data.last_name} {data.suffix !== 'N/A' ? data.suffix : ''}</span>
         <span className="text-rotc-textMuted">Gender:</span><span className="text-rotc-text font-medium">{data.gender}</span>
-        <span className="text-rotc-textMuted">DOB:</span><span className="text-rotc-text font-medium">{data.date_of_birth}</span>
+        <span className="text-rotc-textMuted">DOB:</span><span className="text-rotc-text font-medium">{data.date_of_birth ? format(new Date(data.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : '—'}</span>
         <span className="text-rotc-textMuted">Course:</span><span className="text-rotc-text font-medium">{data.course_year}</span>
         <span className="text-rotc-textMuted">Academic Year:</span><span className="text-rotc-text font-medium">{data.year_level}</span>
         <span className="text-rotc-textMuted">MS Class:</span><span className="text-rotc-text font-medium">{data.ms_title} ({data.ms_subject})</span>
@@ -228,7 +228,7 @@ export default function EnrollmentPage() {
         sanitize(r.middle_initial),
         sanitize(r.suffix),
         sanitize(r.gender),
-        sanitize(r.date_of_birth),
+        sanitize(r.date_of_birth ? format(new Date(r.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : ''),
         sanitize(r.course_year),
         sanitize(r.year_level),
         sanitize(r.ms_title ? `${r.ms_title} (${r.ms_subject})` : ''),
@@ -597,7 +597,7 @@ export default function EnrollmentPage() {
                   </Button>
                 </div>
               )}
-              {tab !== 'pending' && (
+              {tab === 'approved' && (
                 <div className="flex gap-2">
                   {selectedIds.length > 0 && (
                     <Button
@@ -612,9 +612,9 @@ export default function EnrollmentPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setIsArchiveModalOpen(true)}
-                    title="Move all approved/rejected records to historical archives"
+                    title="Move all approved records to historical archives"
                   >
-                    Archive All {tab}
+                    Archive All approved
                   </Button>
                 </div>
               )}

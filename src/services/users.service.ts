@@ -9,7 +9,6 @@ export async function getAllCadets(): Promise<User[]> {
     .from('users')
     .select('*')
     .eq('role', 'cadet')
-    .eq('is_active', true)
     .order('platoon', { ascending: true })
     .order('full_name', { ascending: true })
 
@@ -22,7 +21,6 @@ export async function getAllOfficers(): Promise<User[]> {
     .from('users')
     .select('*')
     .eq('role', 'officer')
-    .eq('is_active', true)
     .order('full_name', { ascending: true })
 
   if (error) throw error
@@ -65,22 +63,13 @@ export async function updateUser(id: string, updates: UserUpdate): Promise<User>
   return data
 }
 
-export async function deactivateUser(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('users')
-    .update({ is_active: false })
-    .eq('id', id)
+export async function hardDeleteUsers(userIds: string[]): Promise<{ deleted: number; message: string }> {
+  const { data, error } = await supabase.rpc('hard_delete_users', {
+    user_ids: userIds
+  })
 
   if (error) throw error
-}
-
-export async function reactivateUser(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('users')
-    .update({ is_active: true })
-    .eq('id', id)
-
-  if (error) throw error
+  return data as { deleted: number; message: string }
 }
 
 export async function getArchivedUsers(): Promise<User[]> {

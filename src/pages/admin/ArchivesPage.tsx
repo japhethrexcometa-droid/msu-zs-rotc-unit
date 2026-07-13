@@ -57,6 +57,10 @@ export default function ArchivesPage() {
 
   // Compiled CSV download status
   const [isCompilingCSV, setIsCompilingCSV] = useState(false)
+  const [isExportCSVModalOpen, setIsExportCSVModalOpen] = useState(false)
+  const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([])
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('')
+  const [isFetchingYears, setIsFetchingYears] = useState(false)
 
   const [storageStatus, setStorageStatus] = useState<'checking' | 'ready' | 'error'>('checking')
   const [storageError, setStorageError] = useState('')
@@ -157,17 +161,45 @@ export default function ArchivesPage() {
   }
 
   // NEW FEATURE: Download Compiled Historical CSV from enrollment_archives
-  const handleDownloadCompiledCSV = async () => {
+  const handleOpenExportModal = async () => {
+    setIsFetchingYears(true)
+    setIsExportCSVModalOpen(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error("Unauthorized")
+
+      const response = await fetch('/api/admin/enrollment-archives?pageSize=1', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const result = await response.json()
+      if (response.ok && result.success && result.academicYears) {
+        setAvailableAcademicYears(result.academicYears)
+        if (result.academicYears.length > 0) {
+          setSelectedAcademicYear(result.academicYears[0])
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch academic years", err)
+    } finally {
+      setIsFetchingYears(false)
+    }
+  }
+
+  const executeCSVExport = async () => {
+    if (!selectedAcademicYear) return toast.error("Please select an academic year")
+    
+    setIsExportCSVModalOpen(false)
     setIsCompilingCSV(true)
-    toast.info("Compiling all historical enrollment records...")
+    toast.info(`Compiling records for Academic Year: ${selectedAcademicYear}...`)
 
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
       if (!token) throw new Error("Unauthorized")
 
-      // Fetch ALL enrollment archives without pagination
-      const response = await fetch('/api/admin/enrollment-archives?pageSize=100000', {
+      // Fetch ALL enrollment archives for the selected year
+      const response = await fetch(`/api/admin/enrollment-archives?pageSize=100000&academicYear=${encodeURIComponent(selectedAcademicYear)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const result = await response.json()
@@ -175,7 +207,7 @@ export default function ArchivesPage() {
 
       const records = result.data || []
       if (records.length === 0) {
-        toast.error("No archived enrollment records found.")
+        toast.error(`No archived enrollment records found for ${selectedAcademicYear}.`)
         setIsCompilingCSV(false)
         return
       }
@@ -188,47 +220,22 @@ export default function ArchivesPage() {
         'Emergency Contact Name', 'Relationship', 'Contact Number', 'Status', 'Semester', 'MS Class', 'Role', 'Archived Date'
       ]
 
-      let grandTotalMale = 0;
-      let grandTotalFemale = 0;
-      const schoolStats: Record<string, { male: number, female: number }> = {};
-
       const csvRows = records.map((r: any) => {
-        const gender = (r.gender || '').toUpperCase();
-        const school = r.school || 'Unknown';
-        
-        if (!schoolStats[school]) schoolStats[school] = { male: 0, female: 0 };
-        
-        if (gender === 'MALE' || gender === 'M') {
-          schoolStats[school].male++;
-          grandTotalMale++;
-        } else if (gender === 'FEMALE' || gender === 'F') {
-          schoolStats[school].female++;
-          grandTotalFemale++;
-        }
-
         const msClass = r.ms_title && r.ms_subject ? `${r.ms_title} (${r.ms_subject})` : (r.ms_title || r.ms_subject || '');
 
         return [
           r.id_number, r.school, r.last_name, r.first_name, r.middle_initial, r.suffix,
-          r.gender, r.date_of_birth, r.course_year, r.contact_number, r.home_address, r.religion,
+          r.gender, 
+          r.date_of_birth ? format(new Date(r.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : '', 
+          r.course_year, r.contact_number, r.home_address, r.religion,
           r.blood_type, r.height_feet, r.beneficiary_name, r.beneficiary_relationship, r.email,
           r.emergency_name, r.emergency_relationship, r.emergency_contact, r.status, r.semester, 
-          msClass, r.role, r.created_at
+          msClass, r.role, 
+          r.created_at ? format(new Date(r.created_at), 'MMMM d, yyyy') : ''
         ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')
       });
 
-      const footerRows = ['', '']; // Empty rows for padding
-      
-      Object.entries(schoolStats).forEach(([school, stats]) => {
-        const total = stats.male + stats.female;
-        footerRows.push(`"${school} Total: Male=${stats.male} Female=${stats.female} =${total}"`);
-      });
-
-      const grandTotal = grandTotalMale + grandTotalFemale;
-      const dateStrDetailed = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-      footerRows.push(`"GRAND TOTAL: ${grandTotal} (Male=${grandTotalMale} Female=${grandTotalFemale}) - Exported ${dateStrDetailed}"`);
-
-      const csvContent = [csvHeaders.join(','), ...csvRows, ...footerRows].join('\n')
+      const csvContent = '\uFEFF' + [csvHeaders.join(','), ...csvRows].join('\n')
 
       // Trigger download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -236,7 +243,7 @@ export default function ArchivesPage() {
       const link = document.createElement('a')
       const dateStr = new Date().toISOString().split('T')[0]
       link.href = url
-      link.download = `${dateStr}_Compiled_All_Enrollment_Archives.csv`
+      link.download = `${dateStr}_Compiled_${selectedAcademicYear}_Enrollment_Archives.csv`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -448,7 +455,7 @@ export default function ArchivesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleDownloadCompiledCSV}
+              onClick={handleOpenExportModal}
               isLoading={isCompilingCSV}
               className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
             >
@@ -658,6 +665,37 @@ export default function ArchivesPage() {
           </div>
         </div>
       </Modal>
+      {/* Dynamic Academic Year Export Modal */}
+      <Modal isOpen={isExportCSVModalOpen} onClose={() => setIsExportCSVModalOpen(false)} title="Export Enrollment Archives">
+        <div className="space-y-4 mt-4">
+          <p className="text-sm text-rotc-text">Select the Academic Year you want to export. This list is automatically populated from your existing records.</p>
+          
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-rotc-textMuted">Academic Year</label>
+            {isFetchingYears ? (
+              <div className="text-sm text-rotc-textMuted py-2">Loading available years...</div>
+            ) : availableAcademicYears.length > 0 ? (
+              <select 
+                value={selectedAcademicYear} 
+                onChange={e => setSelectedAcademicYear(e.target.value)} 
+                className="w-full px-3 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent"
+              >
+                {availableAcademicYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-sm text-rotc-danger py-2">No archived records found in the database.</div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-3 pt-4 border-t border-rotc-border">
+            <Button type="button" variant="outline" onClick={() => setIsExportCSVModalOpen(false)}>Cancel</Button>
+            <Button onClick={executeCSVExport} disabled={isFetchingYears || availableAcademicYears.length === 0}>Export CSV</Button>
+          </div>
+        </div>
+      </Modal>
+
     </AppLayout>
   )
 }

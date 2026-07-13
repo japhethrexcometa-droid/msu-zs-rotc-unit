@@ -6,9 +6,9 @@ import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
-import { useAllOfficers, useUpdateUser, useDeactivateUser, useReactivateUser, useResetUserPassword } from '@/hooks/queries/useUsers'
+import { useAllOfficers, useUpdateUser, useHardDeleteUsers, useResetUserPassword } from '@/hooks/queries/useUsers'
 import { useState, useMemo } from 'react'
-import { Search, Edit, UserX, Key, RotateCcw } from 'lucide-react'
+import { Search, Edit, Trash2, Key } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
 
@@ -18,16 +18,16 @@ export default function OfficersPage() {
   const session = useSession()
   const { data: officers, isLoading } = useAllOfficers()
   const updateMutation = useUpdateUser()
-  const deactivateMutation = useDeactivateUser()
-  const reactivateMutation = useReactivateUser()
+  const hardDeleteMutation = useHardDeleteUsers()
 
   const [search, setSearch] = useState('')
   const [platoonFilter, setPlatoonFilter] = useState('All')
   const [editUser, setEditUser] = useState<User | null>(null)
-  const [deactivateId, setDeactivateId] = useState<string | null>(null)
-  const [reactivateId, setReactivateId] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
   const [newPassword, setNewPassword] = useState('')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
 
   const resetMutation = useResetUserPassword()
 
@@ -65,23 +65,24 @@ export default function OfficersPage() {
     }
   }
 
-  const handleDeactivate = async () => {
-    if (!deactivateId) return
+  const handleHardDelete = async () => {
+    if (!deleteId) return
     try {
-      await deactivateMutation.mutateAsync(deactivateId)
-      toast.success('Officer deactivated')
-      setDeactivateId(null)
+      const result = await hardDeleteMutation.mutateAsync([deleteId])
+      toast.success(result.message || 'Officer permanently deleted')
+      setDeleteId(null)
     } catch (err: any) {
       toast.error(err.message)
     }
   }
 
-  const handleReactivate = async () => {
-    if (!reactivateId) return
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
     try {
-      await reactivateMutation.mutateAsync(reactivateId)
-      toast.success('Officer reactivated')
-      setReactivateId(null)
+      const result = await hardDeleteMutation.mutateAsync(selectedIds)
+      toast.success(result.message || `${selectedIds.length} officer(s) permanently deleted`)
+      setSelectedIds([])
+      setIsBulkDeleteModalOpen(false)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -100,11 +101,25 @@ export default function OfficersPage() {
     }
   }
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredOfficers.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filteredOfficers.map(o => o.id))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
   return (
     <AppLayout title="Officers Management">
       <Card>
         <CardHeader title="All Officers">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-rotc-textMuted" />
               <input
@@ -122,16 +137,43 @@ export default function OfficersPage() {
             >
               {platoons.map(p => <option key={p} value={p}>{p === 'All' || p === 'HQ' ? p : `${p} Platoon`}</option>)}
             </select>
+            {selectedIds.length > 0 && (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setIsBulkDeleteModalOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Selected ({selectedIds.length})
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table
-            headers={['Photo', 'ID Number', 'Full Name', 'Platoon', 'Designation', 'Status', 'Actions']}
+            headers={[
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                  checked={selectedIds.length === filteredOfficers.length && filteredOfficers.length > 0}
+                  onChange={toggleSelectAll}
+                />
+              </div>,
+              'Photo', 'ID Number', 'Full Name', 'Platoon', 'Designation', 'Status', 'Actions'
+            ]}
             isLoading={isLoading}
             data={filteredOfficers}
             keyExtractor={(o) => o.id}
             renderRow={(o) => (
               <>
+                <td className="p-4">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
+                    checked={selectedIds.includes(o.id)}
+                    onChange={() => toggleSelect(o.id)}
+                  />
+                </td>
                 <td className="p-4">
                   <div className="w-8 h-8 rounded-full bg-rotc-bg overflow-hidden flex items-center justify-center">
                     {o.photo_url ? <img src={o.photo_url} className="w-full h-full object-cover" alt="" /> : <span className="text-xs text-rotc-textMuted">{o.full_name.charAt(0)}</span>}
@@ -151,15 +193,9 @@ export default function OfficersPage() {
                   <button onClick={() => { setResetPasswordUser(o); setNewPassword(''); }} className="p-1.5 text-rotc-textMuted hover:text-rotc-accent rounded-md hover:bg-rotc-cardHover transition-colors" title="Reset Password">
                     <Key className="h-4 w-4" />
                   </button>
-                  {o.is_active ? (
-                    <button onClick={() => setDeactivateId(o.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-danger rounded-md hover:bg-rotc-cardHover transition-colors" title="Deactivate">
-                      <UserX className="h-4 w-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => setReactivateId(o.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-accent rounded-md hover:bg-rotc-cardHover transition-colors" title="Reactivate">
-                      <RotateCcw className="h-4 w-4" />
-                    </button>
-                  )}
+                  <button onClick={() => setDeleteId(o.id)} className="p-1.5 text-rotc-textMuted hover:text-rotc-danger rounded-md hover:bg-rotc-cardHover transition-colors" title="Delete Permanently">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </td>
               </>
             )}
@@ -190,21 +226,25 @@ export default function OfficersPage() {
         )}
       </Modal>
 
-      {/* Deactivate Modal */}
-      <Modal isOpen={!!deactivateId} onClose={() => setDeactivateId(null)} title="Confirm Deactivation">
-        <p className="text-sm text-rotc-text mt-4">Are you sure you want to deactivate this officer?</p>
+      {/* Single Delete Confirmation Modal */}
+      <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Permanently Delete Officer">
+        <p className="text-sm text-rotc-text mt-4">
+          Are you sure you want to <strong className="text-rotc-danger">permanently delete</strong> this officer? This will remove their account, enrollment data, and archives. <strong>This cannot be undone.</strong>
+        </p>
         <div className="flex justify-end gap-3 pt-6">
-          <Button variant="outline" onClick={() => setDeactivateId(null)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeactivate} isLoading={deactivateMutation.isPending}>Deactivate</Button>
+          <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+          <Button variant="danger" onClick={handleHardDelete} isLoading={hardDeleteMutation.isPending}>Delete Permanently</Button>
         </div>
       </Modal>
 
-      {/* Reactivate Modal */}
-      <Modal isOpen={!!reactivateId} onClose={() => setReactivateId(null)} title="Confirm Reactivation">
-        <p className="text-sm text-rotc-text mt-4">Are you sure you want to reactivate this officer? They will regain access to the system.</p>
+      {/* Bulk Delete Confirmation Modal */}
+      <Modal isOpen={isBulkDeleteModalOpen} onClose={() => setIsBulkDeleteModalOpen(false)} title="Bulk Delete Officers">
+        <p className="text-sm text-rotc-text mt-4">
+          Are you sure you want to <strong className="text-rotc-danger">permanently delete {selectedIds.length} officer(s)</strong>? This will remove their accounts, enrollment data, and archives. <strong>This cannot be undone.</strong>
+        </p>
         <div className="flex justify-end gap-3 pt-6">
-          <Button variant="outline" onClick={() => setReactivateId(null)}>Cancel</Button>
-          <Button variant="primary" onClick={handleReactivate} isLoading={reactivateMutation.isPending}>Reactivate</Button>
+          <Button variant="outline" onClick={() => setIsBulkDeleteModalOpen(false)}>Cancel</Button>
+          <Button variant="danger" onClick={handleBulkDelete} isLoading={hardDeleteMutation.isPending}>Delete {selectedIds.length} Officer(s)</Button>
         </div>
       </Modal>
 
