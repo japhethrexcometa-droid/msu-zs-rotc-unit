@@ -199,6 +199,25 @@ export async function getEnrollmentArchives(params: { searchQuery?: string, acad
   return result;
 }
 
+export async function deleteEnrollmentArchiveYear(academicYear: string): Promise<any> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch(`/api/admin/enrollment-archives?academicYear=${encodeURIComponent(academicYear)}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to delete academic year");
+  }
+
+  return result;
+}
+
 export async function importEnrollmentArchives(payload: { records: any[], academicYear: string }): Promise<any> {
   await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();

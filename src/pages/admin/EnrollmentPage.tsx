@@ -649,7 +649,7 @@ export default function EnrollmentPage() {
               >
                 <Download className="h-4 w-4 mr-2" /> Export CSV
               </Button>
-              <div className="flex border border-rotc-border rounded-lg overflow-hidden">
+              <div className="flex border border-rotc-border rounded-lg overflow-x-auto scrollbar-hide max-w-full">
                 {tabs.map(t => (
                   <button
                     key={t}
@@ -658,7 +658,7 @@ export default function EnrollmentPage() {
                       setPage(1)
                       setSearch('')
                     }}
-                    className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors flex items-center gap-1.5 ${
+                    className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors flex items-center gap-1.5 shrink-0 ${
                       tab === t ? 'bg-rotc-accent text-white' : 'text-rotc-textMuted hover:bg-rotc-cardHover'
                     }`}
                   >

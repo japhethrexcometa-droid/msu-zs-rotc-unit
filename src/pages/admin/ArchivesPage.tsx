@@ -20,10 +20,12 @@ import {
   RotateCcw as RotateCcwIcon,
   ChevronRight as ChevronRightIcon,
   Home as HomeIcon,
-  Database as DatabaseIcon
+  Database as DatabaseIcon,
+  X as XIcon
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { getAdminDocuments, uploadDocument, deleteDocument, getDownloadUrl, DocumentRecord, initStorage, createFolder } from '@/services/documents.service'
+import { deleteEnrollmentArchiveYear } from '@/services/enrollment.service'
 import { supabase } from '@/lib/supabase'
 
 export default function ArchivesPage() {
@@ -183,6 +185,29 @@ export default function ArchivesPage() {
       console.error("Failed to fetch academic years", err)
     } finally {
       setIsFetchingYears(false)
+    }
+  }
+
+  const handleDeleteAcademicYear = async (year: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete all archived enrollment records for ${year}? This cannot be undone.`)) {
+      return
+    }
+    
+    try {
+      toast.info(`Deleting records for ${year}...`)
+      await deleteEnrollmentArchiveYear(year)
+      toast.success(`Successfully deleted archived records for ${year}`)
+      
+      // Update the available years list
+      const updatedYears = availableAcademicYears.filter(y => y !== year)
+      setAvailableAcademicYears(updatedYears)
+      
+      // Clear selection if it was the deleted one
+      if (selectedAcademicYear === year) {
+        setSelectedAcademicYear(updatedYears.length > 0 ? updatedYears[0] : '')
+      }
+    } catch (err: any) {
+      toast.error(`Failed to delete records: ${err.message}`)
     }
   }
 
@@ -698,35 +723,54 @@ export default function ArchivesPage() {
         <div className="space-y-4 mt-4">
           <p className="text-sm text-rotc-text">Select the Academic Year you want to export. This list is automatically populated from your existing records.</p>
           
-          <div className="space-y-1">
+          <div className="space-y-3">
             <label className="text-sm font-medium text-rotc-textMuted">Academic Year / File Name</label>
+            <div className="relative">
+              <input 
+                type="text"
+                value={selectedAcademicYear} 
+                onChange={e => setSelectedAcademicYear(e.target.value)}
+                placeholder="e.g. 2026-2027 or custom name"
+                className="w-full px-3 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent"
+              />
+              {selectedAcademicYear && (
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedAcademicYear('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-rotc-textMuted hover:text-rotc-danger transition-colors"
+                  title="Clear input"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
             {isFetchingYears ? (
               <div className="text-sm text-rotc-textMuted py-2">Loading available years...</div>
-            ) : (
-              <div className="relative">
-                <input 
-                  type="text"
-                  list="academic-years-list"
-                  value={selectedAcademicYear} 
-                  onChange={e => setSelectedAcademicYear(e.target.value)}
-                  placeholder="e.g. 2026-2027 or custom name"
-                  className="w-full pl-3 pr-8 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent"
-                />
-                <datalist id="academic-years-list">
+            ) : availableAcademicYears.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs text-rotc-textMuted mb-2 font-medium">Or select from existing archives:</p>
+                <div className="flex flex-wrap gap-2">
                   {availableAcademicYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
+                    <div key={year} className="flex items-center bg-rotc-bg/60 border border-rotc-border rounded-lg overflow-hidden">
+                      <button 
+                        type="button"
+                        onClick={() => setSelectedAcademicYear(year)}
+                        className={`px-3 py-1.5 text-xs transition-colors hover:bg-rotc-cardHover ${selectedAcademicYear === year ? 'text-rotc-accent font-bold bg-rotc-accent/10' : 'text-rotc-text'}`}
+                      >
+                        {year}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAcademicYear(year)}
+                        className="p-1.5 text-rotc-textMuted hover:text-rotc-danger hover:bg-rotc-danger/10 transition-colors border-l border-rotc-border"
+                        title="Delete this entire academic year archive"
+                      >
+                        <TrashIcon className="h-3 w-3" />
+                      </button>
+                    </div>
                   ))}
-                </datalist>
-                {selectedAcademicYear && (
-                  <button 
-                    type="button" 
-                    onClick={() => setSelectedAcademicYear('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-rotc-textMuted hover:text-rotc-danger"
-                    title="Clear"
-                  >
-                    ×
-                  </button>
-                )}
+                </div>
               </div>
             )}
           </div>

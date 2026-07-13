@@ -4,14 +4,14 @@ export default async function handler(req, res) {
   // Setup CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,DELETE,OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'GET' && req.method !== 'DELETE') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const { searchQuery, academicYear, page, pageSize } = req.query;
@@ -32,6 +32,21 @@ export default async function handler(req, res) {
     const { data: userData } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
     if (!userData || (userData.role !== 'admin' && userData.role !== 'officer')) {
       throw new Error("Forbidden");
+    }
+
+    // Handle DELETE: Remove an entire academic year archive
+    if (req.method === 'DELETE') {
+      if (!academicYear || academicYear === 'all') {
+        throw new Error("Specific Academic Year is required for deletion");
+      }
+      
+      const { error: deleteError } = await supabaseAdmin
+        .from('enrollment_archives')
+        .delete()
+        .eq('academic_year', academicYear);
+        
+      if (deleteError) throw deleteError;
+      return res.status(200).json({ success: true, message: `Archived records for ${academicYear} deleted successfully.` });
     }
 
     // 1. Get List of Academic Years (the "folders")
@@ -58,25 +73,18 @@ export default async function handler(req, res) {
 
     query = query.order('last_name', { ascending: true });
 
-    // Pagination
-    if (page && pageSize) {
-      const from = (parseInt(page) - 1) * parseInt(pageSize);
-      const to = from + parseInt(pageSize) - 1;
-      query = query.range(from, to);
+    const p = parseInt(page || '1');
+    const sz = parseInt(pageSize || '20');
+    if (!isNaN(p) && !isNaN(sz)) {
+      query = query.range((p - 1) * sz, p * sz - 1);
     }
 
-    const { data, error, count } = await query;
+    const { data, count, error } = await query;
     if (error) throw error;
 
-    return res.status(200).json({
-      success: true,
-      data: data || [],
-      count: count || 0,
-      academicYears
-    });
-
+    return res.status(200).json({ success: true, data, count, academicYears });
   } catch (error) {
-    console.error("Fetch Archives Error:", error);
-    return res.status(400).json({ success: false, error: error.message });
+    console.error('Enrollment Archives Error:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
