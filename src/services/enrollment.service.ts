@@ -79,7 +79,7 @@ export async function getEnrollmentStats(status: 'pending' | 'approved' | 'rejec
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Unauthorized");
 
-  const response = await fetch(`/api/admin/enrollment-stats?status=${status}`, {
+  const response = await fetch(`/api/admin/enrollment-requests?type=stats&status=${status}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 

@@ -48,20 +48,74 @@ export default async function handler(req, res) {
       throw new Error("Forbidden: Only staff can view enrollment requests.");
     }
 
-    // 4. Fetch Enrollment Requests
-    const { status, searchQuery, page, pageSize, sortBy, sortOrder, school } = req.query;
+    const { status, searchQuery, page, pageSize, sortBy, sortOrder, school, type } = req.query;
 
+    // --- STATS MODE ---
+    // Decoupled to avoid Vercel timeouts on free tier
+    if (type === 'stats') {
+      let summary = { pending: 0, approved: 0, rejected: 0 };
+      let statsBySchool = {};
+      let allSchools = [];
+      let emailQueueCount = 0;
+
+      // Try RPC first for speed
+      const { data: stats, error: statsError } = await supabaseAdmin.rpc('get_enrollment_stats', {
+        p_status: status || 'pending'
+      });
+
+      if (statsError) {
+        console.warn("RPC Stats Error (falling back to manual queries). Consider running the SQL migration.");
+
+        const [{ count: p }, { count: a }, { count: r }] = await Promise.all([
+          supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+          supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'rejected')
+        ]);
+        summary = { pending: p || 0, approved: a || 0, rejected: r || 0 };
+
+        const { data: schoolData } = await supabaseAdmin.from('enrollment_requests').select('school');
+        if (schoolData) {
+          allSchools = [...new Set(schoolData.map(row => row.school).filter(Boolean))];
+        }
+
+        const { data: statusSchoolData } = await supabaseAdmin.from('enrollment_requests').select('school, gender').eq('status', status || 'pending');
+        if (statusSchoolData) {
+          statusSchoolData.forEach(row => {
+            const sch = row.school || 'Unknown';
+            if (!statsBySchool[sch]) statsBySchool[sch] = { Male: 0, Female: 0, Total: 0 };
+            statsBySchool[sch].Total++;
+            if (row.gender === 'Male') statsBySchool[sch].Male++;
+            if (row.gender === 'Female') statsBySchool[sch].Female++;
+          });
+        }
+
+        const { count: eqc, error: eqErr } = await supabaseAdmin.from('email_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+        if (!eqErr) {
+          emailQueueCount = eqc || 0;
+        }
+      } else {
+        summary = stats?.summary || { pending: 0, approved: 0, rejected: 0 };
+        statsBySchool = stats?.statsBySchool || {};
+        allSchools = stats?.allSchools || [];
+        emailQueueCount = stats?.emailQueueCount || 0;
+      }
+
+      return res.status(200).json({
+        success: true,
+        summary,
+        statsBySchool,
+        allSchools,
+        emailQueueCount
+      });
+    }
+
+    // --- LIST MODE ---
     let query = supabaseAdmin
       .from('enrollment_requests')
       .select('*', { count: 'exact' });
 
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    if (school) {
-      query = query.eq('school', school);
-    }
+    if (status) query = query.eq('status', status);
+    if (school) query = query.eq('school', school);
 
     if (searchQuery) {
       // Safe fallback search if search_text column doesn't exist in production yet
@@ -113,8 +167,6 @@ export default async function handler(req, res) {
       duplicates = Object.keys(counts).filter(id => counts[id] > 1);
       existingAccounts = (existingData || []).map(u => u.id_number);
     }
-
-    // 5. Removed Stats Fetching (Now handled by /api/admin/enrollment-stats)
 
     return res.status(200).json({
       success: true,
