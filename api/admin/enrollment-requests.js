@@ -114,61 +114,12 @@ export default async function handler(req, res) {
       existingAccounts = (existingData || []).map(u => u.id_number);
     }
 
-    // 5. Optimized Metadata Fetch: Use the RPC with fallback
-    let summary = { pending: 0, approved: 0, rejected: 0 };
-    let statsBySchool = {};
-    let allSchools = [];
-    let emailQueueCount = 0;
-
-    const { data: stats, error: statsError } = await supabaseAdmin.rpc('get_enrollment_stats', {
-      p_status: status || 'pending'
-    });
-
-    if (statsError) {
-      console.error("RPC Stats Error (falling back to manual queries):", statsError.message);
-
-      const [{ count: p }, { count: a }, { count: r }] = await Promise.all([
-        supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
-        supabaseAdmin.from('enrollment_requests').select('*', { count: 'exact', head: true }).eq('status', 'rejected')
-      ]);
-      summary = { pending: p || 0, approved: a || 0, rejected: r || 0 };
-
-      const { data: schoolData } = await supabaseAdmin.from('enrollment_requests').select('school');
-      if (schoolData) {
-        allSchools = [...new Set(schoolData.map(row => row.school).filter(Boolean))];
-      }
-
-      const { data: statusSchoolData } = await supabaseAdmin.from('enrollment_requests').select('school, gender').eq('status', status || 'pending');
-      if (statusSchoolData) {
-        statusSchoolData.forEach(row => {
-          const sch = row.school || 'Unknown';
-          if (!statsBySchool[sch]) statsBySchool[sch] = { Male: 0, Female: 0, Total: 0 };
-          statsBySchool[sch].Total++;
-          if (row.gender === 'Male') statsBySchool[sch].Male++;
-          if (row.gender === 'Female') statsBySchool[sch].Female++;
-        });
-      }
-
-      const { count: eqc, error: eqErr } = await supabaseAdmin.from('email_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-      if (!eqErr) {
-        emailQueueCount = eqc || 0;
-      }
-    } else {
-      summary = stats?.summary || { pending: 0, approved: 0, rejected: 0 };
-      statsBySchool = stats?.statsBySchool || {};
-      allSchools = stats?.allSchools || [];
-      emailQueueCount = stats?.emailQueueCount || 0;
-    }
+    // 5. Removed Stats Fetching (Now handled by /api/admin/enrollment-stats)
 
     return res.status(200).json({
       success: true,
       data: data || [],
       count: count || 0,
-      summary,
-      statsBySchool,
-      allSchools,
-      emailQueueCount,
       duplicates,
       existingAccounts
     });

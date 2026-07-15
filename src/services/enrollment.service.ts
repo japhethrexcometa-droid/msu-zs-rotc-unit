@@ -39,7 +39,7 @@ export async function getPaginatedEnrollmentRequests(
   sortBy?: string,
   sortOrder?: 'asc' | 'desc',
   school?: string
-): Promise<{ data: EnrollmentRequest[], count: number, summary: any, duplicates: string[], existingAccounts: string[], statsBySchool: any, allSchools: string[], emailQueueCount: number }> {
+): Promise<{ data: EnrollmentRequest[], count: number, duplicates: string[], existingAccounts: string[] }> {
   await ensureAuthSession();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -68,9 +68,28 @@ export async function getPaginatedEnrollmentRequests(
   return {
     data: result.data,
     count: result.count,
-    summary: result.summary,
     duplicates: result.duplicates || [],
-    existingAccounts: result.existingAccounts || [],
+    existingAccounts: result.existingAccounts || []
+  };
+}
+
+export async function getEnrollmentStats(status: 'pending' | 'approved' | 'rejected'): Promise<{ summary: any, statsBySchool: any, allSchools: string[], emailQueueCount: number }> {
+  await ensureAuthSession();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Unauthorized");
+
+  const response = await fetch(`/api/admin/enrollment-stats?status=${status}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to fetch enrollment stats");
+  }
+
+  return {
+    summary: result.summary,
     statsBySchool: result.statsBySchool || {},
     allSchools: result.allSchools || [],
     emailQueueCount: result.emailQueueCount || 0

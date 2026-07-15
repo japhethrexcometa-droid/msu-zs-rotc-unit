@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
   getPaginatedEnrollmentRequests,
+  getEnrollmentStats,
   getAllEnrollmentRequests, 
   approveEnrollment, 
   rejectEnrollment,
@@ -17,6 +18,7 @@ export const ENROLLMENT_KEYS = {
   all: ['enrollment'] as const,
   requests: (status?: string, search?: string, page?: number, sort?: any, school?: string) =>
     [...ENROLLMENT_KEYS.all, 'requests', { status, search, page, sort, school }] as const,
+  stats: (status?: string) => [...ENROLLMENT_KEYS.all, 'stats', { status }] as const,
 }
 
 /**
@@ -71,6 +73,18 @@ export function useEnrollmentRequests(
     refetchOnMount: 'always',
     // Poll every 10 seconds (increased from 5s to be more server-friendly with pagination)
     refetchInterval: 10_000,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useEnrollmentStats(status: 'pending' | 'approved' | 'rejected') {
+  return useQuery({
+    queryKey: ENROLLMENT_KEYS.stats(status),
+    queryFn: () => getEnrollmentStats(status),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
+    refetchInterval: 30_000,
     placeholderData: keepPreviousData,
   })
 }

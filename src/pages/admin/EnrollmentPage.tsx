@@ -9,7 +9,8 @@ import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import { useState, useMemo, useEffect } from 'react'
 import { 
-  useEnrollmentRequests, 
+  useEnrollmentRequests,
+  useEnrollmentStats,
   useApproveEnrollment, 
   useRejectEnrollment,
   useBulkApproveEnrollments,
@@ -75,27 +76,34 @@ export default function EnrollmentPage() {
     data: {
       data: requests = [],
       count = 0,
-      summary = { pending: 0, approved: 0, rejected: 0 },
       duplicates = [],
-      existingAccounts = [],
-      statsBySchool = {},
-      allSchools = [],
-      emailQueueCount = 0
+      existingAccounts = []
     } = {
       data: [],
       count: 0,
-      summary: { pending: 0, approved: 0, rejected: 0 },
       duplicates: [],
-      existingAccounts: [],
-      statsBySchool: {},
-      allSchools: [],
-      emailQueueCount: 0
+      existingAccounts: []
     },
     isLoading,
     isFetching,
     dataUpdatedAt,
     refetch
   } = useEnrollmentRequests(tab, debouncedSearch, page, pageSize, sort.by, sort.order, schoolFilter)
+
+  const {
+    data: {
+      summary = { pending: 0, approved: 0, rejected: 0 },
+      statsBySchool = {},
+      allSchools = [],
+      emailQueueCount = 0
+    } = {
+      summary: { pending: 0, approved: 0, rejected: 0 },
+      statsBySchool: {},
+      allSchools: [],
+      emailQueueCount: 0
+    },
+    isLoading: isStatsLoading
+  } = useEnrollmentStats(tab)
 
   const [isProcessingEmails, setIsProcessingEmails] = useState(false)
   const [isRetryingEmails, setIsRetryingEmails] = useState(false)
@@ -422,7 +430,7 @@ export default function EnrollmentPage() {
 
         {/* Global Stats by School */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {isLoading || (isFetching && Object.keys(statsBySchool || {}).length === 0) ? (
+          {isStatsLoading ? (
             // Display 3 beautifully styled skeleton cards matching the actual cards layout
             Array.from({ length: 3 }).map((_, i) => (
               <Card key={`skeleton-${i}`} className="bg-rotc-card border-rotc-border/50 animate-pulse">
