@@ -176,6 +176,8 @@ export default function EnrollPage() {
   };
 
   const onSubmit = async () => {
+    if (isSubmitting) return;
+    
     if (!accessCode) {
       setSubmitError("Access code is missing. Please reload the page.");
       return;
