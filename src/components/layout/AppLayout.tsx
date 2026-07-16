@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import Sidebar from './Sidebar'
 import { Menu } from 'lucide-react'
+import { useLayoutStore } from '@/stores/layout.store'
 
 interface AppLayoutProps {
   title: string
@@ -9,6 +10,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ title, children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const isCollapsed = useLayoutStore((state) => state.isSidebarCollapsed)
 
   return (
     <div className="min-h-screen bg-rotc-bg">
@@ -16,7 +18,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main content area — offset by sidebar width on desktop */}
-      <div className="md:pl-64 flex flex-col min-h-screen">
+      <div className={`flex flex-col min-h-screen transition-all duration-300 ${isCollapsed ? 'md:pl-20' : 'md:pl-64'}`}>
         {/* Top bar */}
         <header className="sticky top-0 z-20 bg-rotc-bg/80 backdrop-blur-md border-b border-rotc-border px-4 sm:px-6 h-14 flex items-center gap-3">
           {/* Mobile menu toggle */}

@@ -4,8 +4,9 @@ import { logoutUser } from '@/lib/auth'
 import {
   LayoutDashboard, Users, UserCheck, QrCode, CalendarCheck,
   ClipboardList, BarChart3, CreditCard, Megaphone, UserPlus,
-  Settings, Archive, Calendar, LogOut, User, Shield, X, ChevronLeft, Lock, Key
+  Settings, Archive, Calendar, LogOut, User, Shield, X, ChevronLeft, ChevronRight, Lock, Key
 } from 'lucide-react'
+import { useLayoutStore } from '@/stores/layout.store'
 import type { UserRole } from '@/stores/auth.store'
 import type { ReactNode } from 'react'
 
@@ -29,7 +30,6 @@ const adminNav: NavItem[] = [
   { label: 'Access Codes',  path: '/admin/access-codes',  icon: <Key className="h-5 w-5" /> },
   { label: 'Settings',      path: '/admin/settings',      icon: <Settings className="h-5 w-5" /> },
   { label: 'Archives',      path: '/admin/archives',      icon: <Archive className="h-5 w-5" /> },
-  { label: 'Change Password', path: '/admin/change-password', icon: <Lock className="h-5 w-5" /> },
 ]
 
 const officerNav: NavItem[] = [
@@ -66,10 +66,13 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { session } = useAuthStore()
+  const { isSidebarCollapsed, toggleSidebarCollapsed } = useLayoutStore()
   const location = useLocation()
   const navigate = useNavigate()
 
   if (!session) return null
+  
+  const isCollapsed = isSidebarCollapsed && !open
 
   const navItems = navByRole[session.role] ?? []
 
@@ -83,7 +86,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo area */}
-      <div className="px-4 py-5 border-b border-rotc-border flex items-center gap-3">
+      <div className={`px-4 py-5 border-b border-rotc-border flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
         <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
           <img 
             src="/logos/rotc-logo.png" 
@@ -91,17 +94,25 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             className="w-full h-full object-contain"
           />
         </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-base font-bold text-rotc-text tracking-tight">MSU-ZS ROTC</h1>
-          <p className="text-[11px] text-rotc-textMuted uppercase tracking-widest">Attendance System</p>
-        </div>
-        {/* Close button for mobile drawer */}
-        {onClose && (
+        {!isCollapsed && (
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-bold text-rotc-text tracking-tight">MSU-ZS ROTC</h1>
+          </div>
+        )}
+        {/* Close button for mobile drawer / Desktop toggle */}
+        {onClose ? (
           <button
             onClick={onClose}
             className="md:hidden p-1.5 rounded-lg text-rotc-textMuted hover:text-rotc-text hover:bg-rotc-cardHover transition-colors"
           >
             <X className="h-5 w-5" />
+          </button>
+        ) : (
+          <button
+            onClick={toggleSidebarCollapsed}
+            className="hidden md:flex p-1.5 rounded-lg text-rotc-textMuted hover:text-rotc-text hover:bg-rotc-cardHover transition-colors"
+          >
+            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
           </button>
         )}
       </div>
@@ -113,16 +124,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             key={item.path}
             to={item.path}
             onClick={onClose}
+            title={isCollapsed ? item.label : undefined}
             className={[
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium',
+              'flex items-center px-3 py-2.5 rounded-lg text-sm font-medium',
               'transition-all duration-150',
+              isCollapsed ? 'justify-center' : 'gap-3',
               isActive(item.path)
                 ? 'bg-rotc-accent/15 text-rotc-accent border-l-2 border-rotc-accent ml-0'
                 : 'text-rotc-textMuted hover:text-rotc-text hover:bg-rotc-cardHover',
             ].join(' ')}
           >
             <span className={isActive(item.path) ? 'text-rotc-accent' : ''}>{item.icon}</span>
-            <span>{item.label}</span>
+            {!isCollapsed && <span>{item.label}</span>}
           </Link>
         ))}
       </nav>
@@ -130,7 +143,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       {/* User section at bottom */}
       <div className="border-t border-rotc-border p-4 space-y-3">
         {/* User info */}
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
           <div className="w-9 h-9 rounded-full bg-rotc-accent/20 flex items-center justify-center flex-shrink-0">
             {session.photo_url ? (
               <img src={session.photo_url} alt="" className="w-9 h-9 rounded-full object-cover" />
@@ -140,19 +153,22 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               </span>
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-rotc-text truncate">{session.full_name}</p>
-            <p className="text-xs text-rotc-textMuted capitalize">{session.role}</p>
-          </div>
+          {!isCollapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-rotc-text truncate">{session.full_name}</p>
+              <p className="text-xs text-rotc-textMuted capitalize">{session.role}</p>
+            </div>
+          )}
         </div>
 
         {/* Sign out */}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-rotc-textMuted hover:text-rotc-danger hover:bg-red-900/20 transition-all duration-150"
+          title={isCollapsed ? 'Sign Out' : undefined}
+          className={`w-full flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-rotc-textMuted hover:text-rotc-danger hover:bg-red-900/20 transition-all duration-150 ${isCollapsed ? '' : 'gap-2'}`}
         >
-          <ChevronLeft className="h-4 w-4" />
-          <span>Sign Out</span>
+          <LogOut className="h-4 w-4" />
+          {!isCollapsed && <span>Sign Out</span>}
         </button>
       </div>
     </div>
@@ -161,7 +177,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <>
       {/* Desktop sidebar — always visible on md+ */}
-      <aside className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-rotc-card border-r border-rotc-border z-30">
+      <aside className={`hidden md:flex md:flex-col md:fixed md:inset-y-0 bg-rotc-card border-r border-rotc-border z-30 transition-all duration-300 ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}>
         {sidebarContent}
       </aside>
 
