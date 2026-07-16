@@ -19,6 +19,10 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 if (import.meta.env.VITE_POSTHOG_KEY) {
   posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
     api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
+    person_profiles: 'always',
+    capture_pageview: true,
+    capture_pageleave: true,
+    defaults: '2026-05-30',
   })
 }
 
