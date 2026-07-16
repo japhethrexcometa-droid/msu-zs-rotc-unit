@@ -6,17 +6,17 @@ import Button from '@/components/ui/Button'
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { Download, Printer, Key, ShieldX } from 'lucide-react'
-import { useAccessCodes, useGenerateAccessCodes, useRevokeAccessCode, AccessCode } from '@/hooks/queries/useAccessCodes'
+import { Download, Printer, Key, ShieldX, Trash2 } from 'lucide-react'
+import { useAccessCodes, useGenerateAccessCodes, useRevokeAccessCode, useWipeAccessCodes, AccessCode } from '@/hooks/queries/useAccessCodes'
 import AccessCodePrint from '@/components/print/AccessCodePrint'
 
 export default function AccessCodesPage() {
   const { data: codes = [], isLoading } = useAccessCodes()
   const generateMutation = useGenerateAccessCodes()
   const revokeMutation = useRevokeAccessCode()
+  const wipeMutation = useWipeAccessCodes()
   
   const [isPrinting, setIsPrinting] = useState(false)
-  const [printBatchId, setPrintBatchId] = useState<string | null>(null)
   
   const [batchSize, setBatchSize] = useState(100)
 
@@ -61,16 +61,28 @@ export default function AccessCodesPage() {
     }
   }
 
-  const handlePrintBatch = (batchId: string) => {
-    setPrintBatchId(batchId)
+  const handlePrintUnused = () => {
     setIsPrinting(true)
   }
 
-  if (isPrinting && printBatchId) {
-    const batchCodes = codes.filter(c => c.batch_id === printBatchId)
+  const handleWipeAll = () => {
+    const input = prompt('This will permanently delete all access codes. This action cannot be undone. Type RESET to confirm:')
+    if (input === 'RESET') {
+      const toastId = toast.loading('Wiping all codes...')
+      wipeMutation.mutate(undefined, {
+        onSuccess: () => toast.success('All codes have been wiped and reset to zero.', { id: toastId }),
+        onError: (err) => toast.error('Failed to wipe codes: ' + err.message, { id: toastId })
+      })
+    } else if (input !== null) {
+      toast.error('Deletion cancelled. You must type exactly RESET.')
+    }
+  }
+
+  if (isPrinting) {
+    const activeCodes = codes.filter(c => c.status === 'active')
     return (
       <AccessCodePrint 
-        codes={batchCodes} 
+        codes={activeCodes} 
         onClose={() => setIsPrinting(false)} 
       />
     )
@@ -137,6 +149,10 @@ export default function AccessCodesPage() {
                 <Key className="w-4 h-4 mr-2" />
                 {generateMutation.isPending ? 'Generating...' : 'Generate Codes'}
               </Button>
+              <Button onClick={handlePrintUnused} variant="outline" className="text-rotc-accent border-rotc-accent hover:bg-rotc-accent hover:text-black transition-colors" disabled={stats.active === 0}>
+                <Printer className="w-4 h-4 mr-2" />
+                Print {stats.active} Unused Codes
+              </Button>
             </div>
           </CardHeader>
         </Card>
@@ -181,16 +197,6 @@ export default function AccessCodesPage() {
                           <ShieldX className="w-4 h-4 mr-1" /> Revoke
                         </Button>
                       )}
-                      {r.batch_id && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handlePrintBatch(r.batch_id!)}
-                          title="Print this batch"
-                        >
-                          <Printer className="w-4 h-4" />
-                        </Button>
-                      )}
                     </div>
                   </td>
                 </>
@@ -198,6 +204,19 @@ export default function AccessCodesPage() {
             />
           </CardContent>
         </Card>
+
+        {/* Wipe All Codes */}
+        <div className="flex justify-end pt-4 border-t border-rotc-border/50">
+          <Button 
+            variant="outline" 
+            onClick={handleWipeAll} 
+            disabled={wipeMutation.isPending || codes.length === 0}
+            className="text-rotc-danger border-rotc-danger/50 hover:bg-rotc-danger hover:text-white transition-colors"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Wipe All Codes (Factory Reset)
+          </Button>
+        </div>
       </div>
     </AppLayout>
   )

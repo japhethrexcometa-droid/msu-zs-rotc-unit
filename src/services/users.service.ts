@@ -4,27 +4,52 @@ import type { Database } from '@/lib/database.types'
 type User = Database['public']['Tables']['users']['Row']
 type UserUpdate = Database['public']['Tables']['users']['Update']
 
-export async function getAllCadets(): Promise<User[]> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('role', 'cadet')
-    .order('platoon', { ascending: true })
-    .order('full_name', { ascending: true })
+export async function getCadets(
+  page: number = 1, 
+  pageSize: number = 20, 
+  search: string = '', 
+  platoon: string = 'All'
+): Promise<{ data: User[], count: number }> {
+  let query = supabase.from('users').select('*', { count: 'exact' }).eq('role', 'cadet')
+  
+  if (platoon !== 'All') {
+    query = query.eq('platoon', platoon)
+  }
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,id_number.ilike.%${search}%`)
+  }
+  
+  query = query.order('platoon', { ascending: true }).order('full_name', { ascending: true })
+  
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+  query = query.range(from, to)
 
+  const { data, count, error } = await query
   if (error) throw error
-  return data ?? []
+  return { data: data ?? [], count: count ?? 0 }
 }
 
-export async function getAllOfficers(): Promise<User[]> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('role', 'officer')
-    .order('full_name', { ascending: true })
+export async function getOfficers(
+  page: number = 1, 
+  pageSize: number = 20, 
+  search: string = ''
+): Promise<{ data: User[], count: number }> {
+  let query = supabase.from('users').select('*', { count: 'exact' }).eq('role', 'officer')
+  
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,id_number.ilike.%${search}%`)
+  }
+  
+  query = query.order('full_name', { ascending: true })
+  
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+  query = query.range(from, to)
 
+  const { data, count, error } = await query
   if (error) throw error
-  return data ?? []
+  return { data: data ?? [], count: count ?? 0 }
 }
 
 export async function getUserById(id: string): Promise<User | null> {

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getAccessCodes, generateAccessCodes, revokeAccessCode } from '@/services/accesscodes.service'
+import { getAccessCodes, generateAccessCodes, revokeAccessCode, wipeAccessCodes } from '@/services/accesscodes.service'
 
 export const ACCESS_CODE_KEYS = {
   all: ['access_codes'] as const,
@@ -57,6 +57,16 @@ export function useRevokeAccessCode() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => revokeAccessCode(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ACCESS_CODE_KEYS.list() })
+    },
+  })
+}
+
+export function useWipeAccessCodes() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => wipeAccessCodes(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ACCESS_CODE_KEYS.list() })
     },

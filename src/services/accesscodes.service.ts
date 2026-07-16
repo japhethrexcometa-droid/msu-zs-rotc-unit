@@ -65,6 +65,16 @@ export async function revokeAccessCode(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function wipeAccessCodes(): Promise<void> {
+  // Use a catch-all condition to bypass the 'missing filter' warning and delete all rows
+  const { error } = await supabase
+    .from('enrollment_access_codes')
+    .delete()
+    .neq('code', 'IMPOSSIBLE_CODE_WIPE')
+
+  if (error) throw error
+}
+
 function readAccessCodeStatus(row: { status: string; expires_at: string } | null): { valid: boolean; message?: string } {
   if (!row) return { valid: false, message: 'Invalid access code.' }
   if (row.status === 'used') return { valid: false, message: 'This access code has already been used.' }

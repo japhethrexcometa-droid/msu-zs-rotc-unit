@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getAllCadets, getAllOfficers, getUserById,
+  getCadets, getOfficers, getUserById,
   getCadetsByPlatoon, updateUser, hardDeleteUsers,
   getArchivedUsers, getUserCountByRole,
   resetUserPassword
@@ -9,19 +9,31 @@ import {
 export const USER_KEYS = {
   all: ['users'] as const,
   cadets: () => [...USER_KEYS.all, 'cadets'] as const,
+  cadetsPaginated: (page: number, pageSize: number, search: string, platoon: string) =>
+    [...USER_KEYS.cadets(), 'paginated', page, pageSize, search, platoon] as const,
   officers: () => [...USER_KEYS.all, 'officers'] as const,
+  officersPaginated: (page: number, pageSize: number, search: string) =>
+    [...USER_KEYS.officers(), 'paginated', page, pageSize, search] as const,
   byId: (id: string) => [...USER_KEYS.all, id] as const,
   byPlatoon: (platoon: string) => [...USER_KEYS.cadets(), 'platoon', platoon] as const,
   archived: () => [...USER_KEYS.all, 'archived'] as const,
   counts: () => [...USER_KEYS.all, 'counts'] as const,
 }
 
-export function useAllCadets() {
-  return useQuery({ queryKey: USER_KEYS.cadets(), queryFn: getAllCadets })
+export function useAllCadets(page: number = 1, pageSize: number = 20, search: string = '', platoon: string = 'All') {
+  return useQuery({
+    queryKey: USER_KEYS.cadetsPaginated(page, pageSize, search, platoon),
+    queryFn: () => getCadets(page, pageSize, search, platoon),
+    placeholderData: (prev) => prev,
+  })
 }
 
-export function useAllOfficers() {
-  return useQuery({ queryKey: USER_KEYS.officers(), queryFn: getAllOfficers })
+export function useAllOfficers(page: number = 1, pageSize: number = 20, search: string = '') {
+  return useQuery({
+    queryKey: USER_KEYS.officersPaginated(page, pageSize, search),
+    queryFn: () => getOfficers(page, pageSize, search),
+    placeholderData: (prev) => prev,
+  })
 }
 
 export function useUserById(id: string | null | undefined) {

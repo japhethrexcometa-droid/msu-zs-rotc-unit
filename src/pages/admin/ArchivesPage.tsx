@@ -756,17 +756,9 @@ export default function ArchivesPage() {
                       <button 
                         type="button"
                         onClick={() => setSelectedAcademicYear(year)}
-                        className={`px-3 py-1.5 text-xs transition-colors hover:bg-rotc-cardHover ${selectedAcademicYear === year ? 'text-rotc-accent font-bold bg-rotc-accent/10' : 'text-rotc-text'}`}
+                        className={`px-3 py-1.5 text-xs transition-colors hover:bg-rotc-cardHover w-full text-left ${selectedAcademicYear === year ? 'text-rotc-accent font-bold bg-rotc-accent/10' : 'text-rotc-text'}`}
                       >
                         {year}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAcademicYear(year)}
-                        className="p-1.5 text-rotc-textMuted hover:text-rotc-danger hover:bg-rotc-danger/10 transition-colors border-l border-rotc-border"
-                        title="Delete this entire academic year archive"
-                      >
-                        <TrashIcon className="h-3 w-3" />
                       </button>
                     </div>
                   ))}

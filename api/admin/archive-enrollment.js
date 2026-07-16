@@ -42,24 +42,42 @@ export default async function handler(req, res) {
       throw new Error("Forbidden");
     }
 
-    // 1. Fetch the records to be archived
-    let query = supabaseAdmin
-      .from('enrollment_requests')
-      .select('*');
+    // 1. Fetch records to archive (in batches of 1000 to bypass Supabase limit)
+    let records = [];
+    const BATCH_SIZE = 1000;
+    let offset = 0;
+    let hasMore = true;
 
-    if (archiveAllProcessed) {
-      if (status) {
-        query = query.eq('status', status);
+    while (hasMore) {
+      let query = supabaseAdmin
+        .from('enrollment_requests')
+        .select('*');
+
+      if (archiveAllProcessed) {
+        if (status) {
+          query = query.eq('status', status);
+        } else {
+          query = query.neq('status', 'pending');
+        }
       } else {
-        query = query.neq('status', 'pending');
+        query = query.in('id', requestIds);
       }
-    } else {
-      query = query.in('id', requestIds);
+
+      query = query.range(offset, offset + BATCH_SIZE - 1);
+
+      const { data: batch, error: fetchError } = await query;
+      if (fetchError) throw fetchError;
+
+      if (batch && batch.length > 0) {
+        records = records.concat(batch);
+        offset += BATCH_SIZE;
+        if (batch.length < BATCH_SIZE) hasMore = false;
+      } else {
+        hasMore = false;
+      }
     }
 
-    const { data: records, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
-    if (!records || records.length === 0) {
+    if (records.length === 0) {
       return res.status(200).json({ success: true, processed: 0, message: "No records found to archive." });
     }
 
@@ -101,26 +119,32 @@ export default async function handler(req, res) {
       archived_by: user.id
     }));
 
-    // 3. Batch Insert into Archives
-    const { error: archiveError } = await supabaseAdmin
-      .from('enrollment_archives')
-      .insert(archivedRecords);
+    // 3. Batch Insert into Archives (in chunks of 500)
+    const INSERT_CHUNK = 500;
+    for (let i = 0; i < archivedRecords.length; i += INSERT_CHUNK) {
+      const chunk = archivedRecords.slice(i, i + INSERT_CHUNK);
+      const { error: archiveError } = await supabaseAdmin
+        .from('enrollment_archives')
+        .insert(chunk);
+      if (archiveError) throw archiveError;
+    }
 
-    if (archiveError) throw archiveError;
-
-    // 4. Delete from Live Table
+    // 4. Delete from Live Table (in chunks of 500)
     const processedIds = records.map(r => r.id);
-    const { error: deleteError } = await supabaseAdmin
-      .from('enrollment_requests')
-      .delete()
-      .in('id', processedIds);
+    for (let i = 0; i < processedIds.length; i += INSERT_CHUNK) {
+      const chunk = processedIds.slice(i, i + INSERT_CHUNK);
+      const { error: deleteError } = await supabaseAdmin
+        .from('enrollment_requests')
+        .delete()
+        .in('id', chunk);
 
-    if (deleteError) {
-      console.error("Archive succeeded but deletion failed:", deleteError);
-      return res.status(500).json({
-        success: false,
-        error: "Records were archived but could not be removed from the active list. Please contact support."
-      });
+      if (deleteError) {
+        console.error("Archive succeeded but deletion failed at chunk:", deleteError);
+        return res.status(500).json({
+          success: false,
+          error: "Records were archived but could not be removed from the active list. Please contact support."
+        });
+      }
     }
 
     // 5. Generate and Store CSV Snapshot in Document Vault

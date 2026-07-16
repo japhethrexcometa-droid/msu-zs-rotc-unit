@@ -7,8 +7,8 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { useAllOfficers, useUpdateUser, useHardDeleteUsers, useResetUserPassword } from '@/hooks/queries/useUsers'
-import { useState, useMemo } from 'react'
-import { Search, Edit, Trash2, Key } from 'lucide-react'
+import { useState } from 'react'
+import { Search, Edit, Trash2, Key, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
 
@@ -16,12 +16,19 @@ type User = Database['public']['Tables']['users']['Row']
 
 export default function OfficersPage() {
   const session = useSession()
-  const { data: officers, isLoading } = useAllOfficers()
+  const [search, setSearch] = useState('')
+  const [platoonFilter, setPlatoonFilter] = useState('All')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+
+  const { data: result, isLoading, isFetching } = useAllOfficers(page, pageSize, search)
+  const officers = result?.data ?? []
+  const totalCount = result?.count ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+
   const updateMutation = useUpdateUser()
   const hardDeleteMutation = useHardDeleteUsers()
 
-  const [search, setSearch] = useState('')
-  const [platoonFilter, setPlatoonFilter] = useState('All')
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
@@ -34,15 +41,6 @@ export default function OfficersPage() {
   if (!session) return null
 
   const platoons = ['All', 'Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'HQ']
-
-  const filteredOfficers = useMemo(() => {
-    return (officers ?? []).filter(o => {
-      const matchesSearch = o.full_name.toLowerCase().includes(search.toLowerCase()) || 
-                            o.id_number.toLowerCase().includes(search.toLowerCase())
-      const matchesPlatoon = platoonFilter === 'All' || o.platoon === platoonFilter
-      return matchesSearch && matchesPlatoon
-    })
-  }, [officers, search, platoonFilter])
 
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -102,10 +100,10 @@ export default function OfficersPage() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredOfficers.length) {
+    if (selectedIds.length === officers.length) {
       setSelectedIds([])
     } else {
-      setSelectedIds(filteredOfficers.map(o => o.id))
+      setSelectedIds(officers.map(o => o.id))
     }
   }
 
@@ -126,16 +124,23 @@ export default function OfficersPage() {
                 type="text"
                 placeholder="Search name or ID..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => { setSearch(e.target.value); setPage(1) }}
                 className="pl-9 pr-4 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent w-full sm:w-64"
               />
             </div>
             <select
               value={platoonFilter}
-              onChange={e => setPlatoonFilter(e.target.value)}
+              onChange={e => { setPlatoonFilter(e.target.value); setPage(1) }}
               className="px-3 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent"
             >
               {platoons.map(p => <option key={p} value={p}>{p === 'All' || p === 'HQ' ? p : `${p} Platoon`}</option>)}
+            </select>
+            <select
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+              className="px-3 py-2 bg-rotc-bg border border-rotc-border rounded-lg text-sm text-rotc-text focus:outline-none focus:border-rotc-accent"
+            >
+              {[20, 50, 100].map(s => <option key={s} value={s}>{s} per page</option>)}
             </select>
             {selectedIds.length > 0 && (
               <Button
@@ -150,20 +155,20 @@ export default function OfficersPage() {
         </CardHeader>
         <CardContent className="p-0">
           <Table
+            data={officers}
+            keyExtractor={(o) => o.id}
             headers={[
               <div className="flex items-center">
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-rotc-border bg-rotc-bg text-rotc-accent focus:ring-rotc-accent cursor-pointer"
-                  checked={selectedIds.length === filteredOfficers.length && filteredOfficers.length > 0}
+                  checked={selectedIds.length === officers.length && officers.length > 0}
                   onChange={toggleSelectAll}
                 />
               </div>,
               'Photo', 'ID Number', 'Full Name', 'Platoon', 'Designation', 'Status', 'Actions'
             ]}
             isLoading={isLoading}
-            data={filteredOfficers}
-            keyExtractor={(o) => o.id}
             renderRow={(o) => (
               <>
                 <td className="p-4">
@@ -200,6 +205,23 @@ export default function OfficersPage() {
               </>
             )}
           />
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-rotc-border">
+              <p className="text-sm text-rotc-textMuted">
+                Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount} officers
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                  <ChevronLeft className="h-4 w-4" /> Prev
+                </Button>
+                <span className="text-sm text-rotc-text">Page {page} / {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
