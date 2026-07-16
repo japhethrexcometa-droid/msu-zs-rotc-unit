@@ -23,7 +23,7 @@ const MS_MAP: Record<string, Record<string, { subject: string; title: string }>>
 };
 
 const YEAR_CLASSES = Object.keys(MS_MAP);
-const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
+const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const SEMESTERS = ['1st Semester', '2nd Semester'];
 
 // Form State Types
@@ -539,6 +539,7 @@ export default function EnrollPage() {
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">School</span><span className="text-rotc-text font-medium break-words">{formData.school}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Course & Year</span><span className="text-rotc-text font-medium break-words">{formData.course_year}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Year / Class</span><span className="text-rotc-text font-medium break-words">{formData.year_class}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Academic Year</span><span className="text-rotc-text font-medium break-words">{formData.year_level}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Semester</span><span className="text-rotc-text font-medium break-words">{formData.semester}</span></div>
                     <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Military Science</span><span className="text-rotc-text font-medium break-words">{currentMS?.title} ({currentMS?.subject})</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Email</span><span className="text-rotc-text font-medium break-all">{formData.email}</span></div>
