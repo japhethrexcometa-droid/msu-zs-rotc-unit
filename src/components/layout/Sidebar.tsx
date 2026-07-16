@@ -99,22 +99,22 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <h1 className="text-base font-bold text-rotc-text tracking-tight">MSU-ZS ROTC</h1>
           </div>
         )}
-        {/* Close button for mobile drawer / Desktop toggle */}
-        {onClose ? (
+        {/* Close button for mobile drawer */}
+        {onClose && (
           <button
             onClick={onClose}
             className="md:hidden p-1.5 rounded-lg text-rotc-textMuted hover:text-rotc-text hover:bg-rotc-cardHover transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
-        ) : (
-          <button
-            onClick={toggleSidebarCollapsed}
-            className="hidden md:flex p-1.5 rounded-lg text-rotc-textMuted hover:text-rotc-text hover:bg-rotc-cardHover transition-colors"
-          >
-            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </button>
         )}
+        {/* Desktop toggle */}
+        <button
+          onClick={toggleSidebarCollapsed}
+          className="hidden md:flex p-1.5 rounded-lg text-rotc-textMuted hover:text-rotc-text hover:bg-rotc-cardHover transition-colors"
+        >
+          {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+        </button>
       </div>
 
       {/* Navigation */}
