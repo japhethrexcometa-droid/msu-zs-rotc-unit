@@ -9,6 +9,11 @@ type EnrollmentRequest = any
  * Without this, the JWT can silently expire, causing auth.uid() → NULL in
  * Postgres RLS, which makes is_admin() return FALSE → empty result set.
  * This is the root cause of enrollment data randomly disappearing.
+ *
+ * FIX (2026-07-17): If the session cannot be refreshed at all (truly expired),
+ * we now force a full logout and redirect to /login instead of silently
+ * continuing with a dead token (which caused the "Forbidden" cascade on
+ * admin/archives and admin/enrollment).
  */
 export async function ensureAuthSession(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
@@ -24,8 +29,15 @@ export async function ensureAuthSession(): Promise<void> {
       const { error: retryError } = await supabase.auth.refreshSession()
       if (retryError) {
         console.error('[ensureAuthSession] Session refresh failed after retry:', retryError.message)
-        // Don't throw — let the query attempt with current token
-        // The RLS will return empty results but at least we log the cause
+        // Token is truly dead. Force logout so the user sees the login page
+        // instead of a confusing "Forbidden" / empty data screen.
+        await supabase.auth.signOut()
+        // Dynamically import to avoid circular dependency
+        const { useAuthStore } = await import('@/stores/auth.store')
+        useAuthStore.getState().logout()
+        // Redirect to login with a session-expired flag so the user knows why
+        window.location.href = '/?expired=1'
+        return
       }
     }
   }
