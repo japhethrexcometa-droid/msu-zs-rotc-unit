@@ -84,8 +84,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     <div className="flex flex-col h-full">
       {/* Logo area */}
       <div className="px-4 py-5 border-b border-rotc-border flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-rotc-accent/20 flex items-center justify-center flex-shrink-0">
-          <Shield className="h-6 w-6 text-rotc-accent" />
+        <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
+          <img 
+            src="/logos/rotc-logo.png" 
+            alt="MSU ROTC Logo" 
+            className="w-full h-full object-contain"
+          />
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="text-base font-bold text-rotc-text tracking-tight">MSU-ZS ROTC</h1>

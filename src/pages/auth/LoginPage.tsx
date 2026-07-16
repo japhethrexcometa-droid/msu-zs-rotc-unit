@@ -76,8 +76,12 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-sm space-y-6">
         {/* Logo & Branding */}
         <div className="text-center space-y-3">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-rotc-accent/20 to-rotc-accent/5 border border-rotc-accent/20 flex items-center justify-center shadow-lg shadow-rotc-accent/10">
-            <Shield className="h-10 w-10 text-rotc-accent" />
+          <div className="mx-auto w-24 h-24 flex items-center justify-center">
+            <img 
+              src="/logos/rotc-logo.png" 
+              alt="MSU ROTC Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-rotc-text tracking-tight">

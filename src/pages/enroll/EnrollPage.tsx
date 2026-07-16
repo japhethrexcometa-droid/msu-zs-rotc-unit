@@ -296,8 +296,12 @@ export default function EnrollPage() {
       <div className="min-h-screen flex items-center justify-center px-4 bg-rotc-bg">
         <div className="max-w-md w-full bg-rotc-card border border-rotc-border rounded-2xl shadow-xl overflow-hidden">
           <div className="p-6 text-center border-b border-rotc-border bg-rotc-bg">
-            <div className="w-12 h-12 bg-rotc-accent/10 text-rotc-accent rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-6 h-6" />
+            <div className="mx-auto w-20 h-20 mb-4 flex items-center justify-center">
+              <img 
+                src="/logos/rotc-logo.png" 
+                alt="MSU ROTC Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <h1 className="text-xl font-bold text-rotc-text">Access Code Required</h1>
             <p className="text-sm text-rotc-textMuted mt-1">
@@ -376,8 +380,12 @@ export default function EnrollPage() {
 
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-rotc-accent/10 flex items-center justify-center">
-              <Shield className="h-6 w-6 text-rotc-accent" />
+            <div className="w-14 h-14 flex items-center justify-center">
+              <img 
+                src="/logos/rotc-logo.png" 
+                alt="MSU ROTC Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-rotc-text">{validRole === "officer" ? "Officer" : "Cadet"} Enrollment</h1>
