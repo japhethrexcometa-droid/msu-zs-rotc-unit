@@ -17,7 +17,8 @@ const COLORS = ['#4caf50', '#ff9800', '#ef5350', '#42a5f5', '#9c27b0', '#00bcd4'
 export default function DashboardPage() {
   const session = useSession()
   const { data: counts, isLoading: loadingCounts } = useUserCounts()
-  const { data: cadets, isLoading: loadingCadets } = useAllCadets()
+  const { data: cadetsResult, isLoading: loadingCadets } = useAllCadets()
+  const cadets = cadetsResult?.data ?? []
   const { data: activeSessions, isLoading: loadingActive } = useActiveSessions()
   const { data: allSessions, isLoading: loadingSessions } = useAllSessions(7)
   const { data: announcements, isLoading: loadingAnnouncements } = useAnnouncements()
@@ -34,7 +35,7 @@ export default function DashboardPage() {
 
   // Platoon stats for pie chart
   const platoonData = Object.entries(
-    (cadets ?? []).reduce((acc, cadet) => {
+    cadets.reduce((acc, cadet) => {
       const p = cadet.platoon ?? 'Unassigned'
       acc[p] = (acc[p] || 0) + 1
       return acc

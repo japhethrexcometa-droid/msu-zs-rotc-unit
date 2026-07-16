@@ -15,7 +15,8 @@ export default function DashboardPage() {
   const session = useSession()
   const navigate = useNavigate()
 
-  const { data: cadets, isLoading: loadingCadets } = useAllCadets()
+  const { data: cadetsResult, isLoading: loadingCadets } = useAllCadets()
+  const cadets = cadetsResult?.data ?? []
   const { data: activeSessions, isLoading: loadingActive } = useActiveSessions()
   const { data: allSessions, isLoading: loadingSessions } = useAllSessions(3)
   const { data: announcements, isLoading: loadingAnnouncements } = useAnnouncements()

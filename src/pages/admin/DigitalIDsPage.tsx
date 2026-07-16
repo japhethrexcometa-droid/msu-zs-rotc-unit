@@ -12,15 +12,17 @@ type User = Database['public']['Tables']['users']['Row']
 
 export default function DigitalIDsPage() {
   const session = useSession()
-  const { data: cadets } = useAllCadets()
-  const { data: officers } = useAllOfficers()
+  const { data: cadetsResult } = useAllCadets()
+  const cadets = cadetsResult?.data ?? []
+  const { data: officersResult } = useAllOfficers()
+  const officers = officersResult?.data ?? []
   const [search, setSearch] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
 
   if (!session) return null
 
-  const allUsers = useMemo(() => [...(cadets ?? []), ...(officers ?? [])], [cadets, officers])
+  const allUsers = useMemo(() => [...cadets, ...officers], [cadets, officers])
 
   const filteredUsers = search.length >= 2
     ? allUsers.filter(u =>

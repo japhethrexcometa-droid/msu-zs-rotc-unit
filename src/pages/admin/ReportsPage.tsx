@@ -10,8 +10,8 @@ import { FileDown } from 'lucide-react'
 
 export default function ReportsPage() {
   const session = useSession()
-  const { data: cadets, isLoading } = useAllCadets()
-
+  const { data: cadetsResult, isLoading } = useAllCadets()
+  const cadets = cadetsResult?.data ?? []
   if (!session) return null
 
   const handleExportCadets = () => {

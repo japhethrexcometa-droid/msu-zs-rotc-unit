@@ -15,7 +15,8 @@ type User = Database['public']['Tables']['users']['Row']
 
 export default function PlatoonPage() {
   const session = useSession()
-  const { data: cadets, isLoading } = useAllCadets()
+  const { data: cadetsResult, isLoading } = useAllCadets()
+  const cadets = cadetsResult?.data ?? []
   const [search, setSearch] = useState('')
   const [selectedCadet, setSelectedCadet] = useState<User | null>(null)
 
