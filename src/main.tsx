@@ -5,7 +5,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import ErrorBoundary from './components/ErrorBoundary'
 import App from './App'
+import * as Sentry from '@sentry/react'
+import posthog from 'posthog-js'
+import { PostHogProvider } from 'posthog-js/react'
 import './index.css'
+
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+  })
+}
+
+if (import.meta.env.VITE_POSTHOG_KEY) {
+  posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
+  })
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,7 +40,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <App />
+          <PostHogProvider client={posthog}>
+            <App />
+          </PostHogProvider>
           <Toaster
             position="top-center"
             toastOptions={{
