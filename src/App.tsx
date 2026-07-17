@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import PostHogPageTracker from '@/components/PostHogPageTracker'
 import ProtectedRoute from '@/lib/authz'
 
 // Eager load all pages
@@ -42,6 +43,7 @@ import ChangePasswordPage from '@/components/ChangePasswordPage'
 export default function App() {
   return (
     <>
+      <PostHogPageTracker />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LoginPage />} />
