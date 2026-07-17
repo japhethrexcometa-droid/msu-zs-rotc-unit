@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 export interface AccessCode {
   id: string
   code: string
-  status: 'active' | 'used' | 'expired' | 'revoked'
+  status: 'active' | 'used' | 'expired' | 'revoked' | 'claimed'
   batch_id: string | null
   created_by: string
   used_by_id_number: string | null
@@ -80,6 +80,7 @@ function readAccessCodeStatus(row: { status: string; expires_at: string } | null
   if (row.status === 'used') return { valid: false, message: 'This access code has already been used.' }
   if (row.status === 'revoked') return { valid: false, message: 'This access code has been revoked.' }
   if (row.status === 'expired') return { valid: false, message: 'This access code has expired.' }
+  if (row.status === 'claimed') return { valid: false, message: 'This code is currently reserved by someone else. Please try again in 15 minutes.' }
   if (new Date(row.expires_at) < new Date()) return { valid: false, message: 'This access code has expired.' }
   return { valid: true }
 }
