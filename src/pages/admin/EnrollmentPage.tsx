@@ -33,7 +33,8 @@ function ProfileDetails({ data }: { data: any }) {
         <span className="text-rotc-textMuted">Gender:</span><span className="text-rotc-text font-medium">{data.gender}</span>
         <span className="text-rotc-textMuted">DOB:</span><span className="text-rotc-text font-medium">{data.date_of_birth ? format(new Date(data.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : '—'}</span>
         <span className="text-rotc-textMuted">Course:</span><span className="text-rotc-text font-medium">{data.course_year}</span>
-        <span className="text-rotc-textMuted">Academic Year:</span><span className="text-rotc-text font-medium">{data.year_level}</span>
+        <span className="text-rotc-textMuted">Year Level:</span><span className="text-rotc-text font-medium">{data.year_level}</span>
+        <span className="text-rotc-textMuted">Academic Year:</span><span className="text-rotc-text font-medium">{data.academic_year || '-'}</span>
         <span className="text-rotc-textMuted">MS Class:</span><span className="text-rotc-text font-medium">{data.ms_title} ({data.ms_subject})</span>
         <span className="text-rotc-textMuted">Semester:</span><span className="text-rotc-text font-medium">{data.semester}</span>
         <span className="col-span-2 border-t border-rotc-border my-2"></span>
@@ -183,8 +184,14 @@ export default function EnrollmentPage() {
     if (allData.length === 0) return toast.error('No records to export in this tab.')
 
     // CSV field sanitizer: wraps in quotes and escapes inner quotes if needed
-    const sanitize = (value: string | number | null | undefined): string => {
+    const sanitize = (value: string | number | null | undefined, isPhone: boolean = false): string => {
       const str = String(value ?? '')
+      
+      // Prevent Excel from dropping leading zeros on phone numbers
+      if (isPhone && str.startsWith('0')) {
+        return `="""${str}"""` // Renders as ="0912..." in CSV, which Excel parses correctly as text
+      }
+
       // If contains comma, newline, or double-quote, wrap in quotes and escape
       if (/[",\n]/.test(str)) {
         return `"${str.replace(/"/g, '""')}"`
@@ -203,7 +210,7 @@ export default function EnrollmentPage() {
     // Column order matches the online enrollment form exactly
     const headers = [
       'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
-      'Gender', 'DOB', 'Course & Year', 'Academic Year', 'MS Class', 'Semester', 'Contact', 'Address',
+      'Gender', 'DOB', 'Course & Year', 'Year Level', 'Academic Year', 'MS Class', 'Semester', 'Contact', 'Address',
       'Religion', 'Blood Type', 'Height',
       'Beneficiary', 'Relationship',
       'Email',
@@ -241,9 +248,10 @@ export default function EnrollmentPage() {
         sanitize(r.date_of_birth ? format(new Date(r.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : ''),
         sanitize(r.course_year),
         sanitize(r.year_level),
+        sanitize(r.academic_year),
         sanitize(r.ms_title ? `${r.ms_title} (${r.ms_subject})` : ''),
         sanitize(r.semester),
-        sanitize(r.contact_number),
+        sanitize(r.contact_number, true),
         sanitize(r.home_address),
         sanitize(r.religion),
         sanitize(r.blood_type),
@@ -253,7 +261,7 @@ export default function EnrollmentPage() {
         sanitize(r.email),
         sanitize(r.emergency_name),
         sanitize(r.emergency_relationship),
-        sanitize(r.emergency_contact),
+        sanitize(r.emergency_contact, true),
         sanitize(r.status),
         sanitize(r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy h:mm a') : ''),
         ...(tab !== 'pending' ? [sanitize(r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : '')] : [])
