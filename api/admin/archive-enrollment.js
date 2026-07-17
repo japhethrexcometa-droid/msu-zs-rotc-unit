@@ -153,7 +153,7 @@ export default async function handler(req, res) {
         'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
         'Gender', 'DOB', 'Course & Year', 'Contact No.', 'Home Address', 'Religion',
         'Blood Type', 'Height', 'Beneficiary', 'Relationship', 'Email Add',
-        'Emergency Contact Name', 'Relationship', 'Contact Number', 'Status', 'Semester', 'MS Class', 'Role', 'Year Level', 'Academic Year', 'Archived Date'
+        'Emergency Contact Name', 'Relationship', 'Contact Number', 'Year Level', 'Academic Year', 'Semester', 'Status', 'Archived Date'
       ]
 
       let grandTotalMale = 0;
@@ -184,8 +184,7 @@ export default async function handler(req, res) {
           r.blood_type, r.height_feet, r.beneficiary_name, r.beneficiary_relationship, r.email,
           r.emergency_name, r.emergency_relationship, 
           (r.emergency_contact && r.emergency_contact.startsWith('0')) ? `="""${r.emergency_contact}"""` : r.emergency_contact, 
-          r.status, r.semester, 
-          msClass, r.role, r.year_level, r.academic_year, r.original_created_at
+          r.year_level, r.academic_year, r.semester, r.status, r.original_created_at
         ].map((v, i) => {
           // If already formatted for excel phone number, leave it
           if (typeof v === 'string' && v.startsWith('="""')) return v;
