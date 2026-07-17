@@ -39,6 +39,7 @@ interface EnrollmentState {
   date_of_birth: string;
   course_year: string;
   year_level: string;
+  academic_year: string;
   year_class: string;
   semester: string;
   // Step 2
@@ -58,7 +59,7 @@ interface EnrollmentState {
 
 const initialFormState: EnrollmentState = {
   id_number: "", school: "", last_name: "", first_name: "", middle_initial: "", suffix: "", gender: "Male", date_of_birth: "", course_year: "",
-  year_level: "1st Year", year_class: "Basic Cadet", semester: "1st Semester",
+  year_level: "1st Year", academic_year: "2026-2027", year_class: "Basic Cadet", semester: "1st Semester",
   contact_number: "", home_address: "", religion: "", blood_type: "Unknown", height_feet: "", email: "", beneficiary_name: "", beneficiary_relationship: "",
   emergency_name: "", emergency_relationship: "", emergency_contact: ""
 };
@@ -128,7 +129,7 @@ export default function EnrollPage() {
       formData.id_number.trim() && formData.school.trim() && 
       formData.last_name.trim() && formData.first_name.trim() && 
       formData.gender.trim() && formData.date_of_birth && 
-      formData.course_year.trim() && formData.year_level.trim() && formData.year_class.trim() && formData.semester.trim()
+      formData.course_year.trim() && formData.year_level.trim() && formData.academic_year.trim() && formData.year_class.trim() && formData.semester.trim()
     );
   };
   
@@ -210,6 +211,7 @@ export default function EnrollPage() {
         date_of_birth: formData.date_of_birth,
         course_year: formData.course_year,
         year_level: formData.year_level,
+        academic_year: formData.academic_year,
         year_class: formData.year_class,
         semester: formData.semester,
         contact_number: formData.contact_number,
@@ -441,7 +443,7 @@ export default function EnrollPage() {
                 {renderInputField({ label: "Course", field: "course_year", placeholder: "Enter course" })}
                 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-rotc-textMuted">Academic Year *</label>
+                  <label className="text-sm font-medium text-rotc-textMuted">Year Level *</label>
                   <select 
                     value={formData.year_level} onChange={e => updateForm({ year_level: e.target.value })}
                     className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
@@ -452,6 +454,8 @@ export default function EnrollPage() {
                   </select>
                 </div>
                 
+                {renderInputField({ label: "Academic Year", field: "academic_year", placeholder: "e.g. 2026-2027" })}
+
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">ROTC MS Class *</label>
                   <select 
@@ -541,7 +545,8 @@ export default function EnrollPage() {
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">School</span><span className="text-rotc-text font-medium break-words">{formData.school}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Course & Year</span><span className="text-rotc-text font-medium break-words">{formData.course_year}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Year / Class</span><span className="text-rotc-text font-medium break-words">{formData.year_class}</span></div>
-                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Academic Year</span><span className="text-rotc-text font-medium break-words">{formData.year_level}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Year Level</span><span className="text-rotc-text font-medium break-words">{formData.year_level}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Academic Year</span><span className="text-rotc-text font-medium break-words">{formData.academic_year}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Semester</span><span className="text-rotc-text font-medium break-words">{formData.semester}</span></div>
                     <div className="flex flex-col sm:col-span-2"><span className="text-rotc-textMuted text-xs">Military Science</span><span className="text-rotc-text font-medium break-words">{currentMS?.title} ({currentMS?.subject})</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Email</span><span className="text-rotc-text font-medium break-all">{formData.email}</span></div>
