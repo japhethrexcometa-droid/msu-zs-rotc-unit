@@ -42,7 +42,7 @@ function ProfileDetails({ data }: { data: any }) {
         
         <span className="text-rotc-textMuted">Contact:</span><span className="text-rotc-text font-medium">{data.contact_number}</span>
         <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{data.email}</span>
-        <span className="text-rotc-textMuted mt-1">Address:</span><span className="text-rotc-text font-medium mt-1 leading-tight pr-2">{data.home_address}</span>
+        <span className="text-rotc-textMuted mt-1">Address:</span><span className="text-rotc-text font-medium mt-1 leading-tight pr-2 break-words min-w-0">{data.home_address}</span>
         
         <span className="col-span-2 border-t border-rotc-border my-1"></span>
         
@@ -222,15 +222,12 @@ export default function EnrollmentPage() {
       return (a.gender || '').localeCompare(b.gender || '')
     })
 
-    // Column order matches the online enrollment form exactly
+    // Column order matches Archives exactly but with Date Submitted/Processed at the end
     const headers = [
       'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
-      'Gender', 'DOB', 'Course & Year', 'Year Level', 'Academic Year', 'MS Class', 'Semester', 'Contact', 'Address',
-      'Religion', 'Blood Type', 'Height',
-      'Beneficiary', 'Relationship',
-      'Email',
-      'Emergency Contact Name', 'Relationship', 'Contact Number',
-      'Status', 'Date Submitted',
+      'Gender', 'DOB', 'Course & Year', 'Contact No.', 'Home Address', 'Religion',
+      'Blood Type', 'Height', 'Beneficiary', 'Relationship', 'Email Add',
+      'Emergency Contact Name', 'Relationship', 'Contact Number', 'Year Level', 'Academic Year', 'Semester', 'Status', 'Date Submitted',
       ...(tab !== 'pending' ? ['Date Processed'] : [])
     ]
 
@@ -262,10 +259,6 @@ export default function EnrollmentPage() {
         sanitize(r.gender),
         sanitize(r.date_of_birth ? format(new Date(r.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : ''),
         sanitize(r.course_year),
-        sanitize(r.year_level),
-        sanitize(r.academic_year),
-        sanitize(r.ms_title ? `${r.ms_title} (${r.ms_subject})` : ''),
-        sanitize(r.semester),
         sanitize(r.contact_number, true),
         sanitize(r.home_address),
         sanitize(r.religion),
@@ -277,6 +270,9 @@ export default function EnrollmentPage() {
         sanitize(r.emergency_name),
         sanitize(r.emergency_relationship),
         sanitize(r.emergency_contact, true),
+        sanitize(r.year_level),
+        sanitize(r.academic_year),
+        sanitize(r.semester),
         sanitize(r.status),
         sanitize(r.created_at ? format(new Date(r.created_at), 'MMM d, yyyy h:mm a') : ''),
         ...(tab !== 'pending' ? [sanitize(r.reviewed_at ? format(new Date(r.reviewed_at), 'MMM d, yyyy h:mm a') : '')] : [])
