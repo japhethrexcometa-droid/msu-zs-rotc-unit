@@ -200,13 +200,15 @@ export default function EnrollPage() {
       const msData = MS_MAP[formData.year_class]?.[formData.semester];
       if (!msData) throw new Error("Invalid year class or semester selection.");
 
+      const capitalize = (str: string) => str ? str.trim().split(/\s+/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') : str;
+
       const enrollmentData = {
         id_number: formData.id_number,
         school: formData.school,
-        last_name: formData.last_name,
-        first_name: formData.first_name,
-        middle_initial: formData.middle_initial,
-        suffix: formData.suffix,
+        last_name: capitalize(formData.last_name),
+        first_name: capitalize(formData.first_name),
+        middle_initial: capitalize(formData.middle_initial),
+        suffix: capitalize(formData.suffix),
         gender: formData.gender,
         date_of_birth: formData.date_of_birth,
         course_year: formData.course_year,
