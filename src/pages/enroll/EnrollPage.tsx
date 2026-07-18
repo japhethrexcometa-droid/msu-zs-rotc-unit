@@ -432,7 +432,26 @@ export default function EnrollPage() {
               <h2 className="text-lg font-semibold text-rotc-text border-b border-rotc-border pb-2">Personal Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderInputField({ label: "Student ID Number", field: "id_number", placeholder: "Enter ID number" })}
-                {renderInputField({ label: "School", field: "school", placeholder: "Enter school name" })}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-rotc-textMuted">School *</label>
+                  <input
+                    list="school-options"
+                    placeholder="Select or type school name"
+                    value={formData.school}
+                    onChange={e => updateForm({ school: e.target.value })}
+                    className={[
+                      'w-full rounded-lg bg-rotc-card border text-rotc-text placeholder-rotc-textMuted/60',
+                      'px-3 py-2.5 text-sm transition-all duration-150',
+                      'focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent',
+                      !formData.school.trim() ? 'border-rotc-danger/30' : 'border-rotc-border'
+                    ].join(' ')}
+                  />
+                  <datalist id="school-options">
+                    <option value="MSU - Zamboanga Sibugay" />
+                    <option value="St. John College of Buug" />
+                    <option value="ZPPSU Bayog" />
+                  </datalist>
+                </div>
                 {renderInputField({ label: "First Name", field: "first_name", placeholder: "First Name" })}
                 {renderInputField({ label: "Last Name", field: "last_name", placeholder: "Last Name" })}
                 {renderInputField({ label: "Middle Initial", field: "middle_initial", placeholder: "M.I.", required: false })}

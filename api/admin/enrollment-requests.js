@@ -58,6 +58,14 @@ export default async function handler(req, res) {
       let allSchools = [];
       let emailQueueCount = 0;
 
+      const normalizeSchool = (s) => {
+        const lower = String(s || '').trim().toLowerCase();
+        if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
+        if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
+        if (lower.includes('zppsu')) return 'ZPPSU Bayog';
+        return String(s || '').trim() || 'Unknown';
+      };
+
       // Try RPC first for speed
       const { data: stats, error: statsError } = await supabaseAdmin.rpc('get_enrollment_stats', {
         p_status: status || 'pending'
@@ -73,13 +81,7 @@ export default async function handler(req, res) {
         ]);
         summary = { pending: p || 0, approved: a || 0, rejected: r || 0 };
 
-        const normalizeSchool = (s) => {
-          const lower = String(s || '').trim().toLowerCase();
-          if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
-          if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
-          if (lower.includes('zppsu')) return 'ZPPSU Bayog';
-          return String(s || '').trim() || 'Unknown';
-        };
+
 
         const { data: schoolData } = await supabaseAdmin.from('enrollment_requests').select('school');
         if (schoolData) {
@@ -103,9 +105,20 @@ export default async function handler(req, res) {
         }
       } else {
         summary = stats?.summary || { pending: 0, approved: 0, rejected: 0 };
-        statsBySchool = stats?.statsBySchool || {};
-        allSchools = stats?.allSchools || [];
         emailQueueCount = stats?.emailQueueCount || 0;
+
+        // Normalize school names from RPC results
+        const rawStats = stats?.statsBySchool || {};
+        for (const [school, counts] of Object.entries(rawStats)) {
+          const normalized = normalizeSchool(school);
+          if (!statsBySchool[normalized]) statsBySchool[normalized] = { Male: 0, Female: 0, Total: 0 };
+          statsBySchool[normalized].Male += counts.Male || 0;
+          statsBySchool[normalized].Female += counts.Female || 0;
+          statsBySchool[normalized].Total += counts.Total || 0;
+        }
+
+        const rawSchools = stats?.allSchools || [];
+        allSchools = [...new Set(rawSchools.map(s => normalizeSchool(s)))].filter(Boolean);
       }
 
       return res.status(200).json({

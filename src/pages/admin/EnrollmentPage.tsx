@@ -25,8 +25,8 @@ import { Check, X, Download, AlertCircle, RefreshCw, ChevronUp, ChevronDown } fr
 
 function ProfileDetails({ data }: { data: any }) {
   return (
-    <div className="bg-rotc-bg border border-rotc-border rounded-xl p-4 text-sm space-y-3 max-h-[50vh] overflow-y-auto">
-      <div className="grid grid-cols-2 gap-y-2">
+    <div className="bg-rotc-bg border border-rotc-border rounded-xl p-4 text-sm max-h-[50vh] overflow-y-auto">
+      <div className="grid grid-cols-[100px_1fr] gap-y-3">
         <span className="text-rotc-textMuted">ID Number:</span><span className="text-rotc-text font-medium">{data.id_number}</span>
         <span className="text-rotc-textMuted">School:</span><span className="text-rotc-text font-medium">{data.school}</span>
         <span className="text-rotc-textMuted">Name:</span><span className="text-rotc-text font-medium">{data.first_name} {data.middle_initial} {data.last_name} {data.suffix !== 'N/A' ? data.suffix : ''}</span>
@@ -34,20 +34,22 @@ function ProfileDetails({ data }: { data: any }) {
         <span className="text-rotc-textMuted">DOB:</span><span className="text-rotc-text font-medium">{data.date_of_birth ? format(new Date(data.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : '—'}</span>
         <span className="text-rotc-textMuted">Course:</span><span className="text-rotc-text font-medium">{data.course_year}</span>
         <span className="text-rotc-textMuted">Year Level:</span><span className="text-rotc-text font-medium">{data.year_level}</span>
-        <span className="text-rotc-textMuted">Academic Year:</span><span className="text-rotc-text font-medium">{data.academic_year || '-'}</span>
+        <span className="text-rotc-textMuted">Acad Year:</span><span className="text-rotc-text font-medium">{data.academic_year}</span>
         <span className="text-rotc-textMuted">MS Class:</span><span className="text-rotc-text font-medium">{data.ms_title} ({data.ms_subject})</span>
         <span className="text-rotc-textMuted">Semester:</span><span className="text-rotc-text font-medium">{data.semester}</span>
-        <span className="col-span-2 border-t border-rotc-border my-2"></span>
+        
+        <span className="col-span-2 border-t border-rotc-border my-1"></span>
+        
         <span className="text-rotc-textMuted">Contact:</span><span className="text-rotc-text font-medium">{data.contact_number}</span>
-        <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium break-all pr-2">{data.email}</span>
-        <div className="col-span-2 flex flex-col mt-1">
-          <span className="text-rotc-textMuted text-xs">Address:</span>
-          <span className="text-rotc-text font-medium mt-0.5">{data.home_address}</span>
-        </div>
-        <span className="col-span-2 border-t border-rotc-border my-2"></span>
+        <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{data.email}</span>
+        <span className="text-rotc-textMuted mt-1">Address:</span><span className="text-rotc-text font-medium mt-1 leading-tight pr-2">{data.home_address}</span>
+        
+        <span className="col-span-2 border-t border-rotc-border my-1"></span>
+        
         <span className="text-rotc-textMuted">Blood Type:</span><span className="text-rotc-text font-medium">{data.blood_type}</span>
         <span className="text-rotc-textMuted">Height:</span><span className="text-rotc-text font-medium">{data.height_feet} ft</span>
-        <span className="col-span-2 border-t border-rotc-border my-2"></span>
+        
+        <span className="col-span-2 border-t border-rotc-border my-1"></span>
         <span className="text-rotc-textMuted">Beneficiary:</span><span className="text-rotc-text font-medium">{data.beneficiary_name} ({data.beneficiary_relationship})</span>
         <span className="text-rotc-textMuted">Emergency:</span><span className="text-rotc-text font-medium">{data.emergency_name} ({data.emergency_relationship}) - {data.emergency_contact}</span>
       </div>
