@@ -40,7 +40,7 @@ function ProfileDetails({ data }: { data: any }) {
         <span className="col-span-2 border-t border-rotc-border my-2"></span>
         <span className="text-rotc-textMuted">Contact:</span><span className="text-rotc-text font-medium">{data.contact_number}</span>
         <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{data.email}</span>
-        <span className="text-rotc-textMuted">Address:</span><span className="text-rotc-text font-medium col-span-2 mt-1">{data.home_address}</span>
+        <span className="text-rotc-textMuted">Address:</span><span className="text-rotc-text font-medium break-words pr-2">{data.home_address}</span>
         <span className="col-span-2 border-t border-rotc-border my-2"></span>
         <span className="text-rotc-textMuted">Blood Type:</span><span className="text-rotc-text font-medium">{data.blood_type}</span>
         <span className="text-rotc-textMuted">Height:</span><span className="text-rotc-text font-medium">{data.height_feet} ft</span>
