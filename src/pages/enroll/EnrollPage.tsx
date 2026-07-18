@@ -486,7 +486,7 @@ export default function EnrollPage() {
                 {renderInputField({ label: "Academic Year", field: "academic_year", placeholder: "e.g. 2026-2027" })}
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-rotc-textMuted">ROTC MS Class *</label>
+                  <label className="text-sm font-medium text-rotc-textMuted">Role *</label>
                   <select 
                     value={formData.year_class} onChange={e => updateForm({ year_class: e.target.value })}
                     className="w-full rounded-lg bg-rotc-bg border border-rotc-border text-rotc-text px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent"
@@ -573,7 +573,7 @@ export default function EnrollPage() {
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Name</span><span className="text-rotc-text font-medium break-words">{formData.first_name} {formData.middle_initial} {formData.last_name} {formData.suffix !== 'N/A' && formData.suffix !== '' ? formData.suffix : ''}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">School</span><span className="text-rotc-text font-medium break-words">{formData.school}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Course & Year</span><span className="text-rotc-text font-medium break-words">{formData.course_year}</span></div>
-                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Year / Class</span><span className="text-rotc-text font-medium break-words">{formData.year_class}</span></div>
+                    <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Role</span><span className="text-rotc-text font-medium break-words">{formData.year_class}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Year Level</span><span className="text-rotc-text font-medium break-words">{formData.year_level}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Academic Year</span><span className="text-rotc-text font-medium break-words">{formData.academic_year}</span></div>
                     <div className="flex flex-col"><span className="text-rotc-textMuted text-xs">Semester</span><span className="text-rotc-text font-medium break-words">{formData.semester}</span></div>
