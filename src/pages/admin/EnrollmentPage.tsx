@@ -204,8 +204,18 @@ export default function EnrollmentPage() {
       return str
     }
 
+    const normalizeSchool = (s: string) => {
+      const lower = String(s || '').trim().toLowerCase();
+      if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
+      if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
+      if (lower.includes('zppsu')) return 'ZPPSU Bayog';
+      return String(s || '').trim() || 'Unknown';
+    };
+
+    const normalizedData = allData.map(r => ({ ...r, school: normalizeSchool(r.school) }));
+
     // Sort by school, then gender (Female first, Male second) for organized export
-    const sorted = [...allData].sort((a, b) => {
+    const sorted = [...normalizedData].sort((a, b) => {
       const schoolCompare = (a.school || '').localeCompare(b.school || '')
       if (schoolCompare !== 0) return schoolCompare
       // Female first, Male second within each school

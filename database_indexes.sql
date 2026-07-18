@@ -17,6 +17,14 @@ ON users(id_number);
 CREATE INDEX IF NOT EXISTS idx_users_role 
 ON users(role);
 
--- 5. Index for Attendance queries (Speeds up attendance fetching by date)
-CREATE INDEX IF NOT EXISTS idx_attendance_date 
-ON attendance(date);
+-- Speed up searching by First Name on Enrollment Requests
+CREATE INDEX IF NOT EXISTS idx_enrollment_requests_first_name 
+ON enrollment_requests(first_name);
+
+-- Speed up searching by Last Name on Enrollment Requests
+CREATE INDEX IF NOT EXISTS idx_enrollment_requests_last_name 
+ON enrollment_requests(last_name);
+
+-- Speed up searching by Name on the Users table
+CREATE INDEX IF NOT EXISTS idx_users_full_name 
+ON users(full_name);

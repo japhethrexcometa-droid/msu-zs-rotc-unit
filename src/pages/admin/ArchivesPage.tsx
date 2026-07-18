@@ -237,12 +237,20 @@ export default function ArchivesPage() {
         return
       }
 
+      const normalizeSchool = (s: string) => {
+        const lower = String(s || '').trim().toLowerCase();
+        if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
+        if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
+        if (lower.includes('zppsu')) return 'ZPPSU Bayog';
+        return String(s || '').trim() || 'Unknown';
+      };
+
       // Build CSV
       const csvHeaders = [
         'ID Number', 'School', 'Last Name', 'First Name', 'MI', 'Suffix',
         'Gender', 'DOB', 'Course & Year', 'Contact No.', 'Home Address', 'Religion',
         'Blood Type', 'Height', 'Beneficiary', 'Relationship', 'Email Add',
-        'Emergency Contact Name', 'Relationship', 'Contact Number', 'Status', 'Semester', 'MS Class', 'Role', 'Archived Date'
+        'Emergency Contact Name', 'Relationship', 'Contact Number', 'Year Level', 'Academic Year', 'Semester', 'Status', 'Archived Date'
       ]
 
       let grandTotalMale = 0;
@@ -251,7 +259,7 @@ export default function ArchivesPage() {
 
       const csvRows = records.map((r: any) => {
         const gender = (r.gender || '').toUpperCase();
-        const school = r.school || 'Unknown';
+        const school = normalizeSchool(r.school);
         
         if (!schoolStats[school]) schoolStats[school] = { male: 0, female: 0 };
         
@@ -263,16 +271,14 @@ export default function ArchivesPage() {
           grandTotalFemale++;
         }
 
-        const msClass = r.ms_title && r.ms_subject ? `${r.ms_title} (${r.ms_subject})` : (r.ms_title || r.ms_subject || '');
-
         return [
-          r.id_number, r.school, r.last_name, r.first_name, r.middle_initial, r.suffix,
+          r.id_number, school, r.last_name, r.first_name, r.middle_initial, r.suffix,
           r.gender, 
           r.date_of_birth ? format(new Date(r.date_of_birth + 'T00:00:00'), 'MMMM d, yyyy') : '', 
           r.course_year, r.contact_number, r.home_address, r.religion,
           r.blood_type, r.height_feet, r.beneficiary_name, r.beneficiary_relationship, r.email,
-          r.emergency_name, r.emergency_relationship, r.emergency_contact, r.status, r.semester, 
-          msClass, r.role, 
+          r.emergency_name, r.emergency_relationship, r.emergency_contact, 
+          r.year_level || '', r.academic_year || '', r.semester || '', r.status, 
           r.reviewed_at ? format(new Date(r.reviewed_at), 'MMMM d, yyyy') : ''
         ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')
       });
