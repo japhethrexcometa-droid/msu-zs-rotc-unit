@@ -207,7 +207,7 @@ export default function EnrollPage() {
         school: formData.school,
         last_name: capitalize(formData.last_name),
         first_name: capitalize(formData.first_name),
-        middle_initial: capitalize(formData.middle_initial),
+        middle_initial: capitalize(formData.middle_initial)?.replace(/\./g, ''),
         suffix: capitalize(formData.suffix),
         gender: formData.gender,
         date_of_birth: formData.date_of_birth,
