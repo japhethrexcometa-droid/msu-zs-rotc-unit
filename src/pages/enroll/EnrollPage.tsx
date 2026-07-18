@@ -1,7 +1,7 @@
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { supabase } from "@/lib/supabase";
-import { AlertCircle, ArrowLeft, ArrowRight, Shield, CheckCircle2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Shield, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useEnrollmentOpen } from '@/hooks/queries/useSettings';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -81,6 +81,7 @@ export default function EnrollPage() {
   const [accessCode, setAccessCode] = useState('');
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
+  const [showCode, setShowCode] = useState(false);
 
   const [formData, setFormData] = useState<EnrollmentState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -329,7 +330,22 @@ export default function EnrollPage() {
                   id="rotc-entry-token"
                   name="rotc_entry_token"
                   label="Access Code"
-                  type="password"
+                  type={showCode ? "text" : "password"}
+                  icon={
+                    <button
+                      type="button"
+                      onMouseDown={() => setShowCode(true)}
+                      onMouseUp={() => setShowCode(false)}
+                      onMouseLeave={() => setShowCode(false)}
+                      onTouchStart={() => setShowCode(true)}
+                      onTouchEnd={() => setShowCode(false)}
+                      className="p-1 hover:text-rotc-text transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showCode ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  }
+                  iconPosition="right"
                   placeholder="Enter access code"
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
