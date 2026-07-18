@@ -231,6 +231,14 @@ export default function LoginPage() {
         {/* Footer */}
         <p className="text-center text-xs text-rotc-textMuted/60 pt-2">
           MSU-Zamboanga Sibugay &middot; Reserve Officers' Training Corps
+          <br/>
+          <button 
+            type="button"
+            onClick={() => { throw new Error("Manual Test Crash for Sentry Verification!") }} 
+            className="text-rotc-accent mt-4 opacity-50 hover:opacity-100"
+          >
+            [Test Sentry Crash]
+          </button>
         </p>
       </div>
     </div>
