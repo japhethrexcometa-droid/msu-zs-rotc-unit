@@ -139,11 +139,11 @@ export default async function handler(req, res) {
     
     if (school) {
       if (school.includes('St. John')) {
-        query = query.ilike('school', '%st%john%');
+        query = query.or(`school.ilike.%st%john%,school.ilike.%st. john%,school.ilike.%st john%`);
       } else if (school.includes('MSU')) {
-        query = query.ilike('school', '%MSU%');
+        query = query.or(`school.ilike.%msu%,school.ilike.%mindanao state university%,school.ilike.%sibugay%,school.ilike.%zs%`);
       } else if (school.includes('ZPPSU')) {
-        query = query.ilike('school', '%ZPPSU%');
+        query = query.or(`school.ilike.%zppsu%,school.ilike.%zamboanga peninsula polytechnic%`);
       } else {
         query = query.eq('school', school);
       }
