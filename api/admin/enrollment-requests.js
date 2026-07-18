@@ -73,15 +73,23 @@ export default async function handler(req, res) {
         ]);
         summary = { pending: p || 0, approved: a || 0, rejected: r || 0 };
 
+        const normalizeSchool = (s) => {
+          const lower = String(s || '').trim().toLowerCase();
+          if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
+          if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
+          if (lower.includes('zppsu')) return 'ZPPSU Bayog';
+          return String(s || '').trim() || 'Unknown';
+        };
+
         const { data: schoolData } = await supabaseAdmin.from('enrollment_requests').select('school');
         if (schoolData) {
-          allSchools = [...new Set(schoolData.map(row => row.school).filter(Boolean))];
+          allSchools = [...new Set(schoolData.map(row => normalizeSchool(row.school)))].filter(Boolean);
         }
 
         const { data: statusSchoolData } = await supabaseAdmin.from('enrollment_requests').select('school, gender').eq('status', status || 'pending');
         if (statusSchoolData) {
           statusSchoolData.forEach(row => {
-            const sch = row.school || 'Unknown';
+            const sch = normalizeSchool(row.school || 'Unknown');
             if (!statsBySchool[sch]) statsBySchool[sch] = { Male: 0, Female: 0, Total: 0 };
             statsBySchool[sch].Total++;
             if (row.gender === 'Male') statsBySchool[sch].Male++;
@@ -115,7 +123,18 @@ export default async function handler(req, res) {
       .select('*', { count: 'exact' });
 
     if (status) query = query.eq('status', status);
-    if (school) query = query.eq('school', school);
+    
+    if (school) {
+      if (school.includes('St. John')) {
+        query = query.ilike('school', '%st%john%');
+      } else if (school.includes('MSU')) {
+        query = query.ilike('school', '%MSU%');
+      } else if (school.includes('ZPPSU')) {
+        query = query.ilike('school', '%ZPPSU%');
+      } else {
+        query = query.eq('school', school);
+      }
+    }
 
     if (searchQuery) {
       // Safe fallback search if search_text column doesn't exist in production yet

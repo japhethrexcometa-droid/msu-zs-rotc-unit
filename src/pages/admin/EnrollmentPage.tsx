@@ -39,8 +39,11 @@ function ProfileDetails({ data }: { data: any }) {
         <span className="text-rotc-textMuted">Semester:</span><span className="text-rotc-text font-medium">{data.semester}</span>
         <span className="col-span-2 border-t border-rotc-border my-2"></span>
         <span className="text-rotc-textMuted">Contact:</span><span className="text-rotc-text font-medium">{data.contact_number}</span>
-        <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium">{data.email}</span>
-        <span className="text-rotc-textMuted">Address:</span><span className="text-rotc-text font-medium break-words pr-2">{data.home_address}</span>
+        <span className="text-rotc-textMuted">Email:</span><span className="text-rotc-text font-medium break-all pr-2">{data.email}</span>
+        <div className="col-span-2 flex flex-col mt-1">
+          <span className="text-rotc-textMuted text-xs">Address:</span>
+          <span className="text-rotc-text font-medium mt-0.5">{data.home_address}</span>
+        </div>
         <span className="col-span-2 border-t border-rotc-border my-2"></span>
         <span className="text-rotc-textMuted">Blood Type:</span><span className="text-rotc-text font-medium">{data.blood_type}</span>
         <span className="text-rotc-textMuted">Height:</span><span className="text-rotc-text font-medium">{data.height_feet} ft</span>

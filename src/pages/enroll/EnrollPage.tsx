@@ -202,9 +202,17 @@ export default function EnrollPage() {
 
       const capitalize = (str: string) => str ? str.trim().split(/\s+/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') : str;
 
+      const normalizeSchool = (s: string) => {
+        const lower = s.trim().toLowerCase();
+        if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
+        if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
+        if (lower.includes('zppsu')) return 'ZPPSU Bayog';
+        return capitalize(s);
+      };
+
       const enrollmentData = {
         id_number: formData.id_number,
-        school: formData.school,
+        school: normalizeSchool(formData.school),
         last_name: capitalize(formData.last_name),
         first_name: capitalize(formData.first_name),
         middle_initial: capitalize(formData.middle_initial)?.replace(/\./g, ''),
