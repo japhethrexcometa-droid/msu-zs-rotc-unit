@@ -61,8 +61,8 @@ export default async function handler(req, res) {
       const normalizeSchool = (s) => {
         const lower = String(s || '').trim().toLowerCase();
         if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
-        if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
-        if (lower.includes('zppsu')) return 'ZPPSU Bayog';
+        if (lower.includes('zppsu') || lower.includes('zamboanga peninsula polytechnic')) return 'ZPPSU Bayog';
+        if (lower.includes('msu') || lower.includes('mindanao state university') || lower.includes('sibugay') || lower.includes('zs')) return 'MSU - Zamboanga Sibugay';
         return String(s || '').trim() || 'Unknown';
       };
 
