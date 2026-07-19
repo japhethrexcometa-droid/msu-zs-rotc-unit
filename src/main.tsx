@@ -6,7 +6,15 @@ import { Toaster } from 'sonner'
 import ErrorBoundary from './components/ErrorBoundary'
 import App from './App'
 import * as Sentry from '@sentry/react'
+import { registerSW } from 'virtual:pwa-register'
 import './index.css'
+
+registerSW({
+  immediate: true,
+  onRegisterError(error) {
+    console.warn('Service worker registration failed:', error)
+  }
+})
 
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
