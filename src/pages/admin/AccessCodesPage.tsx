@@ -42,7 +42,6 @@ export default function AccessCodesPage() {
       onSuccess: (newCodes) => {
         toast.success(`Successfully generated ${batchSize} codes!`, { id: toastId })
         if (newCodes && newCodes.length > 0) {
-          setPrintBatchId(newCodes[0].batch_id)
           setIsPrinting(true)
         }
       },
