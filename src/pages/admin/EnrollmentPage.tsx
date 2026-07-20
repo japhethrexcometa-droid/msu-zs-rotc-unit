@@ -595,7 +595,10 @@ export default function EnrollmentPage() {
                       if ((result.sent ?? 0) === 0 && (result.failed ?? 0) === 0) {
                         toast.success("Email queue is currently empty.");
                       } else {
-                        toast.success(`Email queue processed: ${result.sent ?? 0} sent, ${result.failed ?? 0} failed.`);
+                        const errorMsg = result.errors && result.errors.length > 0 
+                          ? ` (Error: ${result.errors[0].error})`
+                          : '';
+                        toast.success(`Email queue processed: ${result.sent ?? 0} sent, ${result.failed ?? 0} failed.${errorMsg}`);
                       }
                     } else {
                       toast.error(result.error || "Failed to process emails");
