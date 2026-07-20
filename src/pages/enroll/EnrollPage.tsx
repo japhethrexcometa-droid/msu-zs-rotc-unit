@@ -216,7 +216,7 @@ export default function EnrollPage() {
         school: normalizeSchool(formData.school),
         last_name: capitalize(formData.last_name),
         first_name: capitalize(formData.first_name),
-        middle_initial: capitalize(formData.middle_initial)?.replace(/\./g, ''),
+        middle_initial: capitalize(formData.middle_initial)?.replace(/\./g, '').charAt(0) || '',
         suffix: capitalize(formData.suffix),
         gender: formData.gender,
         date_of_birth: formData.date_of_birth,
@@ -231,9 +231,9 @@ export default function EnrollPage() {
         blood_type: formData.blood_type,
         height_feet: formData.height_feet,
         email: formData.email,
-        beneficiary_name: formData.beneficiary_name,
+        beneficiary_name: formData.beneficiary_name.replace(/\./g, ''),
         beneficiary_relationship: formData.beneficiary_relationship,
-        emergency_name: formData.emergency_name,
+        emergency_name: formData.emergency_name.replace(/\./g, ''),
         emergency_relationship: formData.emergency_relationship,
         emergency_contact: formData.emergency_contact,
         role: validRole,
@@ -389,7 +389,23 @@ export default function EnrollPage() {
       type={type}
       placeholder={placeholder}
       value={(formData as any)[field]}
-      onChange={e => updateForm({ [field]: e.target.value })}
+      onChange={e => {
+        let value = e.target.value;
+
+        // Middle initial: only keep first letter, remove dots
+        if (field === 'middle_initial') {
+          value = value.replace(/\./g, '').trim();
+          if (value.length > 1) value = value.charAt(0).toUpperCase();
+        }
+
+        // Beneficiary & emergency names: remove dots automatically
+        if (field === 'beneficiary_name' || field === 'emergency_name') {
+          value = value.replace(/\./g, '');
+        }
+
+        updateForm({ [field]: value });
+      }}
+      maxLength={field === 'middle_initial' ? 1 : undefined}
       autoComplete={autoComplete}
       data-1p-ignore="true"
       data-lpignore="true"
@@ -450,23 +466,21 @@ export default function EnrollPage() {
                 {renderInputField({ label: "Student ID Number", field: "id_number", placeholder: "Enter ID number" })}
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-rotc-textMuted">School *</label>
-                  <input
-                    list="school-options"
-                    placeholder="Select or type school name"
+                  <select
                     value={formData.school}
                     onChange={e => updateForm({ school: e.target.value })}
                     className={[
-                      'w-full rounded-lg bg-rotc-card border text-rotc-text placeholder-rotc-textMuted/60',
+                      'w-full rounded-lg bg-rotc-bg border text-rotc-text',
                       'px-3 py-2.5 text-sm transition-all duration-150',
                       'focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent',
                       !formData.school.trim() ? 'border-rotc-danger/30' : 'border-rotc-border'
                     ].join(' ')}
-                  />
-                  <datalist id="school-options">
-                    <option value="MSU - Zamboanga Sibugay" />
-                    <option value="St. John College of Buug" />
-                    <option value="ZPPSU Bayog" />
-                  </datalist>
+                  >
+                    <option value="">Select school</option>
+                    <option value="MSU - Zamboanga Sibugay">MSU - Zamboanga Sibugay</option>
+                    <option value="St. John College of Buug">St. John College of Buug</option>
+                    <option value="ZPPSU Bayog">ZPPSU Bayog</option>
+                  </select>
                 </div>
                 {renderInputField({ label: "First Name", field: "first_name", placeholder: "First Name" })}
                 {renderInputField({ label: "Last Name", field: "last_name", placeholder: "Last Name" })}
