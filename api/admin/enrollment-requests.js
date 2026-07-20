@@ -179,11 +179,11 @@ export default async function handler(req, res) {
       throw error;
     }
 
-    // 4.1 Detect duplicates and existing accounts
+    // 4.1 Detect duplicates and existing accounts (only for pending tab)
     let duplicates = [];
     let existingAccounts = [];
 
-    if (data?.length > 0) {
+    if (status === 'pending' && data?.length > 0) {
       const idNumbers = data.map(r => r.id_number);
 
       const [{ data: dupeData }, { data: existingData }] = await Promise.all([

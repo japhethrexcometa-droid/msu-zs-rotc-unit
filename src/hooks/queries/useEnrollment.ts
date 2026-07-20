@@ -68,11 +68,11 @@ export function useEnrollmentRequests(
   return useQuery({
     queryKey: ENROLLMENT_KEYS.requests(status, searchQuery, page, { sortBy, sortOrder }, school),
     queryFn: () => getPaginatedEnrollmentRequests(page, pageSize, status, searchQuery, sortBy, sortOrder, school),
-    staleTime: 0,
+    staleTime: 5_000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    // Poll every 10 seconds (increased from 5s to be more server-friendly with pagination)
-    refetchInterval: 10_000,
+    // Poll every 30 seconds — Realtime subscription handles instant updates
+    refetchInterval: 30_000,
     placeholderData: keepPreviousData,
   })
 }
@@ -101,35 +101,35 @@ export function useApproveEnrollment() {
     mutationFn: ({ request, adminId }: { request: any, adminId: string }) => 
       approveEnrollment(request, adminId),
 
-    // Optimistic update: move row to 'approved' instantly in the cache
+    // Optimistic update: remove the row from pending cache so it disappears instantly
     onMutate: async ({ request }) => {
-      await queryClient.cancelQueries({ queryKey: ENROLLMENT_KEYS.requests() })
-      const previous = queryClient.getQueryData<any[]>(ENROLLMENT_KEYS.requests())
+      await queryClient.cancelQueries({ queryKey: ENROLLMENT_KEYS.all })
+      const previousQueries = queryClient.getQueriesData({ queryKey: ENROLLMENT_KEYS.requests() })
 
-      queryClient.setQueryData<any[]>(ENROLLMENT_KEYS.requests(), (old) => {
-        if (!old) return old
-        return old.map((r) =>
-          r.id === request.id
-            ? { ...r, status: 'approved', reviewed_at: new Date().toISOString() }
-            : r
-        )
+      // Remove the approved row from ALL cached request lists (pending tab)
+      queryClient.setQueriesData<any>({ queryKey: ENROLLMENT_KEYS.requests() }, (old: any) => {
+        if (!old?.data) return old
+        return {
+          ...old,
+          data: old.data.filter((r: any) => r.id !== request.id),
+          count: Math.max(0, (old.count || 0) - 1)
+        }
       })
 
-      return { previous }
+      return { previousQueries }
     },
 
     onError: (_err, _vars, context) => {
-      // Rollback to previous cache on failure
-      if (context?.previous) {
-        queryClient.setQueryData(ENROLLMENT_KEYS.requests(), context.previous)
+      // Rollback all cached queries on failure
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data)
+        }
       }
     },
 
     onSettled: () => {
-      // Delay re-fetch to let DB write fully propagate
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
-      }, 500)
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
     },
   })
 }
@@ -204,38 +204,35 @@ export function useRejectEnrollment() {
     mutationFn: ({ request, adminId, reason }: { request: any, adminId: string, reason: string }) => 
       rejectEnrollment(request, adminId, reason),
 
-    // Optimistic update: move row to 'rejected' instantly in the cache
-    onMutate: async ({ request, reason }) => {
-      await queryClient.cancelQueries({ queryKey: ENROLLMENT_KEYS.requests() })
-      const previous = queryClient.getQueryData<any[]>(ENROLLMENT_KEYS.requests())
+    // Optimistic update: remove the row from pending cache so it disappears instantly
+    onMutate: async ({ request }) => {
+      await queryClient.cancelQueries({ queryKey: ENROLLMENT_KEYS.all })
+      const previousQueries = queryClient.getQueriesData({ queryKey: ENROLLMENT_KEYS.requests() })
 
-      queryClient.setQueryData<any[]>(ENROLLMENT_KEYS.requests(), (old) => {
-        if (!old) return old
-        return old.map((r) =>
-          r.id === request.id
-            ? { 
-                ...r, 
-                status: 'rejected', 
-                rejection_reason: reason,
-                reviewed_at: new Date().toISOString() 
-              }
-            : r
-        )
+      // Remove the rejected row from ALL cached request lists (pending tab)
+      queryClient.setQueriesData<any>({ queryKey: ENROLLMENT_KEYS.requests() }, (old: any) => {
+        if (!old?.data) return old
+        return {
+          ...old,
+          data: old.data.filter((r: any) => r.id !== request.id),
+          count: Math.max(0, (old.count || 0) - 1)
+        }
       })
 
-      return { previous }
+      return { previousQueries }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(ENROLLMENT_KEYS.requests(), context.previous)
+      // Rollback all cached queries on failure
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data)
+        }
       }
     },
 
     onSettled: () => {
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
-      }, 500)
+      queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.all })
     },
   })
 }
