@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { useAllCadets, useUpdateUser, useHardDeleteUsers, useResetUserPassword } from '@/hooks/queries/useUsers'
 import { useState } from 'react'
-import { Search, Edit, Trash2, Key, Users, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Edit, Trash2, Key, Users, ChevronLeft, ChevronRight, Activity } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
 
@@ -35,6 +35,8 @@ export default function CadetsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
+  const [ghostHTML, setGhostHTML] = useState<string | null>(null)
+  const [isCheckingGhosts, setIsCheckingGhosts] = useState(false)
 
   const resetMutation = useResetUserPassword()
 
@@ -99,6 +101,20 @@ export default function CadetsPage() {
     }
   }
 
+  const findGhosts = async () => {
+    setIsCheckingGhosts(true)
+    try {
+      const res = await fetch('/api/admin/find-missing?secret=rotc_admin_check')
+      if (!res.ok) throw new Error("Diagnostic failed")
+      const html = await res.text()
+      setGhostHTML(html)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsCheckingGhosts(false)
+    }
+  }
+
   const toggleSelectAll = () => {
     if (selectedIds.length === cadets.length) {
       setSelectedIds([])
@@ -151,6 +167,16 @@ export default function CadetsPage() {
                 <Trash2 className="h-4 w-4 mr-2" /> Delete Selected ({selectedIds.length})
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={findGhosts}
+              disabled={isCheckingGhosts}
+              className="ml-auto flex items-center border-rotc-accent text-rotc-accent hover:bg-rotc-accent hover:text-white"
+            >
+              <Activity className="h-4 w-4 mr-2" /> 
+              {isCheckingGhosts ? 'Scanning...' : 'Find Ghost Accounts'}
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -267,6 +293,20 @@ export default function CadetsPage() {
           <Button variant="outline" onClick={() => setIsBulkDeleteModalOpen(false)}>Cancel</Button>
           <Button variant="danger" onClick={handleBulkDelete} isLoading={hardDeleteMutation.isPending}>Delete {selectedIds.length} Cadet(s)</Button>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!ghostHTML}
+        onClose={() => setGhostHTML(null)}
+        title="Ghost Records Diagnostic Tool"
+        maxWidth="max-w-4xl"
+      >
+        {ghostHTML && (
+          <div 
+            className="p-4 bg-white text-black rounded-lg overflow-auto max-h-[70vh]" 
+            dangerouslySetInnerHTML={{ __html: ghostHTML }} 
+          />
+        )}
       </Modal>
 
       {/* Reset Password Modal */}
