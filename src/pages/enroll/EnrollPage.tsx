@@ -96,18 +96,18 @@ export default function EnrollPage() {
     : YEAR_CLASSES.filter(yc => yc === 'Basic Cadet');
 
   useEffect(() => {
-    const saved = localStorage.getItem('enrollment_draft');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('enrollment_draft');
+      if (saved) {
         const parsed = JSON.parse(saved);
-        // Immediately correct year_class if it doesn't belong to this role
-        // This prevents the race condition where an officer draft loads on cadet page
         if (filteredYearClasses.length > 0 && !filteredYearClasses.includes(parsed.year_class)) {
           parsed.year_class = filteredYearClasses[0];
         }
         setFormData(parsed);
         localStorage.setItem('enrollment_draft', JSON.stringify(parsed));
-      } catch (e) {}
+      }
+    } catch (e) {
+      console.warn('localStorage is unavailable:', e);
     }
   }, []);
 
@@ -121,7 +121,11 @@ export default function EnrollPage() {
   const updateForm = (updates: Partial<EnrollmentState>) => {
     const updated = { ...formData, ...updates };
     setFormData(updated);
-    localStorage.setItem('enrollment_draft', JSON.stringify(updated));
+    try {
+      localStorage.setItem('enrollment_draft', JSON.stringify(updated));
+    } catch (e) {
+      // Ignore if localStorage is blocked
+    }
   };
 
   // Validation Logic
@@ -254,7 +258,9 @@ export default function EnrollPage() {
         throw new Error(data.error || "Failed to submit enrollment.");
       }
 
-      localStorage.removeItem('enrollment_draft');
+      try {
+        localStorage.removeItem('enrollment_draft');
+      } catch (e) {}
       navigate("/enroll/success", { replace: true });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "An unexpected error occurred.");
