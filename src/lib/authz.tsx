@@ -21,12 +21,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   useEffect(() => {
     if (!session || isExpired()) return
 
-    supabase.rpc('set_session_context', {
-      p_user_id: session.id,
-      p_role: session.role
-    }).then(({ error }) => {
-      if (error) console.error('set_session_context error:', error)
-    })
+
 
     refreshActivity()
   }, [location.pathname])
