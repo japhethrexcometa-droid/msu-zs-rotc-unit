@@ -86,7 +86,7 @@ export default function EnrollPage() {
   const [formData, setFormData] = useState<EnrollmentState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const { data: isOpen = false, isLoading: isLoadingSettings } = useEnrollmentOpen();
+  const { data: isOpen = false, isLoading: isLoadingSettings, isError, error } = useEnrollmentOpen();
 
   const validRole = role === "officer" || role === "cadet" ? role : "cadet";
 
@@ -301,6 +301,25 @@ export default function EnrollPage() {
   };
 
   if (isLoadingSettings) return <div className="min-h-screen bg-rotc-bg flex items-center justify-center text-rotc-textMuted">Loading...</div>;
+
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-rotc-bg">
+        <div className="max-w-md w-full text-center space-y-4 p-8 bg-rotc-card border border-rotc-border rounded-2xl shadow-xl">
+          <div className="w-16 h-16 bg-rotc-warning/10 text-rotc-warning rounded-full flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h1 className="text-xl font-bold text-rotc-text">Connection Error</h1>
+          <p className="text-rotc-textMuted">We couldn't connect to the server to check the enrollment status. Please check your internet connection or try again later.</p>
+          <div className="text-xs text-rotc-danger bg-rotc-danger/10 p-2 rounded mt-2 overflow-auto text-left">
+            {error instanceof Error ? error.message : String(error)}
+          </div>
+          <Button onClick={() => window.location.reload()} className="mt-4 w-full">Retry</Button>
+          <Link to="/" className="inline-block mt-4 text-rotc-accent hover:underline">Return to Login</Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!isOpen) {
     return (
