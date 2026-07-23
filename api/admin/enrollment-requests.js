@@ -160,7 +160,8 @@ export default async function handler(req, res) {
     } else if (status === 'pending') {
       query = query.order('created_at', { ascending: true });
     } else if (status === 'approved' || status === 'rejected') {
-      query = query.order('reviewed_at', { ascending: false });
+      // Safe fallback just in case `reviewed_at` column gets removed or doesn't exist yet
+      query = query.order('reviewed_at', { ascending: false, foreignTable: '', nullsFirst: false });
     } else {
       query = query.order('created_at', { ascending: false });
     }

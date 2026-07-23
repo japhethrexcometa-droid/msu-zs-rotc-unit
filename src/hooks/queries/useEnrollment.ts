@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
@@ -55,7 +55,7 @@ export function useEnrollmentRequests(
           table: 'enrollment_requests',
         },
         (_payload) => {
-          queryClient.invalidateQueries({ queryKey: ENROLLMENT_KEYS.requests() })
+          queryClient.invalidateQueries({ queryKey: ['enrollment', 'requests'] })
         }
       )
       .subscribe()
@@ -71,9 +71,8 @@ export function useEnrollmentRequests(
     staleTime: 5_000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    // Poll every 30 seconds — Realtime subscription handles instant updates
+    // Poll every 30 seconds
     refetchInterval: 30_000,
-    placeholderData: keepPreviousData,
   })
 }
 
@@ -85,7 +84,6 @@ export function useEnrollmentStats(status: 'pending' | 'approved' | 'rejected') 
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
     refetchInterval: 30_000,
-    placeholderData: keepPreviousData,
   })
 }
 
@@ -104,10 +102,10 @@ export function useApproveEnrollment() {
     // Optimistic update: remove the row from pending cache so it disappears instantly
     onMutate: async ({ request }) => {
       await queryClient.cancelQueries({ queryKey: ENROLLMENT_KEYS.all })
-      const previousQueries = queryClient.getQueriesData({ queryKey: ENROLLMENT_KEYS.requests() })
+      const previousQueries = queryClient.getQueriesData({ queryKey: ['enrollment', 'requests'] })
 
       // Remove the approved row from ALL cached request lists (pending tab)
-      queryClient.setQueriesData<any>({ queryKey: ENROLLMENT_KEYS.requests() }, (old: any) => {
+      queryClient.setQueriesData<any>({ queryKey: ['enrollment', 'requests'] }, (old: any) => {
         if (!old?.data) return old
         return {
           ...old,
@@ -207,10 +205,10 @@ export function useRejectEnrollment() {
     // Optimistic update: remove the row from pending cache so it disappears instantly
     onMutate: async ({ request }) => {
       await queryClient.cancelQueries({ queryKey: ENROLLMENT_KEYS.all })
-      const previousQueries = queryClient.getQueriesData({ queryKey: ENROLLMENT_KEYS.requests() })
+      const previousQueries = queryClient.getQueriesData({ queryKey: ['enrollment', 'requests'] })
 
       // Remove the rejected row from ALL cached request lists (pending tab)
-      queryClient.setQueriesData<any>({ queryKey: ENROLLMENT_KEYS.requests() }, (old: any) => {
+      queryClient.setQueriesData<any>({ queryKey: ['enrollment', 'requests'] }, (old: any) => {
         if (!old?.data) return old
         return {
           ...old,
