@@ -9,7 +9,7 @@
       "destination": "https://us.i.posthog.com/$1"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
