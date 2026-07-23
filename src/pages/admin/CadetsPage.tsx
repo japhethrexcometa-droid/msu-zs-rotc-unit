@@ -35,7 +35,8 @@ export default function CadetsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false)
-  const [ghostHTML, setGhostHTML] = useState<string | null>(null)
+  const [ghostData, setGhostData] = useState<{stats: any, ghosts: any[]} | null>(null)
+  const [isRecovering, setIsRecovering] = useState<string | null>(null)
   const [isCheckingGhosts, setIsCheckingGhosts] = useState(false)
 
   const resetMutation = useResetUserPassword()
@@ -104,28 +105,58 @@ export default function CadetsPage() {
   const findGhosts = async () => {
     setIsCheckingGhosts(true)
     try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error("Unauthorized: Session expired. Please log in again.")
+
       const res = await fetch('/api/admin/enrollment-archives?diagnostic=true', {
         headers: {
-          'Authorization': `Bearer ${session?.access_token}`
+          'Authorization': `Bearer ${token}`
         }
       })
       if (!res.ok) {
-        const text = await res.text()
         let errMessage = `Error ${res.status}: `
         try {
-          const errData = JSON.parse(text)
-          errMessage += errData.error || errData.message || text
+          const errData = await res.json()
+          errMessage += errData.error || errData.message
         } catch(e) {
-          errMessage += text.substring(0, 100)
+          errMessage += await res.text()
         }
         throw new Error(errMessage)
       }
-      const html = await res.text()
-      setGhostHTML(html)
+      const json = await res.json()
+      setGhostData(json)
     } catch (err: any) {
       toast.error(err.message)
     } finally {
       setIsCheckingGhosts(false)
+    }
+  }
+
+  const handleRecoverGhost = async (id_number: string) => {
+    setIsRecovering(id_number)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error("Unauthorized: Session expired.")
+
+      const res = await fetch('/api/admin/recover-ghost', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id_number })
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'Failed to recover account')
+      
+      toast.success(`Account recovered successfully! ID: ${id_number} is now the default password.`)
+      setGhostData(prev => prev ? { ...prev, ghosts: prev.ghosts.filter((g: any) => g.id_number !== id_number) } : null)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsRecovering(null)
     }
   }
 
@@ -310,16 +341,74 @@ export default function CadetsPage() {
       </Modal>
 
       <Modal
-        isOpen={!!ghostHTML}
-        onClose={() => setGhostHTML(null)}
+        isOpen={!!ghostData}
+        onClose={() => setGhostData(null)}
         title="Ghost Records Diagnostic Tool"
         maxWidth="max-w-4xl"
       >
-        {ghostHTML && (
-          <div 
-            className="p-4 bg-white text-black rounded-lg overflow-auto max-h-[70vh]" 
-            dangerouslySetInnerHTML={{ __html: ghostHTML }} 
-          />
+        {ghostData && (
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
+                <p className="text-sm text-rotc-textMuted">Archives (Approved)</p>
+                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.archives}</p>
+              </div>
+              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
+                <p className="text-sm text-rotc-textMuted">Requests (Approved)</p>
+                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.requests}</p>
+              </div>
+              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
+                <p className="text-sm text-rotc-textMuted">Registered Accounts</p>
+                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.users}</p>
+              </div>
+              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
+                <p className="text-sm text-rotc-textMuted">Officers</p>
+                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.officers}</p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-rotc-border">
+              <h3 className={`text-lg font-medium mb-4 ${ghostData.ghosts.length > 0 ? 'text-rotc-danger' : 'text-emerald-500'}`}>
+                {ghostData.ghosts.length > 0 
+                  ? `Found ${ghostData.ghosts.length} Missing "Ghost" Records` 
+                  : 'No missing records found! Everyone is perfectly synced.'}
+              </h3>
+              
+              {ghostData.ghosts.length > 0 && (
+                <div className="bg-rotc-bg border border-rotc-border rounded-lg overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-rotc-cardHover border-b border-rotc-border text-rotc-textMuted">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">ID Number</th>
+                        <th className="px-4 py-3 font-medium">Name</th>
+                        <th className="px-4 py-3 font-medium">School</th>
+                        <th className="px-4 py-3 font-medium text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-rotc-border text-rotc-text">
+                      {ghostData.ghosts.map((ghost: any) => (
+                        <tr key={ghost.id_number} className="hover:bg-rotc-cardHover/50">
+                          <td className="px-4 py-3">{ghost.id_number}</td>
+                          <td className="px-4 py-3">{ghost.first_name} {ghost.last_name}</td>
+                          <td className="px-4 py-3">{ghost.school}</td>
+                          <td className="px-4 py-3 text-right">
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleRecoverGhost(ghost.id_number)}
+                              isLoading={isRecovering === ghost.id_number}
+                              disabled={!!isRecovering}
+                            >
+                              Recover Account
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </Modal>
 

@@ -84,41 +84,16 @@ export default async function handler(req, res) {
         }
       });
 
-      const htmlResponse = `
-        <html>
-          <head><title>Find Missing Cadets</title></head>
-          <body style="font-family: sans-serif; padding: 20px;">
-            <h2>Diagnostic: Find Missing Cadets (Ghost Records)</h2>
-            <p>Total Approved in Archives: <strong>${(archives || []).length}</strong></p>
-            <p>Total Approved in Requests Queue: <strong>${(requests || []).length}</strong></p>
-            <p>Total Registered Accounts (Users table): <strong>${(users || []).length}</strong></p>
-            <p>Total Officers: <strong>${officersInUsers.length}</strong></p>
-            <hr/>
-            <h3 style="color: red;">Found ${allMissing.length} Missing "Ghost" Records:</h3>
-            <p>These students were marked as approved, but their accounts failed to create due to the timeout. Please tell them to re-enroll.</p>
-            <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; max-width: 800px;">
-              <tr style="background: #f4f4f4;">
-                <th>ID Number</th>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>School</th>
-              </tr>
-              ${allMissing.map(m => `
-                <tr>
-                  <td>${m.id_number}</td>
-                  <td>${m.first_name}</td>
-                  <td>${m.last_name}</td>
-                  <td>${m.school}</td>
-                </tr>
-              `).join('')}
-            </table>
-            ${allMissing.length === 0 ? '<p style="color: green; font-weight: bold;">No missing records found! Everyone is perfectly synced.</p>' : ''}
-          </body>
-        </html>
-      `;
-
-      res.setHeader('Content-Type', 'text/html');
-      return res.status(200).send(htmlResponse);
+      return res.status(200).json({
+        success: true,
+        ghosts: allMissing,
+        stats: {
+          archives: (archives || []).length,
+          requests: (requests || []).length,
+          users: (users || []).length,
+          officers: officersInUsers.length
+        }
+      });
     }
     // --- End Diagnostic Mode ---
 
