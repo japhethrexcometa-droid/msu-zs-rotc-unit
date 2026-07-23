@@ -351,26 +351,26 @@ export default function CadetsPage() {
         isOpen={!!ghostData}
         onClose={() => setGhostData(null)}
         title="Ghost Records Diagnostic Tool"
-        maxWidth="max-w-4xl"
+        size="3xl"
       >
         {ghostData && (
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
-                <p className="text-sm text-rotc-textMuted">Archives (Approved)</p>
-                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.archives}</p>
+              <div className="bg-rotc-cardHover p-5 rounded-lg border border-rotc-border flex flex-col items-center justify-center text-center">
+                <p className="text-sm text-rotc-textMuted mb-2">Archives</p>
+                <p className="text-2xl font-bold text-rotc-text">{ghostData.stats.archives}</p>
               </div>
-              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
-                <p className="text-sm text-rotc-textMuted">Requests (Approved)</p>
-                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.requests}</p>
+              <div className="bg-rotc-cardHover p-5 rounded-lg border border-rotc-border flex flex-col items-center justify-center text-center">
+                <p className="text-sm text-rotc-textMuted mb-2">Requests</p>
+                <p className="text-2xl font-bold text-rotc-text">{ghostData.stats.requests}</p>
               </div>
-              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
-                <p className="text-sm text-rotc-textMuted">Registered Accounts</p>
-                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.users}</p>
+              <div className="bg-rotc-cardHover p-5 rounded-lg border border-rotc-border flex flex-col items-center justify-center text-center">
+                <p className="text-sm text-rotc-textMuted mb-2">Accounts</p>
+                <p className="text-2xl font-bold text-rotc-text">{ghostData.stats.users}</p>
               </div>
-              <div className="bg-rotc-bg p-4 rounded-lg border border-rotc-border">
-                <p className="text-sm text-rotc-textMuted">Officers</p>
-                <p className="text-xl font-semibold text-rotc-text">{ghostData.stats.officers}</p>
+              <div className="bg-rotc-cardHover p-5 rounded-lg border border-rotc-border flex flex-col items-center justify-center text-center">
+                <p className="text-sm text-rotc-textMuted mb-2">Officers</p>
+                <p className="text-2xl font-bold text-rotc-text">{ghostData.stats.officers}</p>
               </div>
             </div>
 
