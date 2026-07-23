@@ -202,9 +202,13 @@ export default function EnrollPage() {
     setIsSubmitting(true);
 
     try {
-      const { data: settingData, error: settingError } = await supabase.from('system_settings').select('value').eq('id', 'enrollment_open').single();
-      if (settingError) throw new Error("Failed to verify enrollment status.");
-      if (!settingData || (settingData.value !== true && settingData.value !== 'true')) {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('check_enrollment_open');
+      
+      if (rpcError) {
+        throw new Error("Failed to verify enrollment status. Please check your internet connection and try again.");
+      }
+      
+      if (!rpcData) {
         throw new Error("Enrollment is currently closed. You cannot submit an application at this time.");
       }
 
