@@ -57,30 +57,75 @@ export default async function handler(req, res) {
       const cleanIdNumber = String(id_number).trim().toUpperCase();
       let cadetData = null;
 
-      const { data: archiveData } = await supabaseAdmin
+      // Step 1: Try enrollment_archives with approved status
+      const { data: archiveData, error: archiveErr } = await supabaseAdmin
         .from('enrollment_archives')
-        .select('*')
-        .eq('id_number', cleanIdNumber)
+        .select('id_number, first_name, last_name, middle_initial, school, gender, role, year_level, year_class, blood_type, emergency_name, emergency_contact, email, academic_year')
+        .ilike('id_number', cleanIdNumber)
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
+      if (archiveErr) console.error('[GHOST RECOVERY] Archive query error:', archiveErr);
       if (archiveData) {
         cadetData = archiveData;
-      } else {
-        const { data: reqData } = await supabaseAdmin
+        console.log('[GHOST RECOVERY] Found in archives:', cleanIdNumber);
+      }
+
+      // Step 2: Try enrollment_requests with approved status
+      if (!cadetData) {
+        const { data: reqData, error: reqErr } = await supabaseAdmin
           .from('enrollment_requests')
-          .select('*')
-          .eq('id_number', cleanIdNumber)
+          .select('id_number, first_name, last_name, middle_initial, school, gender, role, year_level, year_class, blood_type, emergency_name, emergency_contact, email, academic_year')
+          .ilike('id_number', cleanIdNumber)
           .eq('status', 'approved')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (reqData) cadetData = reqData;
+
+        if (reqErr) console.error('[GHOST RECOVERY] Request query error:', reqErr);
+        if (reqData) {
+          cadetData = reqData;
+          console.log('[GHOST RECOVERY] Found in requests:', cleanIdNumber);
+        }
       }
 
-      if (!cadetData) throw new Error(`Could not find approved record for ID: ${cleanIdNumber}`);
+      // Step 3: Fallback - try archives WITHOUT status filter (in case status is different)
+      if (!cadetData) {
+        const { data: fallbackData, error: fallbackErr } = await supabaseAdmin
+          .from('enrollment_archives')
+          .select('id_number, first_name, last_name, middle_initial, school, gender, role, year_level, year_class, blood_type, emergency_name, emergency_contact, email, academic_year')
+          .ilike('id_number', cleanIdNumber)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (fallbackErr) console.error('[GHOST RECOVERY] Fallback query error:', fallbackErr);
+        if (fallbackData) {
+          cadetData = fallbackData;
+          console.log('[GHOST RECOVERY] Found in archives (fallback, any status):', cleanIdNumber);
+        }
+      }
+
+      // Step 4: Last resort fallback - try enrollment_requests WITHOUT status filter
+      if (!cadetData) {
+        const { data: lastResort, error: lastErr } = await supabaseAdmin
+          .from('enrollment_requests')
+          .select('id_number, first_name, last_name, middle_initial, school, gender, role, year_level, year_class, blood_type, emergency_name, emergency_contact, email, academic_year')
+          .ilike('id_number', cleanIdNumber)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastErr) console.error('[GHOST RECOVERY] Last resort query error:', lastErr);
+        if (lastResort) {
+          cadetData = lastResort;
+          console.log('[GHOST RECOVERY] Found in requests (last resort, any status):', cleanIdNumber);
+        }
+      }
+
+      if (!cadetData) throw new Error(`Could not find any record for ID: ${cleanIdNumber}. Please check if this ID exists in Archives or Enrollment Requests.`);
 
       const authEmail = `${cleanIdNumber}@rotc.msubuug.edu.ph`;
 
