@@ -104,7 +104,7 @@ export default function CadetsPage() {
   const findGhosts = async () => {
     setIsCheckingGhosts(true)
     try {
-      const res = await fetch('/api/admin/find-missing?secret=rotc_admin_check')
+      const res = await fetch('/api/admin/enrollment-archives?diagnostic=true')
       if (!res.ok) throw new Error("Diagnostic failed")
       const html = await res.text()
       setGhostHTML(html)
