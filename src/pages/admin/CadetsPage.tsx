@@ -104,7 +104,11 @@ export default function CadetsPage() {
   const findGhosts = async () => {
     setIsCheckingGhosts(true)
     try {
-      const res = await fetch('/api/admin/enrollment-archives?diagnostic=true')
+      const res = await fetch('/api/admin/enrollment-archives?diagnostic=true', {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
       if (!res.ok) throw new Error("Diagnostic failed")
       const html = await res.text()
       setGhostHTML(html)
