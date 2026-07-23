@@ -109,7 +109,17 @@ export default function CadetsPage() {
           'Authorization': `Bearer ${session?.access_token}`
         }
       })
-      if (!res.ok) throw new Error("Diagnostic failed")
+      if (!res.ok) {
+        const text = await res.text()
+        let errMessage = `Error ${res.status}: `
+        try {
+          const errData = JSON.parse(text)
+          errMessage += errData.error || errData.message || text
+        } catch(e) {
+          errMessage += text.substring(0, 100)
+        }
+        throw new Error(errMessage)
+      }
       const html = await res.text()
       setGhostHTML(html)
     } catch (err: any) {
