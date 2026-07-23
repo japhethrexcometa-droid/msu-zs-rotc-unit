@@ -1,6 +1,14 @@
 import { supabase } from '@/lib/supabase'
 
 export async function getEnrollmentOpenStatus(): Promise<boolean> {
+  // Use RPC to bypass RLS issues for anon users
+  const { data: rpcData, error: rpcError } = await supabase.rpc('check_enrollment_open')
+
+  if (!rpcError) {
+    return !!rpcData
+  }
+
+  // Fallback to direct table query if RPC doesn't exist yet (before migration runs)
   const { data, error } = await supabase
     .from('system_settings')
     .select('value')

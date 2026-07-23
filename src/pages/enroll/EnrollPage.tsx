@@ -100,11 +100,17 @@ export default function EnrollPage() {
       const saved = localStorage.getItem('enrollment_draft');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (filteredYearClasses.length > 0 && !filteredYearClasses.includes(parsed.year_class)) {
-          parsed.year_class = filteredYearClasses[0];
+        const merged: any = { ...initialFormState };
+        for (const key in parsed) {
+          if (parsed[key] !== null && parsed[key] !== undefined) {
+            merged[key] = parsed[key];
+          }
         }
-        setFormData(parsed);
-        localStorage.setItem('enrollment_draft', JSON.stringify(parsed));
+        if (filteredYearClasses.length > 0 && !filteredYearClasses.includes(merged.year_class)) {
+          merged.year_class = filteredYearClasses[0];
+        }
+        setFormData(merged as EnrollmentState);
+        localStorage.setItem('enrollment_draft', JSON.stringify(merged));
       }
     } catch (e) {
       console.warn('localStorage is unavailable:', e);
@@ -131,34 +137,34 @@ export default function EnrollPage() {
   // Validation Logic
   const isStep1Valid = () => {
     return !!(
-      formData.id_number.trim() && formData.school.trim() && 
-      formData.last_name.trim() && formData.first_name.trim() && 
-      formData.gender.trim() && formData.date_of_birth && 
-      formData.course_year.trim() && formData.year_level.trim() && formData.academic_year.trim() && formData.year_class.trim() && formData.semester.trim()
+      (formData.id_number || '').trim() && (formData.school || '').trim() && 
+      (formData.last_name || '').trim() && (formData.first_name || '').trim() && 
+      (formData.gender || '').trim() && formData.date_of_birth && 
+      (formData.course_year || '').trim() && (formData.year_level || '').trim() && (formData.academic_year || '').trim() && (formData.year_class || '').trim() && (formData.semester || '').trim()
     );
   };
   
   const isStep2Valid = () => {
     const errors: string[] = [];
-    if (!formData.contact_number.trim()) errors.push("Contact Number is required");
-    else if (!isValidPhone(formData.contact_number)) errors.push("Contact Number must be a valid PH mobile number");
-    if (!formData.home_address.trim()) errors.push("Home Address is required");
-    if (!formData.email.trim()) errors.push("Email is required");
-    else if (!isValidEmail(formData.email)) errors.push("Please provide a valid email address");
-    if (!formData.religion.trim()) errors.push("Religion is required");
+    if (!(formData.contact_number || '').trim()) errors.push("Contact Number is required");
+    else if (!isValidPhone(formData.contact_number || '')) errors.push("Contact Number must be a valid PH mobile number");
+    if (!(formData.home_address || '').trim()) errors.push("Home Address is required");
+    if (!(formData.email || '').trim()) errors.push("Email is required");
+    else if (!isValidEmail(formData.email || '')) errors.push("Please provide a valid email address");
+    if (!(formData.religion || '').trim()) errors.push("Religion is required");
     if (!formData.blood_type || formData.blood_type === 'Unknown') errors.push("Blood Type must be selected");
-    if (!formData.height_feet.trim()) errors.push("Height is required");
-    if (!formData.beneficiary_name.trim()) errors.push("Beneficiary Name is required");
-    if (!formData.beneficiary_relationship.trim()) errors.push("Beneficiary Relationship is required");
+    if (!(formData.height_feet || '').trim()) errors.push("Height is required");
+    if (!(formData.beneficiary_name || '').trim()) errors.push("Beneficiary Name is required");
+    if (!(formData.beneficiary_relationship || '').trim()) errors.push("Beneficiary Relationship is required");
     return errors;
   };
   
   const isStep3Valid = () => {
     const errors: string[] = [];
-    if (!formData.emergency_name.trim()) errors.push("Emergency Contact Name is required");
-    if (!formData.emergency_relationship.trim()) errors.push("Emergency Relationship is required");
-    if (!formData.emergency_contact.trim()) errors.push("Emergency Contact Number is required");
-    else if (!isValidPhone(formData.emergency_contact)) errors.push("Emergency Contact Number must be a valid PH mobile");
+    if (!(formData.emergency_name || '').trim()) errors.push("Emergency Contact Name is required");
+    if (!(formData.emergency_relationship || '').trim()) errors.push("Emergency Relationship is required");
+    if (!(formData.emergency_contact || '').trim()) errors.push("Emergency Contact Number is required");
+    else if (!isValidPhone(formData.emergency_contact || '')) errors.push("Emergency Contact Number must be a valid PH mobile");
     return errors;
   };
 
@@ -208,7 +214,7 @@ export default function EnrollPage() {
       const capitalize = (str: string) => str ? str.trim().split(/\s+/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') : str;
 
       const normalizeSchool = (s: string) => {
-        const lower = s.trim().toLowerCase();
+        const lower = (s || '').trim().toLowerCase();
         if (lower.includes('st. john') || lower.includes('st.john') || lower.includes('st john')) return 'St. John College of Buug';
         if (lower.includes('msu') && (lower.includes('zs') || lower.includes('sibugay'))) return 'MSU - Zamboanga Sibugay';
         if (lower.includes('zppsu')) return 'ZPPSU Bayog';
@@ -271,7 +277,7 @@ export default function EnrollPage() {
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accessCode.trim()) return;
+    if (!(accessCode || '').trim()) return;
     
     setIsValidatingCode(true);
     setCodeError(null);
@@ -394,19 +400,19 @@ export default function EnrollPage() {
       label={`${label} ${required ? '*' : ''}`}
       type={type}
       placeholder={placeholder}
-      value={(formData as any)[field]}
+      value={(formData as any)[field] || ''}
       onChange={e => {
         let value = e.target.value;
 
         // Middle initial: only keep first letter, remove dots
         if (field === 'middle_initial') {
-          value = value.replace(/\./g, '').trim();
+          value = (value || '').replace(/\./g, '').trim();
           if (value.length > 1) value = value.charAt(0).toUpperCase();
         }
 
         // Beneficiary & emergency names: remove dots automatically
         if (field === 'beneficiary_name' || field === 'emergency_name') {
-          value = value.replace(/\./g, '');
+          value = (value || '').replace(/\./g, '');
         }
 
         updateForm({ [field]: value });
@@ -415,7 +421,7 @@ export default function EnrollPage() {
       autoComplete={autoComplete}
       data-1p-ignore="true"
       data-lpignore="true"
-      className={required && !(formData as any)[field].trim() ? "border-rotc-danger/30" : ""}
+      className={required && !((formData as any)[field] || '').trim() ? "border-rotc-danger/30" : ""}
     />
   );
 
@@ -479,7 +485,7 @@ export default function EnrollPage() {
                       'w-full rounded-lg bg-rotc-bg border text-rotc-text',
                       'px-3 py-2.5 text-sm transition-all duration-150',
                       'focus:outline-none focus:ring-2 focus:ring-rotc-accent/50 focus:border-rotc-accent',
-                      !formData.school.trim() ? 'border-rotc-danger/30' : 'border-rotc-border'
+                      !((formData.school || '')).trim() ? 'border-rotc-danger/30' : 'border-rotc-border'
                     ].join(' ')}
                   >
                     <option value="">Select school</option>

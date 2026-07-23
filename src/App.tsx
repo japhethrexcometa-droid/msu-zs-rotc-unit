@@ -47,6 +47,9 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LoginPage />} />
+        <Route path="/enroll" element={<Navigate to="/enroll/cadet" replace />} />
+        <Route path="/enrollment" element={<Navigate to="/enroll/cadet" replace />} />
+        <Route path="/enrollment/:role" element={<Navigate to="/enroll/cadet" replace />} />
         <Route path="/enroll/:role" element={<EnrollPage />} />
         <Route path="/enroll/success" element={<SuccessPage />} />
 
