@@ -150,12 +150,18 @@ export default function CadetsPage() {
         body: JSON.stringify({ id_number })
       })
       const json = await res.json()
-      if (!res.ok || !json.success) throw new Error(json.error || 'Failed to recover account')
+      if (!res.ok || !json.success) {
+        if (json.debug) {
+          console.error('Ghost Recovery Debug:', json.debug)
+          throw new Error((json.error || 'Failed to recover account') + ' (Check console for debug info)')
+        }
+        throw new Error(json.error || 'Failed to recover account')
+      }
       
       toast.success(`Account recovered successfully! ID: ${id_number} is now the default password.`)
       setGhostData(prev => prev ? { ...prev, ghosts: prev.ghosts.filter((g: any) => g.id_number !== id_number) } : null)
     } catch (err: any) {
-      toast.error(err.message)
+      toast.error(err.message, { duration: 5000 })
     } finally {
       setIsRecovering(null)
     }
