@@ -19,15 +19,15 @@ export default async function handler(req, res) {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const authHeader = req.headers.authorization;
+    if (!authHeader) throw new Error("Missing Authorization Header");
+    
+    const token = authHeader.replace('Bearer ', '').trim();
 
-    const supabaseUserClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '', {
-      global: { headers: { Authorization: authHeader } }
-    });
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify Admin Access
-    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
-    if (authError || !user) throw new Error("Unauthorized");
+    // Verify Admin Access securely using Admin client
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) throw new Error("Unauthorized Token");
 
     const { data: userData } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
     if (!userData || (userData.role !== 'admin' && userData.role !== 'officer')) {
