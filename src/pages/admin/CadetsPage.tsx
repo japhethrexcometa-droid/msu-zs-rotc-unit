@@ -140,7 +140,7 @@ export default function CadetsPage() {
       const token = sessionData.session?.access_token
       if (!token) throw new Error("Unauthorized: Session expired.")
 
-      const res = await fetch('/api/admin/recover-ghost', {
+      const res = await fetch('/api/admin/enrollment-archives', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
