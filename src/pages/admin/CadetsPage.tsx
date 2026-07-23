@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { Search, Edit, Trash2, Key, Users, ChevronLeft, ChevronRight, Activity } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
+import { supabase } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
 
