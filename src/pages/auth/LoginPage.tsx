@@ -52,8 +52,8 @@ export default function LoginPage() {
     try {
       const session = await loginUser(data.idNumber, data.password);
       navigate(ROLE_HOME[session.role], { replace: true });
-    } catch (err) {
-      if (err instanceof AuthError) {
+    } catch (err: any) {
+      if (err?.name === 'AuthError') {
         setLoginError(err.message);
       } else {
         setLoginError("An unexpected error occurred. Please try again.");

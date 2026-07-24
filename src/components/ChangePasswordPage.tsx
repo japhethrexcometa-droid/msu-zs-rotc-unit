@@ -63,8 +63,8 @@ export default function ChangePasswordPage() {
       await changePassword(data.currentPassword, data.newPassword);
       setSuccess(true);
       reset();
-    } catch (err) {
-      if (err instanceof AuthError) {
+    } catch (err: any) {
+      if (err?.name === 'AuthError') {
         setError(err.message);
       } else {
         setError("An unexpected error occurred. Please try again.");

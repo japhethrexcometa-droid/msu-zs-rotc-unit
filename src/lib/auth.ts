@@ -68,8 +68,8 @@ export async function loginUser(idNumber: string, password: string): Promise<Use
     useAuthStore.getState().login(session)
     return useAuthStore.getState().session!
 
-  } catch (err) {
-    if (err instanceof AuthError) throw err
+  } catch (err: any) {
+    if (err?.name === 'AuthError') throw err
     throw new AuthError('An unexpected error occurred.', 'SERVER_ERROR')
   }
 }
@@ -105,8 +105,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
       throw new AuthError('Failed to update password. Please try again.', 'SERVER_ERROR')
     }
 
-  } catch (err) {
-    if (err instanceof AuthError) throw err
+  } catch (err: any) {
+    if (err?.name === 'AuthError') throw err
     throw new AuthError('An unexpected error occurred.', 'SERVER_ERROR')
   }
 }
